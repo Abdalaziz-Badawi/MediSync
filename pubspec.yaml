@@ -1,0 +1,47 @@
+name: medisync
+description: "A medication management and smart reminder app."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Local storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Utilities
+  uuid: ^4.5.1
+  intl: ^0.19.0
+
+  # Notifications & Reminders
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
+  # --- Phase 3 (deferred) ---
+  # google_sign_in: ^6.2.0
+  # googleapis: ^12.0.0
+  # googleapis_auth: ^1.4.0
+  # health: ^5.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
