@@ -5,15 +5,22 @@ import 'package:medisync/core/services/storage_service.dart';
 
 const String kThemeBoxName = 'theme_settings_box';
 const String kThemeModeKey = 'app_theme_mode';
+const String kFontScaleKey = 'app_font_scale';
 
 class AppTheme {
-  // Brand Palette: Modern Healthcare Emerald, Trust Cyan, and Comforting Indigo
+  // Brand Palette: Modern Healthcare Emerald, Trust Cyan, Comforting Indigo, and Rich Clinical Accents
   static const Color primaryTeal = Color(0xFF0D9488);
   static const Color primaryTealLight = Color(0xFF2DD4BF);
   static const Color secondaryCyan = Color(0xFF0284C7);
   static const Color secondaryCyanLight = Color(0xFF38BDF8);
   static const Color accentIndigo = Color(0xFF6366F1);
   static const Color accentIndigoLight = Color(0xFF818CF8);
+  static const Color accentViolet = Color(0xFF8B5CF6);
+  static const Color accentVioletLight = Color(0xFFA78BFA);
+  static const Color accentRose = Color(0xFFF43F5E);
+  static const Color accentRoseLight = Color(0xFFFB7185);
+  static const Color accentCoral = Color(0xFFEA580C);
+  static const Color accentCoralLight = Color(0xFFFB923C);
 
   static const Color warningAmber = Color(0xFFD97706);
   static const Color warningAmberLight = Color(0xFFFBBF24);
@@ -45,7 +52,57 @@ class AppTheme {
       isDark(context) ? const Color(0xFF243048) : const Color(0xFFF1F5F9);
 
   static Color chipSelected(BuildContext context) =>
-      isDark(context) ? primaryTealLight.withValues(alpha: 0.25) : primaryTeal.withValues(alpha: 0.15);
+      isDark(context)
+          ? primaryTealLight.withValues(alpha: 0.25)
+          : primaryTeal.withValues(alpha: 0.15);
+
+  // Shadows for Establishing Hierarchy and Field of Depth
+  static List<BoxShadow> softShadow(BuildContext context) {
+    return [
+      BoxShadow(
+        color: isDark(context)
+            ? Colors.black.withValues(alpha: 0.25)
+            : const Color(0xFF0F172A).withValues(alpha: 0.04),
+        blurRadius: 10,
+        offset: const Offset(0, 3),
+      ),
+    ];
+  }
+
+  static List<BoxShadow> elevatedShadow(BuildContext context) {
+    return [
+      BoxShadow(
+        color: isDark(context)
+            ? Colors.black.withValues(alpha: 0.4)
+            : const Color(0xFF0F172A).withValues(alpha: 0.07),
+        blurRadius: 16,
+        offset: const Offset(0, 6),
+      ),
+    ];
+  }
+
+  static List<BoxShadow> floatingShadow(BuildContext context) {
+    return [
+      BoxShadow(
+        color: isDark(context)
+            ? Colors.black.withValues(alpha: 0.6)
+            : const Color(0xFF0F172A).withValues(alpha: 0.12),
+        blurRadius: 24,
+        offset: const Offset(0, 8),
+        spreadRadius: 1,
+      ),
+    ];
+  }
+
+  static List<BoxShadow> glowShadow(Color color, {double opacity = 0.28}) {
+    return [
+      BoxShadow(
+        color: color.withValues(alpha: opacity),
+        blurRadius: 18,
+        offset: const Offset(0, 6),
+      ),
+    ];
+  }
 
   // Light Theme
   static ThemeData get lightTheme {
@@ -55,9 +112,9 @@ class AppTheme {
       titleLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 20),
       titleMedium: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 16),
       titleSmall: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w600, fontSize: 14),
-      bodyLarge: TextStyle(color: Color(0xFF0F172A), fontSize: 16),
-      bodyMedium: TextStyle(color: Color(0xFF334155), fontSize: 14),
-      bodySmall: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+      bodyLarge: TextStyle(color: Color(0xFF0F172A), fontSize: 16, height: 1.45),
+      bodyMedium: TextStyle(color: Color(0xFF334155), fontSize: 14, height: 1.4),
+      bodySmall: TextStyle(color: Color(0xFF64748B), fontSize: 12, height: 1.35),
       labelLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
     );
 
@@ -90,6 +147,9 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         centerTitle: false,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+        ),
         titleTextStyle: TextStyle(
           color: Color(0xFF0F172A),
           fontSize: 20,
@@ -99,11 +159,20 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.04),
+        shadowColor: const Color(0xFF0F172A).withValues(alpha: 0.05),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
         ),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        hourMinuteTextStyle: const TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
+        dayPeriodTextStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        dialTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        dialBackgroundColor: const Color(0xFFF1F5F9),
+        hourMinuteColor: const Color(0xFFE0F2FE),
+        hourMinuteTextColor: const Color(0xFF0369A1),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -154,9 +223,9 @@ class AppTheme {
       titleLarge: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.w700, fontSize: 20),
       titleMedium: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.w600, fontSize: 16),
       titleSmall: TextStyle(color: Color(0xFFCBD5E1), fontWeight: FontWeight.w600, fontSize: 14),
-      bodyLarge: TextStyle(color: Color(0xFFF8FAFC), fontSize: 16),
-      bodyMedium: TextStyle(color: Color(0xFFCBD5E1), fontSize: 14),
-      bodySmall: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+      bodyLarge: TextStyle(color: Color(0xFFF8FAFC), fontSize: 16, height: 1.45),
+      bodyMedium: TextStyle(color: Color(0xFFCBD5E1), fontSize: 14, height: 1.4),
+      bodySmall: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.35),
       labelLarge: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.w600),
     );
 
@@ -181,7 +250,7 @@ class AppTheme {
         onError: const Color(0xFF450A0A),
         brightness: Brightness.dark,
       ),
-      scaffoldBackgroundColor: const Color(0xFF0F172A),
+      scaffoldBackgroundColor: const Color(0xFF0B132B),
       textTheme: textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF1E293B),
@@ -189,6 +258,9 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 1,
         centerTitle: false,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+        ),
         titleTextStyle: TextStyle(
           color: Color(0xFFF8FAFC),
           fontSize: 20,
@@ -200,9 +272,18 @@ class AppTheme {
         elevation: 2,
         shadowColor: Colors.black.withValues(alpha: 0.35),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0xFF334155), width: 1),
         ),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        hourMinuteTextStyle: const TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
+        dayPeriodTextStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        dialTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        dialBackgroundColor: const Color(0xFF0F172A),
+        hourMinuteColor: const Color(0xFF0C4A6E),
+        hourMinuteTextColor: const Color(0xFF7DD3FC),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -282,4 +363,29 @@ final themeNotifierProvider =
     StateNotifierProvider<ThemeNotifier, ThemeMode>((ref) {
   final box = Hive.box(kSettingsBoxName);
   return ThemeNotifier(box);
+});
+
+// Font Scaling Accessibility Notifier
+class FontScaleNotifier extends StateNotifier<double> {
+  final Box _settingsBox;
+
+  FontScaleNotifier(this._settingsBox) : super(_loadInitialScale(_settingsBox));
+
+  static double _loadInitialScale(Box box) {
+    final raw = box.get(kFontScaleKey, defaultValue: 1.0);
+    if (raw is num) return raw.toDouble();
+    return 1.0;
+  }
+
+  void setFontScale(double scale) {
+    final clamped = scale.clamp(0.85, 1.45);
+    state = clamped;
+    _settingsBox.put(kFontScaleKey, clamped);
+  }
+}
+
+final fontScaleNotifierProvider =
+    StateNotifierProvider<FontScaleNotifier, double>((ref) {
+  final box = Hive.box(kSettingsBoxName);
+  return FontScaleNotifier(box);
 });

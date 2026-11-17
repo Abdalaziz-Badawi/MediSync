@@ -95,6 +95,17 @@ class FakeThemeNotifier extends StateNotifier<ThemeMode>
   }
 }
 
+// Test mock notifier for FontScale
+class FakeFontScaleNotifier extends StateNotifier<double>
+    implements FontScaleNotifier {
+  FakeFontScaleNotifier() : super(1.0);
+
+  @override
+  void setFontScale(double scale) {
+    state = scale;
+  }
+}
+
 // Test mock NotificationService
 class FakeNotificationService implements NotificationService {
   @override
@@ -188,6 +199,8 @@ void main() {
               .overrideWith((ref) => FakeProfileNotifier()),
           themeNotifierProvider
               .overrideWith((ref) => FakeThemeNotifier()),
+          fontScaleNotifierProvider
+              .overrideWith((ref) => FakeFontScaleNotifier()),
           notificationServiceProvider
               .overrideWithValue(FakeNotificationService()),
         ],
@@ -203,11 +216,15 @@ void main() {
     expect(find.text('Dark'), findsOneWidget);
 
     // Scroll down to reveal allergies
-    await tester.drag(find.byType(ListView).first, const Offset(0, -700));
+    await tester.scrollUntilVisible(
+      find.text('Allergies & Excipient Sensitivities'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Allergies & Excipient Sensitivities'), findsOneWidget);
-    expect(find.text('Penicillin'), findsOneWidget);
+    expect(find.text('Penicillin'), findsWidgets);
   });
 
   testWidgets('Renders Onboarding Setup Wizard with welcome step',

@@ -66,26 +66,29 @@ class MedicationsListPage extends ConsumerWidget {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               itemCount: medications.length,
               itemBuilder: (context, index) {
                 final med = medications[index];
                 return _MedicationCard(medication: med);
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-        foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const AddEditMedicationPage(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Medicine'),
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(bottom: 76),
+        child: FloatingActionButton.extended(
+          backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+          foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AddEditMedicationPage(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Add Medicine'),
+        ),
       ),
     );
   }

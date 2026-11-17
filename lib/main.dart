@@ -33,6 +33,7 @@ class MediSyncApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeNotifierProvider);
+    final fontScale = ref.watch(fontScaleNotifierProvider);
     final storage = ref.watch(storageServiceProvider);
     final isSetupCompleted = storage.isSetupCompleted();
 
@@ -42,6 +43,14 @@ class MediSyncApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(fontScale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: isSetupCompleted
           ? const MainNavigationPage()
           : const OnboardingPage(),

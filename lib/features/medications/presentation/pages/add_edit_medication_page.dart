@@ -220,9 +220,46 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       minute: int.tryParse(parts[1]) ?? 0,
     );
 
+    final isDark = AppTheme.isDark(context);
+
     final picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            timePickerTheme: TimePickerThemeData(
+              hourMinuteTextStyle: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+              ),
+              dayPeriodTextStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              dialTextStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              dialBackgroundColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              hourMinuteColor:
+                  isDark ? const Color(0xFF0C4A6E) : const Color(0xFFE0F2FE),
+              hourMinuteTextColor:
+                  isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1),
+            ),
+          ),
+          child: AnimatedScale(
+            scale: 1.12, // Substantially enlarges the clock widget & dial
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
     );
 
     if (picked != null) {

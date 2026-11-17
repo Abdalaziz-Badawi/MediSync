@@ -5,6 +5,7 @@ import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:medisync/features/profile/presentation/widgets/allergy_selector_widget.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -15,7 +16,6 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late TextEditingController _nameController;
-  late TextEditingController _newAllergyController;
 
   late String _wakeTime;
   late String _sleepTime;
@@ -25,25 +25,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _useHealthApp;
   late List<String> _allergies;
 
-  static const List<String> _commonAllergySuggestions = [
-    'Penicillin',
-    'Sulfa',
-    'Aspirin',
-    'NSAIDs',
-    'Dairy / Lactose',
-    'Peanut Oil',
-    'Gelatin',
-    'Alpha-gal',
-    'Sesame',
-    'Egg',
-  ];
+  // Privacy Shield / Sneak Peek Prevention
+  bool _isPrivacyMaskActive = false;
 
   @override
   void initState() {
     super.initState();
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
-    _newAllergyController = TextEditingController();
 
     _wakeTime = profile.wakeTime;
     _sleepTime = profile.sleepTime;
@@ -57,7 +46,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _newAllergyController.dispose();
     super.dispose();
   }
 
@@ -74,6 +62,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final result = await showTimePicker(
       context: context,
       initialTime: initial,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            timePickerTheme: TimePickerThemeData(
+              hourMinuteTextStyle: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+              dayPeriodTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              dialTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            ),
+          ),
+          child: AnimatedScale(
+            scale: 1.12, // Substantially enlarges the clock widget & dial
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
     );
 
     if (result != null) {
@@ -85,12 +91,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
-  void _addAllergy([String? specific]) {
-    final text = specific ?? _newAllergyController.text.trim();
-    if (text.isNotEmpty && !_allergies.contains(text)) {
+  void _toggleAllergy(String allergy) {
+    setState(() {
+      if (_allergies.contains(allergy)) {
+        _allergies.remove(allergy);
+      } else {
+        _allergies.add(allergy);
+      }
+    });
+  }
+
+  void _addCustomAllergy(String custom) {
+    final trimmed = custom.trim();
+    if (trimmed.isNotEmpty && !_allergies.contains(trimmed)) {
       setState(() {
-        _allergies.add(text);
-        if (specific == null) _newAllergyController.clear();
+        _allergies.add(trimmed);
       });
     }
   }
@@ -119,9 +134,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
+  String _maskText(String text) {
+    if (!_isPrivacyMaskActive) return text;
+    if (text.isEmpty) return '••••••';
+    return '${text[0]}${'•' * (text.length - 1).clamp(4, 10)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentThemeMode = ref.watch(themeNotifierProvider);
+    final fontScale = ref.watch(fontScaleNotifierProvider);
     final isDark = AppTheme.isDark(context);
 
     return Scaffold(
@@ -134,6 +156,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
         ),
         actions: [
+          // Sneak Peek Privacy Toggle in AppBar
+          IconButton(
+            tooltip: _isPrivacyMaskActive ? 'Disable Privacy Mask' : 'Enable Privacy Mask',
+            icon: Icon(
+              _isPrivacyMaskActive ? Icons.visibility_off : Icons.visibility,
+              color: _isPrivacyMaskActive
+                  ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
+                  : AppTheme.textSecondary(context),
+            ),
+            onPressed: () {
+              setState(() {
+                _isPrivacyMaskActive = !_isPrivacyMaskActive;
+              });
+            },
+          ),
           TextButton(
             onPressed: _saveProfile,
             child: Text(
@@ -148,60 +185,126 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         children: [
-          // Privacy Guarantee Card
+          // ==========================================
+          // SECTION 1: IDENTITY & SNEAK-PEEK PRIVACY SHIELD
+          // ==========================================
+          _buildSectionHeader(
+            icon: Icons.security_rounded,
+            title: '1. Identity & Privacy Shield',
+            subtitle: 'Offline security with sneak-peek masking for public spaces',
+          ),
+          const SizedBox(height: 8),
           Card(
-            color: isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: isDark ? const Color(0xFF047857) : const Color(0xFFA7F3D0),
-              ),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  Icon(
-                    Icons.shield_outlined,
-                    color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
-                    size: 28,
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                        child: Text(
+                          _nameController.text.isNotEmpty
+                              ? _nameController.text[0].toUpperCase()
+                              : 'U',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _maskText(_nameController.text),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Local Device Storage • 100% Encrypted',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Privacy Toggle Button
+                      FilterChip(
+                        selected: _isPrivacyMaskActive,
+                        selectedColor: isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                        side: BorderSide(
+                          color: _isPrivacyMaskActive
+                              ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
+                              : AppTheme.cardBorder(context),
+                        ),
+                        avatar: Icon(
+                          _isPrivacyMaskActive ? Icons.lock : Icons.lock_open,
+                          size: 14,
+                          color: _isPrivacyMaskActive
+                              ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
+                              : AppTheme.textSecondary(context),
+                        ),
+                        label: Text(
+                          _isPrivacyMaskActive ? 'Masked' : 'Public Safe',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _isPrivacyMaskActive
+                                ? (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309))
+                                : AppTheme.textSecondary(context),
+                          ),
+                        ),
+                        onSelected: (val) {
+                          setState(() {
+                            _isPrivacyMaskActive = val;
+                          });
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Privacy First: All data is stored strictly on your local device. Zero third-party cloud trackers.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFFD1FAE5) : const Color(0xFF1B5E20),
-                        fontWeight: FontWeight.w600,
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _nameController,
+                    obscureText: _isPrivacyMaskActive,
+                    style: TextStyle(color: AppTheme.textPrimary(context)),
+                    decoration: InputDecoration(
+                      labelText: 'Your Name',
+                      hintText: 'Enter name or nickname',
+                      prefixIcon: Icon(
+                        Icons.person_outline,
+                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                       ),
                     ),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // User Name
-          TextField(
-            controller: _nameController,
-            style: TextStyle(color: AppTheme.textPrimary(context)),
-            decoration: InputDecoration(
-              labelText: 'Your Name',
-              labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
-              prefixIcon: Icon(
-                Icons.person_outline,
-                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-              ),
-            ),
-          ),
           const SizedBox(height: 20),
 
-          // Theme / Appearance Card (Light & Dark Mode)
+          // ==========================================
+          // SECTION 2: ACCESSIBILITY, FONT SCALE & THEME
+          // ==========================================
+          _buildSectionHeader(
+            icon: Icons.text_fields_rounded,
+            title: '2. Typography & Appearance',
+            subtitle: 'Dynamic font scaling and circadian display themes',
+          ),
+          const SizedBox(height: 8),
           Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -210,20 +313,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Text(
                     'Appearance & Theme',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary(context),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Choose between Crisp Light mode and Eye-Care Night Dark mode.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary(context),
-                    ),
+                    'Select between high-contrast daylight theme and eye-care night theme.',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
                     segments: const [
                       ButtonSegment(
@@ -244,10 +344,74 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ],
                     selected: {currentThemeMode},
                     onSelectionChanged: (set) {
-                      ref
-                          .read(themeNotifierProvider.notifier)
-                          .setThemeMode(set.first);
+                      ref.read(themeNotifierProvider.notifier).setThemeMode(set.first);
                     },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Font Size Scaling Functionality
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Font Size & Text Scaling',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${(fontScale * 100).toInt()}% Scale',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Enlarge text size across the entire application for maximum readability.',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Text('A', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Expanded(
+                        child: Slider(
+                          value: fontScale,
+                          min: 0.85,
+                          max: 1.45,
+                          divisions: 6,
+                          label: '${(fontScale * 100).toInt()}%',
+                          onChanged: (val) {
+                            ref.read(fontScaleNotifierProvider.notifier).setFontScale(val);
+                          },
+                        ),
+                      ),
+                      const Text('A', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  // Font Size Quick Presets
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildFontPresetChip(label: 'Compact', scale: 0.9, current: fontScale),
+                      _buildFontPresetChip(label: 'Standard', scale: 1.0, current: fontScale),
+                      _buildFontPresetChip(label: 'Comfort', scale: 1.15, current: fontScale),
+                      _buildFontPresetChip(label: 'Large', scale: 1.30, current: fontScale),
+                      _buildFontPresetChip(label: 'X-Large', scale: 1.45, current: fontScale),
+                    ],
                   ),
                 ],
               ),
@@ -255,8 +419,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 20),
 
-          // Notification & Reminder Testing Card
+          // ==========================================
+          // SECTION 3: SOUNDS, VIBRATION & ALERTS
+          // ==========================================
+          _buildSectionHeader(
+            icon: Icons.notifications_active_rounded,
+            title: '3. Alerts, Sound & Haptics',
+            subtitle: 'High-priority clinical reminder pulses and audible chimes',
+          ),
+          const SizedBox(height: 8),
           Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -265,55 +438,49 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Row(
                     children: [
                       Icon(
-                        Icons.notifications_active_outlined,
+                        Icons.volume_up_outlined,
                         color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                         size: 22,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Reminders, Sound & Vibration',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary(context),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Audible Chime & Vibration Pulse',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            Text(
+                              'Unique cadence: [350ms, 150ms pause, 350ms, 650ms alert]',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Test alarms and notification vibration rhythm on this device.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   OutlinedButton.icon(
                     onPressed: () async {
-                      await ref
-                          .read(notificationServiceProvider)
-                          .showTestNotification();
+                      await ref.read(notificationServiceProvider).showTestNotification();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text(
-                              '🔔 Test reminder with audible chime & vibration triggered!',
-                            ),
+                            content: const Text('🔔 Test alarm triggered with audible chime & clinical vibration!'),
                             backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                           ),
                         );
                       }
                     },
-                    icon: Icon(
-                      Icons.alarm,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                    ),
+                    icon: Icon(Icons.alarm, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                     label: Text(
                       'Test Notification, Sound & Vibration',
-                      style: TextStyle(
-                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                      ),
+                      style: TextStyle(color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                     ),
                   ),
                 ],
@@ -322,34 +489,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 20),
 
-          // Daily Routine Pickers
+          // ==========================================
+          // SECTION 4: CIRCADIAN BIOLOGICAL ROUTINE
+          // ==========================================
+          _buildSectionHeader(
+            icon: Icons.access_time_filled_rounded,
+            title: '4. Daily Routine & Meal Schedule',
+            subtitle: 'Smart timing engine places doses 20 min post-meal for comfort',
+          ),
+          const SizedBox(height: 8),
           Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Daily Routine Schedule',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Used by the smart scheduler to arrange morning, mealtime, and bedtime medicines seamlessly.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   _RoutineTimeRow(
                     icon: Icons.wb_sunny_outlined,
                     label: 'Wake Up Time',
-                    time: _wakeTime,
+                    time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
                     onTap: () => _pickTime(
                       currentTime: _wakeTime,
                       onPicked: (t) => _wakeTime = t,
@@ -359,7 +517,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _RoutineTimeRow(
                     icon: Icons.breakfast_dining_outlined,
                     label: 'Breakfast Time',
-                    time: _breakfastTime,
+                    time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
                     onTap: () => _pickTime(
                       currentTime: _breakfastTime,
                       onPicked: (t) => _breakfastTime = t,
@@ -369,7 +527,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _RoutineTimeRow(
                     icon: Icons.lunch_dining_outlined,
                     label: 'Lunch Time',
-                    time: _lunchTime,
+                    time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
                     onTap: () => _pickTime(
                       currentTime: _lunchTime,
                       onPicked: (t) => _lunchTime = t,
@@ -379,7 +537,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _RoutineTimeRow(
                     icon: Icons.dinner_dining_outlined,
                     label: 'Dinner Time',
-                    time: _dinnerTime,
+                    time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
                     onTap: () => _pickTime(
                       currentTime: _dinnerTime,
                       onPicked: (t) => _dinnerTime = t,
@@ -389,7 +547,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _RoutineTimeRow(
                     icon: Icons.bedtime_outlined,
                     label: 'Sleep / Bedtime',
-                    time: _sleepTime,
+                    time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
                     onTap: () => _pickTime(
                       currentTime: _sleepTime,
                       onPicked: (t) => _sleepTime = t,
@@ -401,161 +559,150 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 20),
 
-          // Allergies Section
+          // ==========================================
+          // SECTION 5: CLINICAL ALLERGIES & EXCIPIENTS
+          // ==========================================
+          _buildSectionHeader(
+            icon: Icons.health_and_safety_rounded,
+            title: 'Allergies & Excipient Sensitivities',
+            subtitle: 'Cross-checks drugs, food fillers (lactose), additives & latex',
+          ),
+          const SizedBox(height: 8),
           Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: AllergySelectorWidget(
+                selectedAllergies: _allergies,
+                onToggleAllergy: _toggleAllergy,
+                onAddCustomAllergy: _addCustomAllergy,
+                isMasked: _isPrivacyMaskActive,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ==========================================
+          // SECTION 6: SYSTEM & SETUP WIZARD
+          // ==========================================
+          _buildSectionHeader(
+            icon: Icons.settings_backup_restore_rounded,
+            title: '6. System & App Configuration',
+            subtitle: 'Re-open setup onboarding or reset preferences',
+          ),
+          const SizedBox(height: 8),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.shield,
-                        color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Allergies & Excipient Sensitivities',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Cross-checks both active drugs and inactive excipients (lactose, peanut/sesame oils, gelatin, gluten).',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary(context),
-                    ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Re-open Setup Wizard'),
                   ),
                   const SizedBox(height: 12),
-                  if (_allergies.isEmpty)
-                    Text(
-                      'No allergies entered yet.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        color: AppTheme.textMuted(context),
-                      ),
-                    )
-                  else
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: _allergies.map((allergy) {
-                        return Chip(
-                          backgroundColor: isDark
-                              ? const Color(0xFF450A0A)
-                              : const Color(0xFFFEE2E2),
-                          side: BorderSide(
-                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                          ),
-                          label: Text(
-                            allergy,
-                            style: TextStyle(
-                              color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          deleteIconColor: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                          onDeleted: () {
-                            setState(() {
-                              _allergies.remove(allergy);
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  const SizedBox(height: 14),
-
-                  // Quick suggestions from taxonomy
-                  Text(
-                    'Quick Add from Clinical Taxonomy:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: _commonAllergySuggestions
-                        .where((s) => !_allergies.contains(s))
-                        .map((suggestion) {
-                      return ActionChip(
-                        label: Text(suggestion),
-                        labelStyle: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textPrimary(context),
-                        ),
-                        backgroundColor: AppTheme.surfaceVariant(context),
-                        side: BorderSide(color: AppTheme.cardBorder(context)),
-                        onPressed: () => _addAllergy(suggestion),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _newAllergyController,
-                          style: TextStyle(color: AppTheme.textPrimary(context)),
-                          decoration: InputDecoration(
-                            labelText: 'Add Custom Allergy / Excipient',
-                            hintText: 'e.g. Penicillin, Lactose, Gelatin',
-                            isDense: true,
-                            labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
-                          ),
-                          onSubmitted: (_) => _addAllergy(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _addAllergy(),
-                        style: IconButton.styleFrom(
-                          backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                          foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
-                        ),
-                      ),
-                    ],
+                  ElevatedButton(
+                    onPressed: _saveProfile,
+                    child: const Text('Save Profile & Routine'),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
-
-          // Re-run Onboarding button
-          OutlinedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const OnboardingPage()),
-              );
-            },
-            icon: const Icon(Icons.restart_alt),
-            label: const Text('Re-open Setup Wizard'),
-          ),
-          const SizedBox(height: 20),
-
-          ElevatedButton(
-            onPressed: _saveProfile,
-            child: const Text('Save Profile & Routine'),
-          ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 80),
         ],
       ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final isDark = AppTheme.isDark(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppTheme.primaryTealLight.withValues(alpha: 0.15)
+                  : AppTheme.primaryTeal.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textSecondary(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFontPresetChip({
+    required String label,
+    required double scale,
+    required double current,
+  }) {
+    final isSelected = (current - scale).abs() < 0.05;
+    final isDark = AppTheme.isDark(context);
+
+    return ChoiceChip(
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected
+            ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+            : AppTheme.textPrimary(context),
+      ),
+      selected: isSelected,
+      selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+      backgroundColor: AppTheme.surfaceVariant(context),
+      side: BorderSide(
+        color: isSelected
+            ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+            : AppTheme.cardBorder(context),
+      ),
+      onSelected: (_) {
+        ref.read(fontScaleNotifierProvider.notifier).setFontScale(scale);
+      },
     );
   }
 }

@@ -101,112 +101,138 @@ class _HomePageState extends ConsumerState<HomePage> {
           med.mealCondition != null;
     }).toList();
 
+    // Human-readable date string avoiding intl specifier issues
     final formattedHeaderDate = DateFormat('EEEE, MMMM d').format(_selectedDate);
+    final formattedScheduleTitle =
+        isToday ? "Today's Schedule" : "${DateFormat('EEEE, MMM d').format(_selectedDate)} Schedule";
     final weekDates = _getCurrentWeekDates();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              formattedHeaderDate,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textSecondary(context),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(68),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+            boxShadow: AppTheme.softShadow(context),
+            border: Border(
+              bottom: BorderSide(
+                color: AppTheme.cardBorder(context),
+                width: 1,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              'Hello, ${profile.name.split(' ').first}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary(context),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Add Medication',
-            icon: Icon(
-              Icons.add_circle,
-              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-              size: 28,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AddEditMedicationPage(),
-                ),
-              );
-            },
           ),
-        ],
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        formattedHeaderDate,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary(context),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Hello, ${profile.name.split(' ').first}',
+                        style: TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    tooltip: 'Add Medication',
+                    icon: Icon(
+                      Icons.add_circle,
+                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      size: 30,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddEditMedicationPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         children: [
-          // Weekly Schedule Day Selector
-          _buildWeeklyDaySelector(weekDates, now),
+          // 1. Weekly Schedule Day Selector with Field of Depth
+          _buildWeeklyDaySelector(weekDates, now, medications),
           const SizedBox(height: 16),
 
-          // Allergy Alert Banner (if any)
+          // 2. Critical Allergy Alert Banner (if flagged)
           if (criticalFlags.isNotEmpty) ...[
-            Card(
-              color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
                   color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
                   width: 1.5,
                 ),
+                boxShadow: AppTheme.glowShadow(AppTheme.dangerRed, opacity: 0.2),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.warning_rounded,
-                      color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Critical Allergy Alert Flagged',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                              fontSize: 15,
-                            ),
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_rounded,
+                    color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Critical Allergy Alert Flagged',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                            fontSize: 15,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            criticalFlags.first.message,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.textPrimary(context),
-                            ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          criticalFlags.first.message,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textPrimary(context),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
           ],
 
-          // Next Dose Countdown Widget (shown on current day)
+          // 3. Hero Next Dose Countdown Widget (shown on current day)
           if (isToday) ...[
             NextDoseCountdownCard(
               medications: medications,
@@ -219,87 +245,89 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 16),
           ],
 
-          // Daily Progress Card
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [const Color(0xFF0F766E), const Color(0xFF134E4A)]
-                      : [const Color(0xFF0D9488), const Color(0xFF115E59)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+          // 4. Daily Adherence Progress Card (Layered Gradient & Glow)
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF0F766E), const Color(0xFF134E4A)]
+                    : [const Color(0xFF0D9488), const Color(0xFF115E59)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        isToday ? "Today's Schedule" : DateFormat('EEEE Schedule').format(_selectedDate),
+              boxShadow: AppTheme.glowShadow(
+                isDark ? const Color(0xFF14B8A6) : const Color(0xFF0D9488),
+                opacity: 0.22,
+              ),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      formattedScheduleTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '$takenCount / $totalDoses Taken',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$takenCount / $totalDoses Taken',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 10,
-                      backgroundColor: Colors.white.withValues(alpha: 0.25),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5EEAD4)),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: Colors.white.withValues(alpha: 0.25),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5EEAD4)),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    totalDoses == 0
-                        ? 'No medications scheduled for this day.'
-                        : progress == 1.0
-                            ? 'Outstanding! All scheduled doses taken.'
-                            : '${totalDoses - takenCount} dose(s) remaining for this day.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontSize: 13,
-                    ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  totalDoses == 0
+                      ? 'No medications scheduled for this day.'
+                      : progress == 1.0
+                          ? 'Outstanding! All scheduled doses taken.'
+                          : '${totalDoses - takenCount} dose(s) remaining for this day.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.94),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
 
-          // Companion Meal Coordination Banner (if applicable)
+          // 5. Smart Companion Meal Coordination Banner
           if (mealLinkedDoses.isNotEmpty) ...[
-            _buildMealCoordinationBanner(mealLinkedDoses, profile),
+            _buildMealCoordinationBanner(mealLinkedDoses),
             const SizedBox(height: 20),
           ],
 
-          // Timeline Header
+          // 6. Timeline Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -311,38 +339,60 @@ class _HomePageState extends ConsumerState<HomePage> {
                   color: AppTheme.textPrimary(context),
                 ),
               ),
-              Text(
-                'Sync: ${profile.useHealthApp ? 'Samsung Health' : 'Smart Local'}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary(context),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceVariant(context),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.cardBorder(context)),
+                ),
+                child: Text(
+                  'Local Safe Storage',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary(context),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Dose Timeline Items
+          // 7. Dose Timeline Items
           if (selectedDayDoses.isEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor(context),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.cardBorder(context)),
+              ),
               child: Center(
                 child: Column(
                   children: [
                     Icon(
                       Icons.check_circle_outline,
-                      size: 60,
-                      color: AppTheme.textMuted(context),
+                      size: 54,
+                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'No medication doses due on this day',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
                         color: AppTheme.textPrimary(context),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Select another day on the calendar or add a new schedule.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
+                    ),
+                    const SizedBox(height: 14),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -374,22 +424,28 @@ class _HomePageState extends ConsumerState<HomePage> {
                 },
               ),
           ],
-          const SizedBox(height: 30),
+          // Extra bottom padding to ensure content is fully clear of the floating bottom bar
+          const SizedBox(height: 90),
         ],
       ),
     );
   }
 
-  // 7-Day Weekly Schedule Selector
-  Widget _buildWeeklyDaySelector(List<DateTime> weekDates, DateTime now) {
+  // 7-Day Weekly Schedule Selector with Active Day Dot Indicators
+  Widget _buildWeeklyDaySelector(
+    List<DateTime> weekDates,
+    DateTime now,
+    List<Medication> medications,
+  ) {
     final isDark = AppTheme.isDark(context);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
         color: AppTheme.cardColor(context),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppTheme.cardBorder(context)),
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -399,6 +455,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           final dayAbbr = DateFormat('E').format(date).substring(0, 3);
           final dayNum = date.day.toString();
 
+          // Check if any medication is active on this day
+          final hasMeds = medications.any((m) => m.isActiveOn(date));
           final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
 
           return GestureDetector(
@@ -408,7 +466,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               });
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected
@@ -416,9 +475,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                     : (isTodayDate
                         ? (isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1))
                         : Colors.transparent),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
                 border: isTodayDate && !isSelected
                     ? Border.all(color: activeColor, width: 1.5)
+                    : null,
+                boxShadow: isSelected
+                    ? AppTheme.glowShadow(activeColor, opacity: 0.3)
                     : null,
               ),
               child: Column(
@@ -437,11 +499,25 @@ class _HomePageState extends ConsumerState<HomePage> {
                   Text(
                     dayNum,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: isSelected
                           ? (isDark ? const Color(0xFF042F2E) : Colors.white)
                           : AppTheme.textPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Dose Indicator Dot
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: hasMeds
+                          ? (isSelected
+                              ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                              : (isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan))
+                          : Colors.transparent,
                     ),
                   ),
                 ],
@@ -454,86 +530,86 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   // Meal Coordination Companion Card
-  Widget _buildMealCoordinationBanner(List<DoseItem> mealDoses, dynamic profile) {
+  Widget _buildMealCoordinationBanner(List<DoseItem> mealDoses) {
     final isDark = AppTheme.isDark(context);
 
-    return Card(
-      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFBBF7D0),
         ),
+        boxShadow: AppTheme.softShadow(context),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.restaurant_menu,
-                  size: 20,
-                  color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Smart Meal Coordination',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary(context),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Your medications are arranged 20 minutes after your meal routine to protect your stomach and ensure seamless absorption without life interruption:',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.restaurant_menu,
+                size: 20,
+                color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
               ),
+              const SizedBox(width: 8),
+              Text(
+                'Smart Meal Coordination',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your medications are arranged 20 minutes after your meal routine to protect your stomach and ensure seamless absorption without life interruption:',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondary(context),
+              height: 1.35,
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: mealDoses.map((d) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF243048) : Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: mealDoses.map((d) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF243048) : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.alarm,
+                      size: 13,
+                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.alarm,
-                        size: 13,
-                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                    const SizedBox(width: 4),
+                    Text(
+                      '${d.medication.name} at ${d.time} (post-meal)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary(context),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${d.medication.name} at ${d.time} (post-meal)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -556,21 +632,21 @@ class _DoseTimelineCard extends StatelessWidget {
     final isTaken = dose.isTaken;
     final isDark = AppTheme.isDark(context);
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: isTaken ? 0.5 : (isDark ? 2 : 1),
-      color: isTaken
-          ? (isDark ? const Color(0xFF141D2B) : const Color(0xFFF1F5F9))
-          : AppTheme.cardColor(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppTheme.cardBorder(context)),
+      decoration: BoxDecoration(
+        color: isTaken
+            ? (isDark ? const Color(0xFF141D2B) : const Color(0xFFF1F5F9))
+            : AppTheme.cardColor(context),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.cardBorder(context)),
+        boxShadow: isTaken ? null : AppTheme.softShadow(context),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            // Time Badge
+            // Time Badge with subtle glow
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
@@ -579,7 +655,7 @@ class _DoseTimelineCard extends StatelessWidget {
                     : (isDark
                         ? AppTheme.primaryTealLight.withValues(alpha: 0.18)
                         : const Color(0xFFCCFBF1)),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 dose.time,
@@ -652,7 +728,7 @@ class _DoseTimelineCard extends StatelessWidget {
                 color: isTaken
                     ? (isDark ? AppTheme.successGreenLight : AppTheme.successGreen)
                     : AppTheme.textMuted(context),
-                size: 28,
+                size: 30,
               ),
               onPressed: onToggle,
             ),
@@ -677,20 +753,20 @@ class _DoseTimelineCard extends StatelessWidget {
         : (isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
         color: tagBg,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: tagColor),
+          Icon(icon, size: 12, color: tagColor),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               color: tagColor,
             ),
