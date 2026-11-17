@@ -403,15 +403,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ],
                   ),
                   // Font Size Quick Presets
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildFontPresetChip(label: 'Compact', scale: 0.9, current: fontScale),
-                      _buildFontPresetChip(label: 'Standard', scale: 1.0, current: fontScale),
-                      _buildFontPresetChip(label: 'Comfort', scale: 1.15, current: fontScale),
-                      _buildFontPresetChip(label: 'Large', scale: 1.30, current: fontScale),
-                      _buildFontPresetChip(label: 'X-Large', scale: 1.45, current: fontScale),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        _buildFontPresetChip(label: 'Compact', scale: 0.9, current: fontScale),
+                        const SizedBox(width: 6),
+                        _buildFontPresetChip(label: 'Standard', scale: 1.0, current: fontScale),
+                        const SizedBox(width: 6),
+                        _buildFontPresetChip(label: 'Comfort', scale: 1.15, current: fontScale),
+                        const SizedBox(width: 6),
+                        _buildFontPresetChip(label: 'Large', scale: 1.30, current: fontScale),
+                        const SizedBox(width: 6),
+                        _buildFontPresetChip(label: 'X-Large', scale: 1.45, current: fontScale),
+                      ],
+                    ),
                   ),
                 ],
               ),
