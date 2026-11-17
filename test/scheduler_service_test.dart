@@ -5,6 +5,7 @@ import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
 import 'package:medisync/core/models/side_effect.dart';
 import 'package:medisync/core/models/user_profile.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 
 void main() {
@@ -206,7 +207,7 @@ void main() {
       expect(every3DaysMed.isActiveOn(DateTime(2026, 11, 4)), true); // day 3
     });
 
-    test('Medication DoseStatus records and tracks Taken, Delayed, and Missed states', () {
+    test('Medication DoseStatus records and tracks Taken, Delayed, Missed, and Not-Needed states', () {
       final med = Medication(
         id: 'med_test_status',
         name: 'Lipitor',
@@ -217,7 +218,7 @@ void main() {
         startDate: DateTime(2026, 11, 1),
         doseLog: const {
           '2026-11-17': ['08:00:taken', '20:00:delayed'],
-          '2026-11-16': ['08:00:missed'],
+          '2026-11-16': ['08:00:missed', '20:00:notNeeded'],
           '2026-11-15': ['08:00'], // legacy format -> defaults to taken
         },
       );
@@ -226,8 +227,50 @@ void main() {
       expect(med.getDoseStatus(targetDate, '08:00'), DoseStatus.taken);
       expect(med.getDoseStatus(targetDate, '20:00'), DoseStatus.delayed);
       expect(med.getDoseStatus(DateTime(2026, 11, 16), '08:00'), DoseStatus.missed);
+      expect(med.getDoseStatus(DateTime(2026, 11, 16), '20:00'), DoseStatus.notNeeded);
       expect(med.getDoseStatus(DateTime(2026, 11, 15), '08:00'), DoseStatus.taken);
       expect(med.getDoseStatus(targetDate, '12:00'), DoseStatus.pending);
+
+      // Continuity Stats
+      final stats = med.continuityStats;
+      expect(stats['taken'], 2);
+      expect(stats['delayed'], 1);
+      expect(stats['missed'], 1);
+      expect(stats['notNeeded'], 1);
+
+      // Last taken date calculation
+      expect(med.lastTakenDateTime, DateTime(2026, 11, 17, 20, 0));
+    });
+
+    test('DeviceIntegrationService produces offline ICS and patient continuity report', () {
+      final med = Medication(
+        id: 'med_test_rpt',
+        name: 'Synthroid',
+        dosage: '50mcg',
+        form: MedicationForm.pill,
+        timesPerDay: 1,
+        scheduledTimes: const ['07:00'],
+        startDate: DateTime(2026, 11, 1),
+        foodRestrictions: const ['Take on empty stomach 30-60m before breakfast'],
+        doseLog: const {
+          '2026-11-17': ['07:00:taken'],
+        },
+      );
+
+      final service = DeviceIntegrationService();
+      final ics = service.generateIcsCalendar([med]);
+      expect(ics.contains('BEGIN:VCALENDAR'), true);
+      expect(ics.contains('Take Synthroid (50mcg)'), true);
+      expect(ics.contains('END:VCALENDAR'), true);
+
+      final rpt = service.generateContinuityReport(
+        medications: [med],
+        profile: testProfile,
+      );
+      expect(rpt.contains('MEDISYNC CLINICAL CONTINUITY'), true);
+      expect(rpt.contains('Synthroid'), true);
+      expect(rpt.contains('Penicillin'), true);
+      expect(rpt.contains('100% On-Device Local Encrypted Storage'), true);
     });
 
     test('MedicinesDatabase supplies evidence-based food & dietary restrictions', () {

@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/pages/home_page.dart';
 import 'package:medisync/features/medications/presentation/pages/medications_list_page.dart';
 import 'package:medisync/features/profile/presentation/pages/profile_page.dart';
+import 'package:medisync/features/records/presentation/pages/records_page.dart';
 
-class MainNavigationPage extends StatefulWidget {
+final mainNavIndexProvider = StateProvider<int>((ref) => 0);
+
+class MainNavigationPage extends ConsumerStatefulWidget {
   const MainNavigationPage({super.key});
 
   @override
-  State<MainNavigationPage> createState() => _MainNavigationPageState();
+  ConsumerState<MainNavigationPage> createState() => _MainNavigationPageState();
 }
 
-class _MainNavigationPageState extends State<MainNavigationPage> {
+class _MainNavigationPageState extends ConsumerState<MainNavigationPage> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
     HomePage(),
     MedicationsListPage(),
+    RecordsPage(),
     ProfilePage(),
   ];
 
@@ -62,7 +67,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 68,
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xF2151E2E) : const Color(0xF9FFFFFF),
             borderRadius: BorderRadius.circular(34),
@@ -91,7 +96,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ...AppTheme.floatingShadow(context),
             ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -106,11 +111,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 index: 1,
                 icon: Icons.medication_outlined,
                 selectedIcon: Icons.medication_rounded,
-                label: 'Medications',
+                label: 'Meds',
                 activeColor: activeColor,
               ),
               _buildNavItem(
                 index: 2,
+                icon: Icons.assignment_outlined,
+                selectedIcon: Icons.assignment_turned_in_rounded,
+                label: 'Records',
+                activeColor: activeColor,
+              ),
+              _buildNavItem(
+                index: 3,
                 icon: Icons.person_outline_rounded,
                 selectedIcon: Icons.person_rounded,
                 label: 'Profile',
@@ -138,13 +150,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         setState(() {
           _currentIndex = index;
         });
+        ref.read(mainNavIndexProvider.notifier).state = index;
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 260),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 : 12,
+          horizontal: isSelected ? 12 : 8,
           vertical: 8,
         ),
         decoration: BoxDecoration(
@@ -166,19 +179,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           children: [
             Icon(
               isSelected ? selectedIcon : icon,
-              size: 22,
+              size: 21,
               color: isSelected
                   ? activeColor
                   : AppTheme.textSecondary(context),
             ),
             if (isSelected) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   color: activeColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12,
                   letterSpacing: 0.2,
                 ),
               ),

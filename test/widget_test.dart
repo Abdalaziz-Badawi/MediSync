@@ -226,7 +226,7 @@ void main() {
               .overrideWithValue(FakeNotificationService()),
         ],
         child: const MaterialApp(
-          home: ProfilePage(),
+          home: ProfilePage(initiallyExpanded: true),
         ),
       ),
     );

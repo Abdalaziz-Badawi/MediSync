@@ -170,6 +170,9 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
       case DoseStatus.missed:
         entries.add('$time:missed');
         break;
+      case DoseStatus.notNeeded:
+        entries.add('$time:notNeeded');
+        break;
     }
 
     if (entries.isEmpty) {

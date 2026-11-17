@@ -25,10 +25,11 @@ enum ScheduleFrequency {
 }
 
 enum DoseStatus {
-  pending,  // Scheduled, not taken yet
-  taken,    // Taken on time
-  delayed,  // Taken delayed / late
-  missed,   // Missed dosing window
+  pending,    // Scheduled, not taken yet
+  taken,      // Taken on time
+  delayed,    // Taken delayed / late
+  missed,     // Missed dosing window
+  notNeeded,  // As needed / PRN medication was not required / skipped
 }
 
 class Medication {
@@ -160,8 +161,70 @@ class Medication {
       if (entry == '$time:missed') {
         return DoseStatus.missed;
       }
+      if (entry == '$time:notNeeded' || entry == '$time:not_needed' || entry == '$time:skipped') {
+        return DoseStatus.notNeeded;
+      }
     }
     return DoseStatus.pending;
+  }
+
+  /// Calculates the most recent timestamp this medication was taken or delayed.
+  DateTime? get lastTakenDateTime {
+    DateTime? latest;
+    for (final entry in doseLog.entries) {
+      final dateParts = entry.key.split('-');
+      if (dateParts.length != 3) continue;
+      final y = int.tryParse(dateParts[0]);
+      final m = int.tryParse(dateParts[1]);
+      final d = int.tryParse(dateParts[2]);
+      if (y == null || m == null || d == null) continue;
+
+      for (final logItem in entry.value) {
+        if (logItem.endsWith(':missed') || logItem.endsWith(':notNeeded') || logItem.endsWith(':not_needed')) {
+          continue;
+        }
+        final timeStr = logItem.split(':').take(2).join(':');
+        final timeParts = timeStr.split(':');
+        final hr = timeParts.isNotEmpty ? (int.tryParse(timeParts[0]) ?? 0) : 0;
+        final min = timeParts.length > 1 ? (int.tryParse(timeParts[1]) ?? 0) : 0;
+
+        final dt = DateTime(y, m, d, hr, min);
+        if (latest == null || dt.isAfter(latest)) {
+          latest = dt;
+        }
+      }
+    }
+    return latest;
+  }
+
+  /// Returns total counts for adherence continuity calculations:
+  /// {'taken': X, 'delayed': Y, 'missed': Z, 'notNeeded': W}
+  Map<String, int> get continuityStats {
+    int taken = 0;
+    int delayed = 0;
+    int missed = 0;
+    int notNeeded = 0;
+
+    for (final entries in doseLog.values) {
+      for (final item in entries) {
+        if (item.endsWith(':missed')) {
+          missed++;
+        } else if (item.endsWith(':delayed')) {
+          delayed++;
+        } else if (item.endsWith(':notNeeded') || item.endsWith(':not_needed')) {
+          notNeeded++;
+        } else {
+          taken++;
+        }
+      }
+    }
+
+    return {
+      'taken': taken,
+      'delayed': delayed,
+      'missed': missed,
+      'notNeeded': notNeeded,
+    };
   }
 
   bool isDoseTaken(DateTime date, String time) {

@@ -702,6 +702,15 @@ class _DoseTimelineCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 _buildStatusOption(
                   ctx: ctx,
+                  status: DoseStatus.notNeeded,
+                  title: 'Not Needed (PRN / As Needed)',
+                  subtitle: 'Symptoms absent or medication was not required',
+                  icon: Icons.remove_circle_outline_rounded,
+                  color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700,
+                ),
+                const SizedBox(height: 8),
+                _buildStatusOption(
+                  ctx: ctx,
                   status: DoseStatus.pending,
                   title: 'Reset to Pending',
                   subtitle: 'Clear intake log for this time slot',
@@ -809,6 +818,11 @@ class _DoseTimelineCard extends StatelessWidget {
         statusIcon = Icons.cancel_rounded;
         statusLabel = 'Missed';
         break;
+      case DoseStatus.notNeeded:
+        statusColor = isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700;
+        statusIcon = Icons.remove_circle_outline_rounded;
+        statusLabel = 'Not Needed';
+        break;
       case DoseStatus.pending:
         statusColor = AppTheme.textMuted(context);
         statusIcon = Icons.radio_button_unchecked_rounded;
@@ -816,7 +830,9 @@ class _DoseTimelineCard extends StatelessWidget {
         break;
     }
 
-    final isResolved = status == DoseStatus.taken || status == DoseStatus.delayed;
+    final isResolved = status == DoseStatus.taken ||
+        status == DoseStatus.delayed ||
+        status == DoseStatus.notNeeded;
 
     return Dismissible(
       key: Key('dose_${med.id}_${dose.time}_${date.toIso8601String()}'),

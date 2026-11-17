@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/models/user_profile.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/allergy_selector_widget.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
-  const ProfilePage({super.key});
+  final bool initiallyExpanded;
+  const ProfilePage({super.key, this.initiallyExpanded = false});
 
   @override
   ConsumerState<ProfilePage> createState() => _ProfilePageState();
@@ -28,7 +31,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   // Privacy Shield / Sneak Peek Prevention
   bool _isPrivacyMaskActive = false;
 
-  // Collapsible Allergies Section State (Starts collapsed by default)
+  // Collapsible Cards State (Starts collapsed by default, expands on interaction, collapses on leave)
+  late bool _isProfileCardExpanded;
+  late bool _isSettingsCardExpanded;
   bool _isAllergiesExpanded = false;
 
   static const List<Map<String, dynamic>> _availableAvatars = [
@@ -43,6 +48,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _isProfileCardExpanded = widget.initiallyExpanded;
+    _isSettingsCardExpanded = widget.initiallyExpanded;
+
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
     _avatarId = profile.avatarId;
@@ -161,6 +169,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Profile and daily routine saved locally!'),
+        backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+      ),
+    );
+  }
+
+  void _saveSettings() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('✓ User settings, theme & device sync saved!'),
         backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
       ),
     );
@@ -361,6 +378,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final isDark = AppTheme.isDark(context);
     final hasChanges = _hasChanges;
 
+    // Auto-collapse when user leaves or changes page
+    ref.listen<int>(mainNavIndexProvider, (prev, next) {
+      if (next != 3) {
+        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded) {
+          setState(() {
+            _isProfileCardExpanded = false;
+            _isSettingsCardExpanded = false;
+            _isAllergiesExpanded = false;
+          });
+        }
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -417,49 +447,53 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Account Info Row with PFP Avatar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      // Avatar PFP (Tap to choose new avatar)
-                      GestureDetector(
-                        onTap: _openAvatarPicker,
-                        child: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
-                              child: Icon(
-                                _getAvatarIcon(_avatarId),
-                                size: 30,
-                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
+                // Top Account Info Row with PFP Avatar (Tap to expand/collapse card)
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isProfileCardExpanded = !_isProfileCardExpanded;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(22),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Avatar PFP (Tap to choose new avatar)
+                        GestureDetector(
+                          onTap: _openAvatarPicker,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 30,
+                                backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                                child: Icon(
+                                  _getAvatarIcon(_avatarId),
+                                  size: 30,
                                   color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.edit_rounded,
-                                  size: 11,
-                                  color: Colors.white,
                                 ),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit_rounded,
+                                    size: 11,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: InkWell(
-                          onTap: _openEditProfileDialog,
-                          borderRadius: BorderRadius.circular(10),
+                        const SizedBox(width: 14),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -484,7 +518,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      'Offline Encrypted Local Storage (100% Private)',
+                                      _isProfileCardExpanded
+                                          ? 'Encrypted Local Storage • Tap to collapse'
+                                          : 'Encrypted Local Storage • Tap to expand',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: AppTheme.textSecondary(context),
@@ -499,23 +535,67 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ],
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Edit Name',
-                        icon: Icon(
-                          Icons.edit_outlined,
-                          size: 20,
-                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        IconButton(
+                          tooltip: 'Edit Name',
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            size: 20,
+                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          ),
+                          onPressed: _openEditProfileDialog,
                         ),
-                        onPressed: _openEditProfileDialog,
-                      ),
-                    ],
+                        Icon(
+                          _isProfileCardExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: AppTheme.textSecondary(context),
+                          size: 24,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
-                Divider(height: 1, color: AppTheme.cardBorder(context)),
+                // Collapsed Summary Preview
+                if (!_isProfileCardExpanded) ...[
+                  Divider(height: 1, color: AppTheme.cardBorder(context)),
+                  InkWell(
+                    onTap: () => setState(() => _isProfileCardExpanded = true),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Routine: Wake ${_isPrivacyMaskActive ? '••:••' : _wakeTime} • Bed ${_isPrivacyMaskActive ? '••:••' : _sleepTime} • ${_allergies.length} Safety Triggers',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            'Expand',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
 
-                // --- INTEGRATED DAILY ROUTINE & MEAL SCHEDULE ---
+                if (_isProfileCardExpanded) ...[
+                  Divider(height: 1, color: AppTheme.cardBorder(context)),
+
+                  // --- INTEGRATED DAILY ROUTINE & MEAL SCHEDULE ---
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                   child: Row(
@@ -702,257 +782,427 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                   ),
                 ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
 
-          // ==========================================
-          // 2. USER SETTINGS & PREFERENCES GROUP
-          // ==========================================
-          _buildSectionHeader(
-            icon: Icons.tune_rounded,
-            title: 'User Settings & Preferences',
-            subtitle: 'Theme palettes, text scaling, and audible/haptic alerts',
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor(context),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.cardBorder(context)),
-              boxShadow: AppTheme.softShadow(context),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Appearance & Theme Section
-                Text(
-                  'Appearance & Theme',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary(context),
+                // Explicit Save Button at bottom of Profile & Routine Card
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _saveProfile,
+                      icon: const Icon(Icons.check_circle_rounded, size: 18),
+                      label: const Text('Save Profile & Routine'),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Select between High-Contrast Light and Eye-Care Night Dark theme.',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
-                ),
-                const SizedBox(height: 12),
-                // Theme Mode Selector
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: SegmentedButton<ThemeMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ThemeMode.light,
-                        icon: Icon(Icons.light_mode_rounded),
-                        label: Text('Light'),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // ==========================================
+        // 2. USER SETTINGS & PREFERENCES GROUP (Collapsible)
+        // ==========================================
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppTheme.cardBorder(context)),
+            boxShadow: AppTheme.softShadow(context),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Settings Header Row (Tap to expand/collapse)
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isSettingsCardExpanded = !_isSettingsCardExpanded;
+                  });
+                },
+                borderRadius: BorderRadius.circular(22),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppTheme.primaryTealLight.withValues(alpha: 0.15)
+                              : AppTheme.primaryTeal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.tune_rounded,
+                          size: 20,
+                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        ),
                       ),
-                      ButtonSegment(
-                        value: ThemeMode.dark,
-                        icon: Icon(Icons.dark_mode_rounded),
-                        label: Text('Dark'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'User Settings & Preferences',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _isSettingsCardExpanded
+                                  ? 'Tap to collapse settings'
+                                  : '${currentThemeMode.name.toUpperCase()} • ${(fontScale * 100).toInt()}% Scale • ${currentPalette.label} • Tap to expand',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textSecondary(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                      ButtonSegment(
-                        value: ThemeMode.system,
-                        icon: Icon(Icons.brightness_auto_rounded),
-                        label: Text('System'),
+                      Icon(
+                        _isSettingsCardExpanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        color: AppTheme.textSecondary(context),
+                        size: 24,
                       ),
                     ],
-                    selected: {currentThemeMode},
-                    onSelectionChanged: (set) {
-                      ref.read(themeNotifierProvider.notifier).setThemeMode(set.first);
-                    },
                   ),
                 ),
-                const SizedBox(height: 18),
+              ),
 
-                // Theme Palette Style Section
-                Text(
-                  'Color Palette Style',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary(context),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: AppPalette.values.map((pal) {
-                      final isSelected = currentPalette == pal;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          avatar: CircleAvatar(
-                            radius: 6,
-                            backgroundColor: pal.primary,
-                          ),
-                          label: Text(pal.label),
-                          labelStyle: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected
-                                ? (isDark ? const Color(0xFF042F2E) : Colors.white)
-                                : AppTheme.textPrimary(context),
-                          ),
-                          selected: isSelected,
-                          selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                          backgroundColor: AppTheme.surfaceVariant(context),
-                          side: BorderSide(
-                            color: isSelected
-                                ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
-                                : AppTheme.cardBorder(context),
-                          ),
-                          onSelected: (_) {
-                            ref.read(paletteNotifierProvider.notifier).setPalette(pal);
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Font Size & Text Scaling (GUARANTEED ZERO OVERFLOW AT 145%)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Font Size & Text Scaling',
+              // Expanded Settings Content
+              if (_isSettingsCardExpanded) ...[
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Appearance & Theme Section
+                      Text(
+                        'Appearance & Theme',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textPrimary(context),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Select between High-Contrast Light and Eye-Care Night Dark theme.',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
                       ),
-                      child: Text(
-                        '${(fontScale * 100).toInt()}% Scale',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      const SizedBox(height: 12),
+                      // Theme Mode Selector
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: SegmentedButton<ThemeMode>(
+                          segments: const [
+                            ButtonSegment(
+                              value: ThemeMode.light,
+                              icon: Icon(Icons.light_mode_rounded),
+                              label: Text('Light'),
+                            ),
+                            ButtonSegment(
+                              value: ThemeMode.dark,
+                              icon: Icon(Icons.dark_mode_rounded),
+                              label: Text('Dark'),
+                            ),
+                            ButtonSegment(
+                              value: ThemeMode.system,
+                              icon: Icon(Icons.brightness_auto_rounded),
+                              label: Text('System'),
+                            ),
+                          ],
+                          selected: {currentThemeMode},
+                          onSelectionChanged: (set) {
+                            ref.read(themeNotifierProvider.notifier).setThemeMode(set.first);
+                          },
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Enlarge typography throughout the application for effortless reading.',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Text('A', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    Expanded(
-                      child: Slider(
-                        value: fontScale,
-                        min: 0.85,
-                        max: 1.45,
-                        divisions: 6,
-                        label: '${(fontScale * 100).toInt()}%',
-                        onChanged: (val) {
-                          ref.read(fontScaleNotifierProvider.notifier).setFontScale(val);
-                        },
-                      ),
-                    ),
-                    const Text('A', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                // Horizontal Scroll for Font Presets
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      _buildFontPresetChip(label: 'Compact (90%)', scale: 0.90, current: fontScale),
-                      const SizedBox(width: 6),
-                      _buildFontPresetChip(label: 'Standard (100%)', scale: 1.00, current: fontScale),
-                      const SizedBox(width: 6),
-                      _buildFontPresetChip(label: 'Comfort (115%)', scale: 1.15, current: fontScale),
-                      const SizedBox(width: 6),
-                      _buildFontPresetChip(label: 'Large (130%)', scale: 1.30, current: fontScale),
-                      const SizedBox(width: 6),
-                      _buildFontPresetChip(label: 'X-Large (145%)', scale: 1.45, current: fontScale),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
-                // Reminders, Sound & Haptics Section
-                const Divider(height: 1),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_active_rounded,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Theme Palette Style Section
+                      Text(
+                        'Color Palette Style',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: AppPalette.values.map((pal) {
+                            final isSelected = currentPalette == pal;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                avatar: CircleAvatar(
+                                  radius: 6,
+                                  backgroundColor: pal.primary,
+                                ),
+                                label: Text(pal.label),
+                                labelStyle: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected
+                                      ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                                      : AppTheme.textPrimary(context),
+                                ),
+                                selected: isSelected,
+                                selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                backgroundColor: AppTheme.surfaceVariant(context),
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                                      : AppTheme.cardBorder(context),
+                                ),
+                                onSelected: (_) {
+                                  ref.read(paletteNotifierProvider.notifier).setPalette(pal);
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Font Size & Text Scaling (GUARANTEED ZERO OVERFLOW AT 145%)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Audible Chime & Vibration Pulse',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary(context),
+                          Expanded(
+                            child: Text(
+                              'Font Size & Text Scaling',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text(
-                            'Haptic rhythm: [0, 350ms, 150ms, 350ms, 650ms]',
-                            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${(fontScale * 100).toInt()}% Scale',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await ref.read(notificationServiceProvider).showTestNotification();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('🔔 Test alarm triggered with audible chime & vibration!'),
-                          backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Enlarge typography throughout the application for effortless reading.',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Text('A', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          Expanded(
+                            child: Slider(
+                              value: fontScale,
+                              min: 0.85,
+                              max: 1.45,
+                              divisions: 6,
+                              label: '${(fontScale * 100).toInt()}%',
+                              onChanged: (val) {
+                                ref.read(fontScaleNotifierProvider.notifier).setFontScale(val);
+                              },
+                            ),
+                          ),
+                          const Text('A', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      // Horizontal Scroll for Font Presets
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _buildFontPresetChip(label: 'Compact (90%)', scale: 0.90, current: fontScale),
+                            const SizedBox(width: 6),
+                            _buildFontPresetChip(label: 'Standard (100%)', scale: 1.00, current: fontScale),
+                            const SizedBox(width: 6),
+                            _buildFontPresetChip(label: 'Comfort (115%)', scale: 1.15, current: fontScale),
+                            const SizedBox(width: 6),
+                            _buildFontPresetChip(label: 'Large (130%)', scale: 1.30, current: fontScale),
+                            const SizedBox(width: 6),
+                            _buildFontPresetChip(label: 'X-Large (145%)', scale: 1.45, current: fontScale),
+                          ],
                         ),
-                      );
-                    }
-                  },
-                  icon: Icon(Icons.alarm_rounded, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
-                  label: Text(
-                    'Test Notification, Sound & Vibration',
-                    style: TextStyle(color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Device Calendar & Health Synchronization
+                      const Divider(height: 1),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.sync_alt_rounded,
+                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Device Calendar & Health App Link',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary(context),
+                                  ),
+                                ),
+                                Text(
+                                  'Link with native local calendar & Samsung Health / Health Connect.',
+                                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final res = await ref.read(deviceIntegrationServiceProvider).openCalendar();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(res ? 'Opened Device Calendar' : 'Device Calendar linked.'),
+                                      backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.calendar_month_rounded, size: 16),
+                              label: const Text('Device Calendar', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final res = await ref.read(deviceIntegrationServiceProvider).openHealthApp();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(res ? 'Launched Device Health App' : 'Opened Health App link.'),
+                                      backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.favorite_rounded, size: 16),
+                              label: const Text('Health App', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Reminders, Sound & Haptics Section
+                      const Divider(height: 1),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.notifications_active_rounded,
+                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Audible Chime & Vibration Pulse',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary(context),
+                                  ),
+                                ),
+                                Text(
+                                  'Haptic rhythm: [0, 350ms, 150ms, 350ms, 650ms]',
+                                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          await ref.read(notificationServiceProvider).showTestNotification();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('🔔 Test alarm triggered with audible chime & vibration!'),
+                                backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              ),
+                            );
+                          }
+                        },
+                        icon: Icon(Icons.alarm_rounded, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                        label: Text(
+                          'Test Notification, Sound & Vibration',
+                          style: TextStyle(color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                        ),
+                      ),
+
+                      // Explicit Save Settings Button at bottom of card
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _saveSettings,
+                          icon: const Icon(Icons.check_circle_rounded, size: 18),
+                          label: const Text('Save Settings & Preferences'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
+            ],
           ),
+        ),
           const SizedBox(height: 20),
 
           // Bottom Save Button (Only shown when changes are pending)
@@ -965,60 +1215,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ],
 
           const SizedBox(height: 90),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    final isDark = AppTheme.isDark(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppTheme.primaryTealLight.withValues(alpha: 0.15)
-                  : AppTheme.primaryTeal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary(context),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textSecondary(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

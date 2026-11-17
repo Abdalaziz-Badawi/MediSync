@@ -1121,22 +1121,41 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                         decoration: BoxDecoration(
                           color: AppTheme.surfaceVariant(context),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? AppTheme.primaryTealLight.withValues(alpha: 0.3)
+                                : AppTheme.primaryTeal.withValues(alpha: 0.3),
+                          ),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.healing_rounded,
-                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'PRN / As-Needed: Active on demand whenever symptoms arise.',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  color: AppTheme.textPrimary(context),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.healing_rounded,
+                                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                                 ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'PRN / As-Needed Clinical Condition',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: AppTheme.textPrimary(context),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '• Administration Condition: Take only on demand when symptoms arise.\n• Non-intake Continuity: If asymptomatic, skip dose and mark as "Not Needed" to preserve accurate adherence records.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary(context),
+                                height: 1.4,
                               ),
                             ),
                           ],
