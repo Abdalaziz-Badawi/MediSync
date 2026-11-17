@@ -212,10 +212,109 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
           content: Text(
             'Smart Timing Generated: ${result.times.join(", ")}',
           ),
-          backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
     }
+  }
+
+  int _parseMinutes(String hhmm) {
+    final parts = hhmm.split(':');
+    final h = int.tryParse(parts[0]) ?? 0;
+    final m = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+    return h * 60 + m;
+  }
+
+  String _formatMinutes(int minutes) {
+    var normalized = minutes % 1440;
+    if (normalized < 0) normalized += 1440;
+    // Round to nearest 5 minutes for clean real-world scheduling
+    normalized = ((normalized + 2) ~/ 5) * 5;
+    if (normalized >= 1440) normalized = 0;
+    final h = normalized ~/ 60;
+    final m = normalized % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  int _getMinClinicalHoursSpacing(int timesCount) {
+    if (timesCount == 2) return 6; // Standard BID: 6-8h separation
+    if (timesCount == 3) return 4; // Standard TID: 4-6h separation
+    if (timesCount >= 4) return 3; // Standard QID: 3-4h separation
+    return 2;
+  }
+
+  void _adjustRemainingTimesDynamically(int changedIndex, String newTime) {
+    final n = _scheduledTimes.length;
+    if (n <= 1) return;
+
+    final profile = ref.read(profileNotifierProvider);
+    final wakeMins = _parseMinutes(profile.wakeTime);
+    var sleepMins = _parseMinutes(profile.sleepTime);
+    if (sleepMins <= wakeMins) sleepMins += 1440;
+
+    final minInterval = _getMinClinicalHoursSpacing(n) * 60;
+    final changedMins = _parseMinutes(newTime);
+
+    final updated = List<String>.from(_scheduledTimes);
+    updated[changedIndex] = newTime;
+
+    if (changedIndex == 0) {
+      // Dose 0 changed: space subsequent doses evenly toward bedtime
+      final availableSpan = sleepMins - changedMins;
+      var step = (availableSpan / (n - 1)).round();
+      if (step < minInterval) step = minInterval;
+
+      for (int k = 1; k < n; k++) {
+        updated[k] = _formatMinutes(changedMins + k * step);
+      }
+    } else if (changedIndex == n - 1) {
+      // Last dose changed: space previous doses backwards evenly from wake time
+      var effectiveChanged = changedMins;
+      if (effectiveChanged < wakeMins) effectiveChanged += 1440;
+      final availableSpan = effectiveChanged - wakeMins;
+      var step = (availableSpan / (n - 1)).round();
+      if (step < minInterval) step = minInterval;
+
+      for (int k = 0; k < n - 1; k++) {
+        updated[k] = _formatMinutes(effectiveChanged - (n - 1 - k) * step);
+      }
+    } else {
+      // Middle dose changed: balance prior doses from wake and subsequent doses toward sleep
+      var effectiveChanged = changedMins;
+      if (effectiveChanged < wakeMins) effectiveChanged += 1440;
+      final spanBefore = effectiveChanged - wakeMins;
+      var stepBefore = (spanBefore / changedIndex).round();
+      if (stepBefore < minInterval) stepBefore = minInterval;
+      for (int k = 0; k < changedIndex; k++) {
+        updated[k] = _formatMinutes(effectiveChanged - (changedIndex - k) * stepBefore);
+      }
+
+      final spanAfter = sleepMins - changedMins;
+      var stepAfter = (spanAfter / (n - 1 - changedIndex)).round();
+      if (stepAfter < minInterval) stepAfter = minInterval;
+      for (int k = changedIndex + 1; k < n; k++) {
+        updated[k] = _formatMinutes(changedMins + (k - changedIndex) * stepAfter);
+      }
+    }
+
+    _scheduledTimes = updated;
+  }
+
+  void _respaceAllTimesEvenly() {
+    if (_scheduledTimes.isEmpty) return;
+    final baseTime = _scheduledTimes.first;
+    setState(() {
+      _adjustRemainingTimesDynamically(0, baseTime);
+    });
+    final minHours = _getMinClinicalHoursSpacing(_scheduledTimes.length);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Doses re-spaced evenly with ≥${minHours}h clinical separation, honoring sleep at ${ref.read(profileNotifierProvider).sleepTime}.',
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+    );
   }
 
   Future<void> _pickTimeForIndex(int index) async {
@@ -273,7 +372,23 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
           '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
       setState(() {
         _scheduledTimes[index] = formatted;
+        if (_scheduledTimes.length > 1) {
+          _adjustRemainingTimesDynamically(index, formatted);
+        }
       });
+
+      if (_scheduledTimes.length > 1 && mounted) {
+        final minHours = _getMinClinicalHoursSpacing(_scheduledTimes.length);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Dynamic Spacing: other doses adjusted to equal sessions (≥${minHours}h clinical interval, sleep at ${ref.read(profileNotifierProvider).sleepTime}).',
+            ),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
     }
   }
 
@@ -403,13 +518,13 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             onPressed: _saveMedication,
             icon: Icon(
               Icons.check,
-              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              color: Theme.of(context).colorScheme.primary,
             ),
             label: Text(
               'Save',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -506,7 +621,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                 hintText: 'Type to search (e.g. Panadol, Amoxicillin, Metformin)',
                 prefixIcon: Icon(
                   Icons.search,
-                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 suffixIcon: _nameController.text.isNotEmpty
                     ? IconButton(
@@ -552,7 +667,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                       dense: true,
                       leading: Icon(
                         Icons.medical_services_outlined,
-                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       title: Text(
                         '${item.name} (${item.genericName})',
@@ -586,14 +701,14 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.check_circle_rounded,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
@@ -602,7 +717,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                         'Matched: ${_matchedTemplate!.name} (${_matchedTemplate!.drugClass})',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -997,7 +1112,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                             child: Text(
                               _daysOfWeek.length == 7 ? 'Custom Days' : 'Select All',
                               style: TextStyle(
-                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -1068,7 +1183,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                           children: [
                             Icon(
                               Icons.calendar_month_rounded,
-                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -1122,9 +1237,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                           color: AppTheme.surfaceVariant(context),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isDark
-                                ? AppTheme.primaryTealLight.withValues(alpha: 0.3)
-                                : AppTheme.primaryTeal.withValues(alpha: 0.3),
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Column(
@@ -1134,7 +1247,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                               children: [
                                 Icon(
                                   Icons.healing_rounded,
-                                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -1219,12 +1332,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                       onPressed: () => _generateStudiedSmartSchedule(),
                       icon: Icon(
                         Icons.auto_awesome,
-                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       label: Text(
                         'Re-calculate Meal & Routine Timing',
                         style: TextStyle(
-                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -1296,7 +1409,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                               children: [
                                 Icon(
                                   Icons.science_outlined,
-                                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                  color: Theme.of(context).colorScheme.primary,
                                   size: 16,
                                 ),
                                 const SizedBox(width: 6),
@@ -1325,13 +1438,42 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     ],
 
                     const SizedBox(height: 16),
-                    Text(
-                      'Scheduled Times (tap to customize):',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary(context),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Scheduled Times (tap to customize):',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary(context),
+                          ),
+                        ),
+                        if (_scheduledTimes.length > 1)
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            ),
+                            onPressed: _respaceAllTimesEvenly,
+                            icon: Icon(Icons.auto_awesome, size: 14, color: Theme.of(context).colorScheme.primary),
+                            label: Text(
+                              'Re-space Evenly',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                    if (_scheduledTimes.length > 1) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Adjusting any time dynamically updates remaining doses to equal intervals (≥${_getMinClinicalHoursSpacing(_scheduledTimes.length)}h clinical separation, sleep at ${ref.watch(profileNotifierProvider).sleepTime}).',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context), height: 1.3),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -1341,7 +1483,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                           avatar: Icon(
                             Icons.access_time,
                             size: 16,
-                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           label: Text(
                             'Dose ${i + 1}: ${_scheduledTimes[i]}',
@@ -1385,7 +1527,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                         style: TextStyle(color: AppTheme.textPrimary(context)),
                       ),
                       value: _isOngoing,
-                      activeThumbColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      activeThumbColor: Theme.of(context).colorScheme.primary,
                       onChanged: (val) {
                         setState(() => _isOngoing = val);
                       },
@@ -1463,11 +1605,11 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             : AppTheme.textPrimary(context),
       ),
       selected: isSelected,
-      selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+      selectedColor: Theme.of(context).colorScheme.primary,
       backgroundColor: AppTheme.surfaceVariant(context),
       side: BorderSide(
         color: isSelected
-            ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+            ? Theme.of(context).colorScheme.primary
             : AppTheme.cardBorder(context),
       ),
       onSelected: (_) {
@@ -1509,7 +1651,7 @@ class _DayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSelected = selectedDays.contains(dayInt);
     final isDark = AppTheme.isDark(context);
-    final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+    final activeColor = Theme.of(context).colorScheme.primary;
 
     return GestureDetector(
       onTap: () => onChanged(dayInt),

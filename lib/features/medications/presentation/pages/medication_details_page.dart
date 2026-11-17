@@ -27,7 +27,7 @@ class MedicationDetailsPage extends ConsumerWidget {
           IconButton(
             icon: Icon(
               Icons.edit_outlined,
-              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              color: Theme.of(context).colorScheme.primary,
             ),
             onPressed: () {
               Navigator.pushReplacement(
@@ -60,7 +60,7 @@ class MedicationDetailsPage extends ConsumerWidget {
                     ),
                     child: Icon(
                       medication.icon,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 32,
                     ),
                   ),
@@ -213,7 +213,7 @@ class MedicationDetailsPage extends ConsumerWidget {
                         avatar: Icon(
                           Icons.access_time,
                           size: 16,
-                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                         label: Text(
                           t,
@@ -337,7 +337,7 @@ class MedicationDetailsPage extends ConsumerWidget {
   Widget _buildDayIndicator(BuildContext context, String label, int day) {
     final isActive = medication.daysOfWeek.contains(day);
     final isDark = AppTheme.isDark(context);
-    final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+    final activeColor = Theme.of(context).colorScheme.primary;
 
     return Container(
       width: 34,
@@ -364,14 +364,12 @@ class MedicationDetailsPage extends ConsumerWidget {
   }
 
   Widget _buildConditionRow(BuildContext context, String prefix, String text, IconData icon) {
-    final isDark = AppTheme.isDark(context);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
             child: RichText(

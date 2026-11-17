@@ -169,7 +169,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Profile and daily routine saved locally!'),
-        backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -178,7 +178,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('✓ User settings, theme & device sync saved!'),
-        backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -255,11 +255,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: isSel
-                              ? (isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1))
+                              ? Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.3 : 0.15)
                               : AppTheme.surfaceVariant(ctx),
                           border: Border.all(
                             color: isSel
-                                ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                                ? Theme.of(ctx).colorScheme.primary
                                 : AppTheme.cardBorder(ctx),
                             width: isSel ? 2.5 : 1,
                           ),
@@ -268,7 +268,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           av['icon'] as IconData,
                           size: 32,
                           color: isSel
-                              ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                              ? Theme.of(ctx).colorScheme.primary
                               : AppTheme.textSecondary(ctx),
                         ),
                       ),
@@ -330,7 +330,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   labelText: 'Your Name or Nickname',
                   prefixIcon: Icon(
                     Icons.person_outline_rounded,
-                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                    color: Theme.of(ctx).colorScheme.primary,
                   ),
                 ),
                 onChanged: (_) => setState(() {}),
@@ -339,10 +339,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
-                  backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                  backgroundColor: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15),
                   child: Icon(
                     _getAvatarIcon(_avatarId),
-                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                    color: Theme.of(ctx).colorScheme.primary,
                   ),
                 ),
                 title: const Text('Change Avatar Icon'),
@@ -424,7 +424,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 'Save',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 16,
                 ),
               ),
@@ -466,11 +466,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             children: [
                               CircleAvatar(
                                 radius: 30,
-                                backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15),
                                 child: Icon(
                                   _getAvatarIcon(_avatarId),
                                   size: 30,
-                                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                               Positioned(
@@ -479,7 +479,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 child: Container(
                                   padding: const EdgeInsets.all(3),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                    color: Theme.of(context).colorScheme.primary,
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -540,7 +540,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           icon: Icon(
                             Icons.edit_outlined,
                             size: 20,
-                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           onPressed: _openEditProfileDialog,
                         ),
@@ -572,7 +572,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -583,7 +583,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ],
@@ -603,7 +603,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       Icon(
                         Icons.access_time_filled_rounded,
                         size: 18,
-                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -829,15 +829,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? AppTheme.primaryTealLight.withValues(alpha: 0.15)
-                              : AppTheme.primaryTeal.withValues(alpha: 0.1),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.22 : 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           Icons.tune_rounded,
                           size: 20,
-                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -949,27 +947,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         child: Row(
                           children: AppPalette.values.map((pal) {
                             final isSelected = currentPalette == pal;
+                            final palColor = isDark ? pal.darkPrimary : pal.primary;
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
                                 avatar: CircleAvatar(
                                   radius: 6,
-                                  backgroundColor: pal.primary,
+                                  backgroundColor: palColor,
                                 ),
                                 label: Text(pal.label),
                                 labelStyle: TextStyle(
                                   fontSize: 11,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                   color: isSelected
-                                      ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                                      ? Colors.white
                                       : AppTheme.textPrimary(context),
                                 ),
                                 selected: isSelected,
-                                selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                selectedColor: palColor,
                                 backgroundColor: AppTheme.surfaceVariant(context),
                                 side: BorderSide(
                                   color: isSelected
-                                      ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                                      ? palColor
                                       : AppTheme.cardBorder(context),
                                 ),
                                 onSelected: (_) {
@@ -1010,7 +1009,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -1067,7 +1066,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         children: [
                           Icon(
                             Icons.sync_alt_rounded,
-                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            color: Theme.of(context).colorScheme.primary,
                             size: 22,
                           ),
                           const SizedBox(width: 10),
@@ -1103,7 +1102,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(res ? 'Opened Device Calendar' : 'Device Calendar linked.'),
-                                      backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                      backgroundColor: Theme.of(context).colorScheme.primary,
                                     ),
                                   );
                                 }
@@ -1121,7 +1120,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(res ? 'Launched Device Health App' : 'Opened Health App link.'),
-                                      backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                      backgroundColor: Theme.of(context).colorScheme.primary,
                                     ),
                                   );
                                 }
@@ -1141,7 +1140,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         children: [
                           Icon(
                             Icons.notifications_active_rounded,
-                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            color: Theme.of(context).colorScheme.primary,
                             size: 22,
                           ),
                           const SizedBox(width: 10),
@@ -1174,15 +1173,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: const Text('🔔 Test alarm triggered with audible chime & vibration!'),
-                                backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
                               ),
                             );
                           }
                         },
-                        icon: Icon(Icons.alarm_rounded, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                        icon: Icon(Icons.alarm_rounded, color: Theme.of(context).colorScheme.primary),
                         label: Text(
                           'Test Notification, Sound & Vibration',
-                          style: TextStyle(color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                          style: TextStyle(color: Theme.of(context).colorScheme.primary),
                         ),
                       ),
 
@@ -1238,11 +1237,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             : AppTheme.textPrimary(context),
       ),
       selected: isSelected,
-      selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+      selectedColor: Theme.of(context).colorScheme.primary,
       backgroundColor: AppTheme.surfaceVariant(context),
       side: BorderSide(
         color: isSelected
-            ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+            ? Theme.of(context).colorScheme.primary
             : AppTheme.cardBorder(context),
       ),
       onSelected: (_) {
@@ -1268,6 +1267,7 @@ class _RoutineTimeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
 
     return InkWell(
       onTap: onTap,
@@ -1278,7 +1278,7 @@ class _RoutineTimeRow extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              color: primary,
               size: 22,
             ),
             const SizedBox(width: 12),
@@ -1296,16 +1296,14 @@ class _RoutineTimeRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: isDark
-                    ? AppTheme.primaryTealLight.withValues(alpha: 0.18)
-                    : const Color(0xFFCCFBF1),
+                color: primary.withValues(alpha: isDark ? 0.22 : 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 time,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                  color: primary,
                 ),
               ),
             ),

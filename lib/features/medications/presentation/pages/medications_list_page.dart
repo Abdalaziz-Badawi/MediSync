@@ -13,7 +13,6 @@ class MedicationsListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final medications = ref.watch(medicationsNotifierProvider);
-    final isDark = AppTheme.isDark(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -80,8 +79,8 @@ class MedicationsListPage extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 92, right: 8),
           child: FloatingActionButton.extended(
             elevation: 4,
-            backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-            foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
             onPressed: () {
               Navigator.push(
                 context,
@@ -158,7 +157,7 @@ class _MedicationCard extends ConsumerWidget {
                       medication.icon,
                       color: hasCriticalFlag
                           ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
-                          : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                          : Theme.of(context).colorScheme.primary,
                       size: 26,
                     ),
                   ),

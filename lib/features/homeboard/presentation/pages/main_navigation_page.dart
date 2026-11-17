@@ -28,7 +28,7 @@ class _MainNavigationPageState extends ConsumerState<MainNavigationPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDark(context);
-    final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+    final activeColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       extendBody: true,

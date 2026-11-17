@@ -135,7 +135,7 @@ class _AllergySelectorWidgetState extends State<AllergySelectorWidget> {
               hintStyle: TextStyle(color: AppTheme.textMuted(context), fontSize: 13),
               prefixIcon: Icon(
                 Icons.search,
-                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                color: Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
               suffixIcon: _searchQuery.isNotEmpty
@@ -199,11 +199,11 @@ class _AllergySelectorWidgetState extends State<AllergySelectorWidget> {
                     ],
                   ),
                   selected: isSelected,
-                  selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                  selectedColor: Theme.of(context).colorScheme.primary,
                   backgroundColor: AppTheme.cardColor(context),
                   side: BorderSide(
                     color: isSelected
-                        ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                        ? Theme.of(context).colorScheme.primary
                         : AppTheme.cardBorder(context),
                   ),
                   showCheckmark: false,

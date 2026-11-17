@@ -63,8 +63,8 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     for (final med in widget.medications) {
       if (med.isActiveOn(now)) {
         for (final t in med.scheduledTimes) {
-          final isTaken = med.isDoseTaken(now, t);
-          if (!isTaken) {
+          final isResolved = med.isDoseResolved(now, t);
+          if (!isResolved) {
             final dt = _parseDateTimeFor(now, t);
             todayList.add(UpcomingDose(
               medication: med,
@@ -78,13 +78,16 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
 
       if (med.isActiveOn(tomorrow)) {
         for (final t in med.scheduledTimes) {
-          final dt = _parseDateTimeFor(tomorrow, t);
-          tomorrowList.add(UpcomingDose(
-            medication: med,
-            scheduledDateTime: dt,
-            timeString: t,
-            isTomorrow: true,
-          ));
+          final isResolvedTomorrow = med.isDoseResolved(tomorrow, t);
+          if (!isResolvedTomorrow) {
+            final dt = _parseDateTimeFor(tomorrow, t);
+            tomorrowList.add(UpcomingDose(
+              medication: med,
+              scheduledDateTime: dt,
+              timeString: t,
+              isTomorrow: true,
+            ));
+          }
         }
       }
     }
@@ -152,20 +155,21 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     final isDueSoon = !diff.isNegative && diff.inMinutes <= 45;
 
     final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    final secondary = Theme.of(context).colorScheme.secondary;
+
     final preConditions = med.preConditions;
     final postConditions = med.postConditions;
     final sideEffects = med.sideEffects;
 
     final cardBgStart = isDark
-        ? (isOverdue ? const Color(0xFF451A03) : const Color(0xFF134E4A))
-        : (isOverdue ? const Color(0xFFFEF3C7) : const Color(0xFFCCFBF1));
+        ? (isOverdue ? const Color(0xFF451A03) : primary.withValues(alpha: 0.22))
+        : (isOverdue ? const Color(0xFFFEF3C7) : primary.withValues(alpha: 0.12));
     final cardBgEnd = AppTheme.cardColor(context);
 
     final glowColor = isOverdue
         ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
-        : (isDueSoon
-            ? (isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan)
-            : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal));
+        : (isDueSoon ? secondary : primary);
 
     return Container(
       decoration: BoxDecoration(
@@ -189,7 +193,7 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
             color: isOverdue
                 ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
                 : (isDueSoon
-                    ? (isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan)
+                    ? secondary
                     : AppTheme.cardBorder(context)),
             width: isOverdue || isDueSoon ? 2 : 1,
           ),
@@ -218,174 +222,172 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                         size: 18,
                         color: isOverdue
                             ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
-                            : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                            : primary,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         nextDose.isTomorrow ? 'NEXT DOSE (TOMORROW)' : 'NEXT MEDICATION',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: isOverdue
-                            ? (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309))
-                            : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isOverdue
-                        ? (isDark
-                            ? AppTheme.warningAmberLight.withValues(alpha: 0.25)
-                            : const Color(0xFFFDE68A))
-                        : (isDark
-                            ? AppTheme.primaryTealLight.withValues(alpha: 0.2)
-                            : AppTheme.primaryTeal.withValues(alpha: 0.12)),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    countdownText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isOverdue
-                          ? (isDark ? AppTheme.warningAmberLight : const Color(0xFF92400E))
-                          : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Med info row
-            Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceVariant(context),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.cardBorder(context)),
-                  ),
-                  child: Icon(
-                    med.icon,
-                    size: 28,
-                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        med.name,
                         style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary(context),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: isOverdue
+                              ? (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309))
+                              : primary,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${med.dosage} • Scheduled for ${nextDose.timeString}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textSecondary(context),
-                          fontWeight: FontWeight.w500,
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isOverdue
+                          ? (isDark
+                              ? AppTheme.warningAmberLight.withValues(alpha: 0.25)
+                              : const Color(0xFFFDE68A))
+                          : primary.withValues(alpha: isDark ? 0.22 : 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      countdownText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isOverdue
+                            ? (isDark ? AppTheme.warningAmberLight : const Color(0xFF92400E))
+                            : primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Med info row
+              Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant(context),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.cardBorder(context)),
+                    ),
+                    child: Icon(
+                      med.icon,
+                      size: 28,
+                      color: primary,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          med.name,
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${med.dosage} • Scheduled for ${nextDose.timeString}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final targetDate = nextDose.isTomorrow
+                          ? DateTime.now().add(const Duration(days: 1))
+                          : DateTime.now();
+                      widget.onMarkTaken(med.id, targetDate, nextDose.timeString);
+                    },
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    label: const Text('Take'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+              Divider(height: 1, color: AppTheme.cardBorder(context)),
+              const SizedBox(height: 12),
+
+              // Conditions Surrounding This Medication
+              Text(
+                'Required Conditions & Instructions:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              if (preConditions.isEmpty && postConditions.isEmpty && sideEffects.isEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceVariant(context),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.cardBorder(context)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline_rounded, size: 16, color: AppTheme.textMuted(context)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No special pre/post conditions. Take with a standard glass of water.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
                         ),
                       ),
                     ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    final targetDate = nextDose.isTomorrow
-                        ? DateTime.now().add(const Duration(days: 1))
-                        : DateTime.now();
-                    widget.onMarkTaken(med.id, targetDate, nextDose.timeString);
-                  },
-                  icon: const Icon(Icons.check_rounded, size: 16),
-                  label: const Text('Take'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                    foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              ] else ...[
+                // Pre-conditions (What to do before taking)
+                if (preConditions.isNotEmpty) ...[
+                  for (final pre in preConditions)
+                    _buildConditionTile(
+                      context: context,
+                      icon: _conditionIcon(pre.type),
+                      badge: 'BEFORE',
+                      badgeColor: secondary,
+                      title: _conditionTitle(pre),
+                      subtitle: pre.description,
                     ),
-                  ),
-                ),
-              ],
-            ),
+                ],
 
-            const SizedBox(height: 14),
-            Divider(height: 1, color: AppTheme.cardBorder(context)),
-            const SizedBox(height: 12),
-
-            // Conditions Surrounding This Medication
-            Text(
-              'Required Conditions & Instructions:',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary(context),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            if (preConditions.isEmpty && postConditions.isEmpty && sideEffects.isEmpty) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceVariant(context),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.cardBorder(context)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle_outline_rounded, size: 16, color: AppTheme.textMuted(context)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'No special pre/post conditions. Take with a standard glass of water.',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
-                      ),
+                // Post-conditions (What to do after taking)
+                if (postConditions.isNotEmpty) ...[
+                  for (final post in postConditions)
+                    _buildConditionTile(
+                      context: context,
+                      icon: _conditionIcon(post.type),
+                      badge: 'AFTER',
+                      badgeColor: primary,
+                      title: _conditionTitle(post),
+                      subtitle: post.description,
                     ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              // Pre-conditions (What to do before taking)
-              if (preConditions.isNotEmpty) ...[
-                for (final pre in preConditions)
-                  _buildConditionTile(
-                    context: context,
-                    icon: _conditionIcon(pre.type),
-                    badge: 'BEFORE',
-                    badgeColor: isDark ? AppTheme.secondaryCyanLight : const Color(0xFF0284C7),
-                    title: _conditionTitle(pre),
-                    subtitle: pre.description,
-                  ),
-              ],
-
-              // Post-conditions (What to do after taking)
-              if (postConditions.isNotEmpty) ...[
-                for (final post in postConditions)
-                  _buildConditionTile(
-                    context: context,
-                    icon: _conditionIcon(post.type),
-                    badge: 'AFTER',
-                    badgeColor: isDark ? AppTheme.primaryTealLight : const Color(0xFF0D9488),
-                    title: _conditionTitle(post),
-                    subtitle: post.description,
-                  ),
-              ],
+                ],
 
               // Side Effects & Cautions
               if (sideEffects.isNotEmpty) ...[

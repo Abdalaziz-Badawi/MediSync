@@ -11,12 +11,49 @@ const String kPaletteKey = 'app_theme_palette';
 enum AppPalette {
   emeraldTeal('Emerald & Teal', Color(0xFF0D9488), Color(0xFF0284C7)),
   oceanBlue('Ocean & Cyan', Color(0xFF0284C7), Color(0xFF0D9488)),
-  royalIndigo('Royal Indigo', Color(0xFF6366F1), Color(0xFF0284C7));
+  royalIndigo('Royal Indigo', Color(0xFF6366F1), Color(0xFF8B5CF6)),
+  amethystViolet('Amethyst & Lilac', Color(0xFF8B5CF6), Color(0xFF6366F1)),
+  sunsetCoral('Sunset Coral', Color(0xFFEA580C), Color(0xFFF59E0B)),
+  roseRuby('Rose & Ruby', Color(0xFFE11D48), Color(0xFFFB7185));
 
   final String label;
   final Color primary;
   final Color secondary;
   const AppPalette(this.label, this.primary, this.secondary);
+
+  Color get darkPrimary {
+    switch (this) {
+      case AppPalette.emeraldTeal:
+        return const Color(0xFF2DD4BF);
+      case AppPalette.oceanBlue:
+        return const Color(0xFF38BDF8);
+      case AppPalette.royalIndigo:
+        return const Color(0xFF818CF8);
+      case AppPalette.amethystViolet:
+        return const Color(0xFFA78BFA);
+      case AppPalette.sunsetCoral:
+        return const Color(0xFFFB923C);
+      case AppPalette.roseRuby:
+        return const Color(0xFFFB7185);
+    }
+  }
+
+  Color get darkSecondary {
+    switch (this) {
+      case AppPalette.emeraldTeal:
+        return const Color(0xFF38BDF8);
+      case AppPalette.oceanBlue:
+        return const Color(0xFF2DD4BF);
+      case AppPalette.royalIndigo:
+        return const Color(0xFFA78BFA);
+      case AppPalette.amethystViolet:
+        return const Color(0xFF818CF8);
+      case AppPalette.sunsetCoral:
+        return const Color(0xFFFBBF24);
+      case AppPalette.roseRuby:
+        return const Color(0xFFFDA4AF);
+    }
+  }
 }
 
 class AppTheme {
@@ -45,6 +82,15 @@ class AppTheme {
   static bool isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
 
+  static Color primaryColor(BuildContext context) =>
+      Theme.of(context).colorScheme.primary;
+
+  static Color primaryContainer(BuildContext context) =>
+      Theme.of(context).colorScheme.primaryContainer;
+
+  static Color secondaryColor(BuildContext context) =>
+      Theme.of(context).colorScheme.secondary;
+
   static Color textPrimary(BuildContext context) =>
       isDark(context) ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
 
@@ -64,9 +110,7 @@ class AppTheme {
       isDark(context) ? const Color(0xFF1C273C) : const Color(0xFFEBF1F2);
 
   static Color chipSelected(BuildContext context) =>
-      isDark(context)
-          ? primaryTealLight.withValues(alpha: 0.25)
-          : primaryTeal.withValues(alpha: 0.15);
+      Theme.of(context).colorScheme.primary.withValues(alpha: isDark(context) ? 0.25 : 0.15);
 
   // Shadows for Establishing Hierarchy and Field of Depth
   static List<BoxShadow> softShadow(BuildContext context) {
@@ -232,10 +276,8 @@ class AppTheme {
 
   // Dark Theme (Deep obsidian slate, optimal for eye-care)
   static ThemeData darkTheme([AppPalette palette = AppPalette.emeraldTeal]) {
-    final primary = palette == AppPalette.emeraldTeal
-        ? primaryTealLight
-        : (palette == AppPalette.oceanBlue ? secondaryCyanLight : accentIndigoLight);
-    final secondary = palette == AppPalette.royalIndigo ? secondaryCyanLight : palette.secondary;
+    final primary = palette.darkPrimary;
+    final secondary = palette.darkSecondary;
 
     const textTheme = TextTheme(
       displayLarge: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.bold),
@@ -302,8 +344,8 @@ class AppTheme {
         dialTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         dialBackgroundColor: const Color(0xFF0F172A),
-        hourMinuteColor: const Color(0xFF0C4A6E),
-        hourMinuteTextColor: const Color(0xFF7DD3FC),
+        hourMinuteColor: primary.withValues(alpha: 0.2),
+        hourMinuteTextColor: primary,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -318,13 +360,13 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: primaryTealLight, width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryTealLight,
+          backgroundColor: primary,
           foregroundColor: const Color(0xFF042F2E),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -335,10 +377,10 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: const Color(0xFF151E2E),
         elevation: 4,
-        indicatorColor: primaryTealLight.withValues(alpha: 0.25),
+        indicatorColor: primary.withValues(alpha: 0.25),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryTealLight, fontWeight: FontWeight.w700, fontSize: 12);
+            return TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 12);
           }
           return const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w500, fontSize: 12);
         }),

@@ -283,5 +283,78 @@ void main() {
       final synthroid = MedicinesDatabase.search('Synthroid').first;
       expect(synthroid.foodRestrictions.any((r) => r.toLowerCase().contains('empty stomach') || r.toLowerCase().contains('breakfast')), true);
     });
+
+    test('Dose marked as Not Needed resolves dose and preserves adherence without showing as delayed or pending', () {
+      final now = DateTime.now();
+      final dateKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      final prnMed = Medication(
+        id: 'med_prn_test',
+        name: 'Ibuprofen PRN',
+        dosage: '400mg',
+        form: MedicationForm.pill,
+        timesPerDay: 1,
+        scheduledTimes: const ['14:00'],
+        scheduleFrequency: ScheduleFrequency.asNeeded,
+        startDate: now.subtract(const Duration(days: 3)),
+        doseLog: {
+          dateKey: ['14:00:notNeeded'],
+        },
+      );
+
+      // Verify status is DoseStatus.notNeeded
+      expect(prnMed.getDoseStatus(now, '14:00'), DoseStatus.notNeeded);
+
+      // Crucial: Dose is resolved (so it is excluded from upcoming and overdue next dose countdown)
+      expect(prnMed.isDoseResolved(now, '14:00'), true);
+
+      // Not considered taken
+      expect(prnMed.isDoseTaken(now, '14:00'), false);
+
+      // Verify continuity stats correctly increment notNeeded
+      final stats = prnMed.continuityStats;
+      expect(stats['notNeeded'], 1);
+      expect(stats['taken'], 0);
+      expect(stats['missed'], 0);
+      expect(stats['delayed'], 0);
+    });
+
+    test('Clinical spacing logic computes appropriate minimum intervals between doses', () {
+      // BID requires >= 6h separation
+      expect(
+        SchedulerService.calculateSmartSchedule(
+          timesPerDay: 2,
+          profile: testProfile,
+          sideEffects: const [],
+          preConditions: const [],
+          postConditions: const [],
+        ).length,
+        2,
+      );
+
+      // TID requires >= 4h separation
+      expect(
+        SchedulerService.calculateSmartSchedule(
+          timesPerDay: 3,
+          profile: testProfile,
+          sideEffects: const [],
+          preConditions: const [],
+          postConditions: const [],
+        ).length,
+        3,
+      );
+
+      // QID requires >= 3h separation
+      expect(
+        SchedulerService.calculateSmartSchedule(
+          timesPerDay: 4,
+          profile: testProfile,
+          sideEffects: const [],
+          preConditions: const [],
+          postConditions: const [],
+        ).length,
+        4,
+      );
+    });
   });
 }

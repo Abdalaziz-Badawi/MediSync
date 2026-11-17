@@ -84,7 +84,9 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     final totalDoses = selectedDayDoses.length;
     final takenCount = selectedDayDoses.where((d) => d.isTaken).length;
-    final progress = totalDoses == 0 ? 0.0 : (takenCount / totalDoses);
+    final notNeededCount = selectedDayDoses.where((d) => d.status == DoseStatus.notNeeded).length;
+    final pendingCount = selectedDayDoses.where((d) => d.status == DoseStatus.pending).length;
+    final progress = totalDoses == 0 ? 0.0 : ((takenCount + notNeededCount) / totalDoses).clamp(0.0, 1.0);
 
     // Check for critical safety flags
     final criticalFlags = <SafetyFlag>[];
@@ -159,7 +161,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     tooltip: 'Add Medication',
                     icon: Icon(
                       Icons.add_circle,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 30,
                     ),
                     onPressed: () {
@@ -254,14 +256,20 @@ class _HomePageState extends ConsumerState<HomePage> {
               borderRadius: BorderRadius.circular(20),
               gradient: LinearGradient(
                 colors: isDark
-                    ? [const Color(0xFF0F766E), const Color(0xFF134E4A)]
-                    : [const Color(0xFF0D9488), const Color(0xFF115E59)],
+                    ? [
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
+                        Theme.of(context).colorScheme.secondary.withValues(alpha: 0.75),
+                      ]
+                    : [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.secondary,
+                      ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: AppTheme.glowShadow(
-                isDark ? const Color(0xFF14B8A6) : const Color(0xFF0D9488),
-                opacity: 0.22,
+                Theme.of(context).colorScheme.primary,
+                opacity: 0.28,
               ),
             ),
             padding: const EdgeInsets.all(20),
@@ -286,7 +294,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '$takenCount / $totalDoses Taken',
+                        notNeededCount > 0
+                            ? '$takenCount Taken • $notNeededCount Not Needed'
+                            : '$takenCount / $totalDoses Taken',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -303,16 +313,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                     value: progress,
                     minHeight: 10,
                     backgroundColor: Colors.white.withValues(alpha: 0.25),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5EEAD4)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isDark ? Theme.of(context).colorScheme.secondary : const Color(0xFF5EEAD4),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   totalDoses == 0
                       ? 'No medications scheduled for this day.'
-                      : progress == 1.0
-                          ? 'Outstanding! All scheduled doses taken.'
-                          : '${totalDoses - takenCount} dose(s) remaining for this day.',
+                      : pendingCount == 0
+                          ? 'Outstanding! All scheduled doses completed.'
+                          : '$pendingCount dose(s) remaining for this day.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.94),
                     fontSize: 13,
@@ -461,7 +473,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
           // Check if any medication is active on this day
           final hasMeds = medications.any((m) => m.isActiveOn(date));
-          final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+          final activeColor = Theme.of(context).colorScheme.primary;
 
           return GestureDetector(
             onTap: () {
@@ -477,7 +489,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 color: isSelected
                     ? activeColor
                     : (isTodayDate
-                        ? (isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1))
+                        ? activeColor.withValues(alpha: isDark ? 0.25 : 0.15)
                         : Colors.transparent),
                 borderRadius: BorderRadius.circular(16),
                 border: isTodayDate && !isSelected
@@ -495,7 +507,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: isSelected
-                          ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                          ? Colors.white
                           : AppTheme.textSecondary(context),
                     ),
                   ),
@@ -506,7 +518,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: isSelected
-                          ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                          ? Colors.white
                           : AppTheme.textPrimary(context),
                     ),
                   ),
@@ -519,8 +531,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       shape: BoxShape.circle,
                       color: hasMeds
                           ? (isSelected
-                              ? (isDark ? const Color(0xFF042F2E) : Colors.white)
-                              : (isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan))
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.secondary)
                           : Colors.transparent,
                     ),
                   ),
@@ -597,7 +609,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     Icon(
                       Icons.alarm,
                       size: 13,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -845,7 +857,7 @@ class _DoseTimelineCard extends StatelessWidget {
             SnackBar(
               content: Text('✓ ${med.name} marked as Taken!'),
               duration: const Duration(seconds: 2),
-              backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
         } else {
@@ -942,9 +954,7 @@ class _DoseTimelineCard extends StatelessWidget {
                             ? (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7))
                             : (status == DoseStatus.missed
                                 ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
-                                : (isDark
-                                    ? AppTheme.primaryTealLight.withValues(alpha: 0.18)
-                                    : const Color(0xFFCCFBF1)))),
+                                : Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.22 : 0.12))),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(

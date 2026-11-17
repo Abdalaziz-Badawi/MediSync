@@ -232,6 +232,13 @@ class Medication {
     return status == DoseStatus.taken || status == DoseStatus.delayed;
   }
 
+  /// Returns true if this dose is resolved (taken, delayed, missed, or marked not needed).
+  /// Only unresolved (pending) doses should count as upcoming or overdue.
+  bool isDoseResolved(DateTime date, String time) {
+    final status = getDoseStatus(date, time);
+    return status != DoseStatus.pending;
+  }
+
   static String _formatDateKey(DateTime d) =>
       "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
