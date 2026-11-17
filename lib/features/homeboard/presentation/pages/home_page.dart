@@ -711,15 +711,17 @@ class _DoseTimelineCard extends StatelessWidget {
                   icon: Icons.cancel_rounded,
                   color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
                 ),
-                const SizedBox(height: 8),
-                _buildStatusOption(
-                  ctx: ctx,
-                  status: DoseStatus.notNeeded,
-                  title: 'Not Needed (PRN / As Needed)',
-                  subtitle: 'Symptoms absent or medication was not required',
-                  icon: Icons.remove_circle_outline_rounded,
-                  color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700,
-                ),
+                if (med.scheduleFrequency == ScheduleFrequency.asNeeded) ...[
+                  const SizedBox(height: 8),
+                  _buildStatusOption(
+                    ctx: ctx,
+                    status: DoseStatus.notNeeded,
+                    title: 'Not Needed (As Needed / PRN)',
+                    subtitle: 'Symptoms absent or medication was not required today',
+                    icon: Icons.remove_circle_outline_rounded,
+                    color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 _buildStatusOption(
                   ctx: ctx,

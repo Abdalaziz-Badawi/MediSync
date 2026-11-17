@@ -56,9 +56,6 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
   UpcomingDose? _findNextUpcomingDose() {
     final now = DateTime.now();
     final todayList = <UpcomingDose>[];
-    final tomorrowList = <UpcomingDose>[];
-
-    final tomorrow = now.add(const Duration(days: 1));
 
     for (final med in widget.medications) {
       if (med.isActiveOn(now)) {
@@ -75,39 +72,45 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
           }
         }
       }
-
-      if (med.isActiveOn(tomorrow)) {
-        for (final t in med.scheduledTimes) {
-          final isResolvedTomorrow = med.isDoseResolved(tomorrow, t);
-          if (!isResolvedTomorrow) {
-            final dt = _parseDateTimeFor(tomorrow, t);
-            tomorrowList.add(UpcomingDose(
-              medication: med,
-              scheduledDateTime: dt,
-              timeString: t,
-              isTomorrow: true,
-            ));
-          }
-        }
-      }
     }
 
     if (todayList.isNotEmpty) {
       todayList.sort((a, b) => a.scheduledDateTime.compareTo(b.scheduledDateTime));
 
-      final upcomingToday = todayList.where((d) => d.scheduledDateTime.isAfter(now.subtract(const Duration(minutes: 60)))).toList();
+      final upcomingToday = todayList
+          .where((d) => d.scheduledDateTime
+              .isAfter(now.subtract(const Duration(minutes: 60))))
+          .toList();
       if (upcomingToday.isNotEmpty) {
         return upcomingToday.first;
       }
       return todayList.first;
     }
 
-    if (tomorrowList.isNotEmpty) {
-      tomorrowList.sort((a, b) => a.scheduledDateTime.compareTo(b.scheduledDateTime));
-      return tomorrowList.first;
-    }
-
+    // Do NOT show tomorrow's medication as the active next dose when today is finished!
     return null;
+  }
+
+  List<UpcomingDose> _getTomorrowDoses() {
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final tomorrowList = <UpcomingDose>[];
+
+    for (final med in widget.medications) {
+      if (med.isActiveOn(tomorrow)) {
+        for (final t in med.scheduledTimes) {
+          final dt = _parseDateTimeFor(tomorrow, t);
+          tomorrowList.add(UpcomingDose(
+            medication: med,
+            scheduledDateTime: dt,
+            timeString: t,
+            isTomorrow: true,
+          ));
+        }
+      }
+    }
+    tomorrowList.sort((a, b) => a.timeString.compareTo(b.timeString));
+    return tomorrowList;
   }
 
   DateTime _parseDateTimeFor(DateTime date, String hhmm) {
@@ -145,7 +148,20 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     final nextDose = _findNextUpcomingDose();
 
     if (nextDose == null) {
-      return const SizedBox.shrink();
+      if (widget.medications.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final now = DateTime.now();
+      int todayTotalScheduled = 0;
+      for (final med in widget.medications) {
+        if (med.isActiveOn(now)) {
+          todayTotalScheduled += med.scheduledTimes.length;
+        }
+      }
+
+      final tomorrowDoses = _getTomorrowDoses();
+      return _buildTodayCompletedCard(context, todayTotalScheduled, tomorrowDoses);
     }
 
     final med = nextDose.medication;
@@ -560,5 +576,296 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
       case ConditionType.custom:
         return Icons.info_outline;
     }
+  }
+
+  Widget _buildTodayCompletedCard(
+    BuildContext context,
+    int todayTotalScheduled,
+    List<UpcomingDose> tomorrowDoses,
+  ) {
+    final isDark = AppTheme.isDark(context);
+    final successColor =
+        isDark ? AppTheme.successGreenLight : AppTheme.successGreen;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    final cardBgStart = isDark
+        ? const Color(0xFF064E3B).withValues(alpha: 0.28)
+        : const Color(0xFFDCFCE7).withValues(alpha: 0.6);
+    final cardBgEnd = AppTheme.cardColor(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: successColor.withValues(alpha: isDark ? 0.32 : 0.20),
+            blurRadius: 26,
+            spreadRadius: 2,
+            offset: Offset.zero,
+          ),
+          ...AppTheme.softShadow(context),
+        ],
+      ),
+      child: Card(
+        elevation: isDark ? 2 : 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: successColor.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [cardBgStart, cardBgEnd],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Celebration Top Banner
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF064E3B)
+                          : const Color(0xFFDCFCE7),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: successColor, width: 2),
+                    ),
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      color: successColor,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              "Today We're Done!",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.check_circle_rounded,
+                                size: 18, color: successColor),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          todayTotalScheduled > 0
+                              ? 'All $todayTotalScheduled scheduled dose${todayTotalScheduled == 1 ? '' : 's'} completed for today.'
+                              : 'No remaining doses for today. All caught up!',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppTheme.textSecondary(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color:
+                          successColor.withValues(alpha: isDark ? 0.22 : 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border:
+                          Border.all(color: successColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      'Completed',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: successColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+              Divider(height: 1, color: AppTheme.cardBorder(context)),
+              const SizedBox(height: 14),
+
+              // Tomorrow's Medication Summary Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.wb_sunny_rounded,
+                        size: 17,
+                        color: primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        "TOMORROW'S SCHEDULE SUMMARY",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: isDark ? 0.22 : 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${tomorrowDoses.length} Dose${tomorrowDoses.length == 1 ? '' : 's'}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Tomorrow's doses summary list
+              if (tomorrowDoses.isEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceVariant(context),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.cardBorder(context)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.event_available_rounded,
+                          size: 18, color: AppTheme.textMuted(context)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'No medications scheduled for tomorrow.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppTheme.textSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                for (final td in tomorrowDoses)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.cardBorder(context)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            td.medication.icon,
+                            size: 18,
+                            color: primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                td.medication.name,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                              Text(
+                                td.medication.dosage,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppTheme.textSecondary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border:
+                                Border.all(color: AppTheme.cardBorder(context)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 12,
+                                color: primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                td.timeString,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -4,7 +4,33 @@ All notable developments, architectural transitions, clinical safety features, a
 
 ---
 
-## [1.3.0] - 2026-11-17
+## [1.4.0] - 2026-11-17
+
+### Added
+- **Medications List Filter & Real-Time Search**:
+  - Added a real-time search field allowing users to instantly filter medications by name, dosage, or doctor notes.
+  - Added horizontal filter chips for fast category narrowing: **All**, **Scheduled**, **As Needed (PRN)**, and **Safety Alerts**.
+- **Medications List Multi-Criteria Sorting Engine**:
+  - Added a sorting action menu with 4 distinct sorting criteria:
+    - **Name (A → Z)**
+    - **Name (Z → A)**
+    - **Doses / Day (High → Low)**
+    - **Form / Medication Type**
+  - Remembers user selection and immediately re-orders the list with smooth transitions.
+- **Batch Multi-Select & Safe Deletion**:
+  - Added multi-selection mode accessible via the checklist icon in the AppBar or by long-pressing any medication card.
+  - Added **"Select All"** (selects all visible filtered medications) and **"Select None"** quick group actions.
+  - Added a dedicated batch **Delete** action with safety confirmation dialog displaying the names of selected medicines, preventing accidental loss while removing scheduled reminders and dose tracking cleanly.
+- **"Today We're Done! ✓" Hero Completion Banner**:
+  - When a user finishes all medication doses scheduled for today, the Next Dose hero area no longer displays tomorrow's medication as an active pending dose.
+  - Displays a clean celebration card with a green checkmark indicating **"Today We're Done! ✓"** and confirms that all scheduled doses for the day have been fulfilled.
+- **Tomorrow's Medications Schedule Summary**:
+  - Integrated a clean summary view showing tomorrow's upcoming doses at a glance (time badges, medication names, dosages, and total count).
+
+### Changed & Fixed
+- **Conditional Visibility for "Not Needed" Dose Status**:
+  - Fixed dose logging so that the **"Not Needed (As Needed / PRN)"** status option only appears if the medication's schedule frequency is configured as *As Needed* (PRN).
+  - Regular scheduled medications (daily, weekly, monthly) now only display clinically appropriate intake options (*Taken On Time*, *Taken Delayed*, *Missed Window*, or *Reset to Pending*).
 
 ### Added
 - **Smart Dynamic Multi-Dose Spacing Engine**:

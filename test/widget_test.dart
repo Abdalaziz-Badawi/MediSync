@@ -269,4 +269,83 @@ void main() {
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Your Name *'), findsOneWidget);
   });
+
+  testWidgets(
+      'Medications List supports selection mode, select all, and batch delete',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          medicationsNotifierProvider
+              .overrideWith((ref) => FakeMedicationsNotifier()),
+        ],
+        child: const MaterialApp(
+          home: MedicationsListPage(),
+        ),
+      ),
+    );
+
+    expect(find.text('My Medications'), findsOneWidget);
+    expect(find.text('Metformin'), findsOneWidget);
+
+    // Enter selection mode via checklist icon
+    final selectBtn = find.byIcon(Icons.checklist_rounded);
+    expect(selectBtn, findsOneWidget);
+    await tester.tap(selectBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 Selected'), findsOneWidget);
+    expect(find.text('Select All'), findsOneWidget);
+    expect(find.text('Select None'), findsOneWidget);
+
+    // Select All
+    await tester.tap(find.text('Select All'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 Selected'), findsOneWidget);
+    expect(find.text('Delete (1)'), findsOneWidget);
+
+    // Select None
+    await tester.tap(find.text('Select None'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 Selected'), findsOneWidget);
+  });
+
+  testWidgets(
+      'NextDoseCountdownCard renders "Today We\'re Done!" and tomorrow summary when today is complete',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final todayStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final yyyymmdd =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final med = Medication(
+      id: 'done-med-1',
+      name: 'Amoxicillin',
+      dosage: '250mg',
+      timesPerDay: 1,
+      scheduledTimes: [todayStr],
+      startDate: now.subtract(const Duration(days: 2)),
+      preConditions: const [],
+      sideEffects: const [],
+      doseLog: {
+        yyyymmdd: ['$todayStr:taken'],
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NextDoseCountdownCard(
+            medications: [med],
+            onMarkTaken: (_, __, ___) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text("Today We're Done!"), findsOneWidget);
+    expect(find.text("TOMORROW'S SCHEDULE SUMMARY"), findsOneWidget);
+  });
 }
