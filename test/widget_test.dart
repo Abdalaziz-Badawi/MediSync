@@ -106,6 +106,17 @@ class FakeFontScaleNotifier extends StateNotifier<double>
   }
 }
 
+// Test mock notifier for Palette
+class FakePaletteNotifier extends StateNotifier<AppPalette>
+    implements PaletteNotifier {
+  FakePaletteNotifier() : super(AppPalette.emeraldTeal);
+
+  @override
+  void setPalette(AppPalette palette) {
+    state = palette;
+  }
+}
+
 // Test mock NotificationService
 class FakeNotificationService implements NotificationService {
   @override
@@ -201,6 +212,8 @@ void main() {
               .overrideWith((ref) => FakeThemeNotifier()),
           fontScaleNotifierProvider
               .overrideWith((ref) => FakeFontScaleNotifier()),
+          paletteNotifierProvider
+              .overrideWith((ref) => FakePaletteNotifier()),
           notificationServiceProvider
               .overrideWithValue(FakeNotificationService()),
         ],

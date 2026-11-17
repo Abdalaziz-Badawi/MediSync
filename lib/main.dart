@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
-import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:medisync/features/splash/presentation/pages/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,8 +33,6 @@ class MediSyncApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
-    final storage = ref.watch(storageServiceProvider);
-    final isSetupCompleted = storage.isSetupCompleted();
 
     return MaterialApp(
       title: 'MediSync',
@@ -51,9 +48,7 @@ class MediSyncApp extends ConsumerWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: isSetupCompleted
-          ? const MainNavigationPage()
-          : const OnboardingPage(),
+      home: const SplashScreen(),
     );
   }
 }

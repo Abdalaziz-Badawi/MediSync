@@ -27,24 +27,62 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: Stack(
+        children: [
+          // Indexed Pages
+          IndexedStack(
+            index: _currentIndex,
+            children: _pages,
+          ),
+
+          // Scroll depth cue: subtle ambient gradient hinting that content flows under the floating bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 105,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      (isDark ? const Color(0xFF090E17) : const Color(0xFFF4F7F6))
+                          .withValues(alpha: 0.75),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 68,
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xF21E293B) : const Color(0xF9FFFFFF),
+            color: isDark ? const Color(0xF2151E2E) : const Color(0xF9FFFFFF),
             borderRadius: BorderRadius.circular(34),
             border: Border.all(
               color: isDark
-                  ? const Color(0xFF334155).withValues(alpha: 0.9)
+                  ? const Color(0xFF243248).withValues(alpha: 0.9)
                   : const Color(0xFFE2E8F0),
               width: 1.2,
             ),
-            boxShadow: AppTheme.floatingShadow(context),
+            boxShadow: [
+              // Upward content ambient glow
+              BoxShadow(
+                color: (isDark ? activeColor : const Color(0xFF0F172A))
+                    .withValues(alpha: isDark ? 0.16 : 0.06),
+                blurRadius: 24,
+                offset: const Offset(0, -6),
+              ),
+              // Floating downward elevation shadow
+              ...AppTheme.floatingShadow(context),
+            ],
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(

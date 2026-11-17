@@ -6,6 +6,18 @@ import 'package:medisync/core/services/storage_service.dart';
 const String kThemeBoxName = 'theme_settings_box';
 const String kThemeModeKey = 'app_theme_mode';
 const String kFontScaleKey = 'app_font_scale';
+const String kPaletteKey = 'app_theme_palette';
+
+enum AppPalette {
+  emeraldTeal('Emerald & Teal', Color(0xFF0D9488), Color(0xFF0284C7)),
+  oceanBlue('Ocean & Cyan', Color(0xFF0284C7), Color(0xFF0D9488)),
+  royalIndigo('Royal Indigo', Color(0xFF6366F1), Color(0xFF0284C7));
+
+  final String label;
+  final Color primary;
+  final Color secondary;
+  const AppPalette(this.label, this.primary, this.secondary);
+}
 
 class AppTheme {
   // Brand Palette: Modern Healthcare Emerald, Trust Cyan, Comforting Indigo, and Rich Clinical Accents
@@ -43,13 +55,13 @@ class AppTheme {
       isDark(context) ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
   static Color cardColor(BuildContext context) =>
-      isDark(context) ? const Color(0xFF1E293B) : Colors.white;
+      isDark(context) ? const Color(0xFF151E2E) : Colors.white;
 
   static Color cardBorder(BuildContext context) =>
-      isDark(context) ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+      isDark(context) ? const Color(0xFF243248) : const Color(0xFFE2E8F0);
 
   static Color surfaceVariant(BuildContext context) =>
-      isDark(context) ? const Color(0xFF243048) : const Color(0xFFF1F5F9);
+      isDark(context) ? const Color(0xFF1C273C) : const Color(0xFFEBF1F2);
 
   static Color chipSelected(BuildContext context) =>
       isDark(context)
@@ -61,8 +73,8 @@ class AppTheme {
     return [
       BoxShadow(
         color: isDark(context)
-            ? Colors.black.withValues(alpha: 0.25)
-            : const Color(0xFF0F172A).withValues(alpha: 0.04),
+            ? Colors.black.withValues(alpha: 0.3)
+            : const Color(0xFF0F172A).withValues(alpha: 0.05),
         blurRadius: 10,
         offset: const Offset(0, 3),
       ),
@@ -73,8 +85,8 @@ class AppTheme {
     return [
       BoxShadow(
         color: isDark(context)
-            ? Colors.black.withValues(alpha: 0.4)
-            : const Color(0xFF0F172A).withValues(alpha: 0.07),
+            ? Colors.black.withValues(alpha: 0.45)
+            : const Color(0xFF0F172A).withValues(alpha: 0.08),
         blurRadius: 16,
         offset: const Offset(0, 6),
       ),
@@ -85,9 +97,9 @@ class AppTheme {
     return [
       BoxShadow(
         color: isDark(context)
-            ? Colors.black.withValues(alpha: 0.6)
-            : const Color(0xFF0F172A).withValues(alpha: 0.12),
-        blurRadius: 24,
+            ? Colors.black.withValues(alpha: 0.65)
+            : const Color(0xFF0F172A).withValues(alpha: 0.14),
+        blurRadius: 26,
         offset: const Offset(0, 8),
         spreadRadius: 1,
       ),
@@ -104,7 +116,7 @@ class AppTheme {
     ];
   }
 
-  // Light Theme
+  // Light Theme (Soothing clinical porcelain background)
   static ThemeData get lightTheme {
     const textTheme = TextTheme(
       displayLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
@@ -139,7 +151,7 @@ class AppTheme {
         onError: Colors.white,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      scaffoldBackgroundColor: const Color(0xFFF4F7F6), // Warm soothing medical off-white
       textTheme: textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
@@ -215,7 +227,7 @@ class AppTheme {
     );
   }
 
-  // Dark Theme (Modern, High-Contrast, Eye-Care Optimized)
+  // Dark Theme (Deep obsidian slate, optimal for eye-care)
   static ThemeData get darkTheme {
     const textTheme = TextTheme(
       displayLarge: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.bold),
@@ -243,17 +255,17 @@ class AppTheme {
         secondaryContainer: const Color(0xFF0C4A6E),
         onSecondaryContainer: const Color(0xFFBAE6FD),
         tertiary: accentIndigoLight,
-        surface: const Color(0xFF1E293B),
+        surface: const Color(0xFF151E2E),
         onSurface: const Color(0xFFF8FAFC),
         onSurfaceVariant: const Color(0xFFCBD5E1),
         error: dangerRedLight,
         onError: const Color(0xFF450A0A),
         brightness: Brightness.dark,
       ),
-      scaffoldBackgroundColor: const Color(0xFF0B132B),
+      scaffoldBackgroundColor: const Color(0xFF090E17), // Rich obsidian slate
       textTheme: textTheme,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E293B),
+        backgroundColor: Color(0xFF151E2E),
         foregroundColor: Color(0xFFF8FAFC),
         elevation: 0,
         scrolledUnderElevation: 1,
@@ -268,12 +280,12 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFF151E2E),
         elevation: 2,
-        shadowColor: Colors.black.withValues(alpha: 0.35),
+        shadowColor: Colors.black.withValues(alpha: 0.4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: const BorderSide(color: Color(0xFF243248), width: 1),
         ),
       ),
       timePickerTheme: TimePickerThemeData(
@@ -287,14 +299,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1E293B),
+        fillColor: const Color(0xFF151E2E),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: Color(0xFF243248)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: Color(0xFF243248)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -313,7 +325,7 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF151E2E),
         elevation: 4,
         indicatorColor: primaryTealLight.withValues(alpha: 0.25),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -388,4 +400,30 @@ final fontScaleNotifierProvider =
     StateNotifierProvider<FontScaleNotifier, double>((ref) {
   final box = Hive.box(kSettingsBoxName);
   return FontScaleNotifier(box);
+});
+
+// Palette Notifier
+class PaletteNotifier extends StateNotifier<AppPalette> {
+  final Box _settingsBox;
+
+  PaletteNotifier(this._settingsBox) : super(_loadInitialPalette(_settingsBox));
+
+  static AppPalette _loadInitialPalette(Box box) {
+    final raw = box.get(kPaletteKey, defaultValue: AppPalette.emeraldTeal.name);
+    return AppPalette.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => AppPalette.emeraldTeal,
+    );
+  }
+
+  void setPalette(AppPalette palette) {
+    state = palette;
+    _settingsBox.put(kPaletteKey, palette.name);
+  }
+}
+
+final paletteNotifierProvider =
+    StateNotifierProvider<PaletteNotifier, AppPalette>((ref) {
+  final box = Hive.box(kSettingsBoxName);
+  return PaletteNotifier(box);
 });

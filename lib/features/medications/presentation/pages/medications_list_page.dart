@@ -66,28 +66,33 @@ class MedicationsListPage extends ConsumerWidget {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 165),
               itemCount: medications.length,
               itemBuilder: (context, index) {
                 final med = medications[index];
                 return _MedicationCard(medication: med);
               },
             ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 76),
-        child: FloatingActionButton.extended(
-          backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-          foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AddEditMedicationPage(),
-              ),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Add Medicine'),
+      // Smart Clearance Floating Action Button (Cleanly positioned above the floating Bottom Navigation Bar)
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 92, right: 8),
+          child: FloatingActionButton.extended(
+            elevation: 4,
+            backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+            foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddEditMedicationPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Add Medicine'),
+          ),
         ),
       ),
     );
@@ -106,20 +111,23 @@ class _MedicationCard extends ConsumerWidget {
       (f) => f.severity == FlagSeverity.critical,
     );
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: isDark ? 2 : 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor(context),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
           color: hasCriticalFlag
               ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
               : AppTheme.cardBorder(context),
           width: hasCriticalFlag ? 1.5 : 1,
         ),
+        boxShadow: hasCriticalFlag
+            ? AppTheme.glowShadow(AppTheme.dangerRed, opacity: 0.18)
+            : AppTheme.softShadow(context),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () {
           Navigator.push(
             context,
@@ -285,54 +293,31 @@ class _MedicationCard extends ConsumerWidget {
                 }).toList(),
               ),
 
-              const SizedBox(height: 10),
-              // Conditions & Info summary
-              Row(
-                children: [
-                  if (medication.preConditions.isNotEmpty ||
-                      medication.postConditions.isNotEmpty) ...[
+              // Excipients & Clinical Considerations preview if available
+              if (medication.inactiveExcipients.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
                     Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan,
+                      Icons.science_outlined,
+                      size: 12,
+                      color: AppTheme.textSecondary(context),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        _buildConditionSummary(medication),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        'Excipients: ${medication.inactiveExcipients.take(3).join(', ')}${medication.inactiveExcipients.length > 3 ? '...' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                  if (medication.refillsRemaining != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: medication.refillsRemaining! <= 1
-                            ? (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7))
-                            : AppTheme.surfaceVariant(context),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '${medication.refillsRemaining} refills left',
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: medication.refillsRemaining! <= 1
-                              ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
-                              : AppTheme.textSecondary(context),
+                          color: AppTheme.textSecondary(context),
                         ),
                       ),
                     ),
                   ],
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
@@ -340,23 +325,12 @@ class _MedicationCard extends ConsumerWidget {
     );
   }
 
-  String _buildConditionSummary(Medication med) {
-    final parts = <String>[];
-    for (final c in med.preConditions) {
-      parts.add('Before: ${c.description}');
-    }
-    for (final c in med.postConditions) {
-      parts.add('After: ${c.description}');
-    }
-    return parts.join(' • ');
-  }
-
   void _showDeleteConfirm(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Medication?'),
-        content: Text('Are you sure you want to remove ${medication.name}?'),
+        content: Text('Are you sure you want to delete ${medication.name}? This will cancel all its scheduled notifications.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -365,9 +339,7 @@ class _MedicationCard extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerRed),
             onPressed: () {
-              ref
-                  .read(medicationsNotifierProvider.notifier)
-                  .remove(medication.id);
+              ref.read(medicationsNotifierProvider.notifier).remove(medication.id);
               Navigator.pop(ctx);
             },
             child: const Text('Delete'),
