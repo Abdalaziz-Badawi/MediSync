@@ -31,7 +31,10 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
 
   MedicationForm _selectedForm = MedicationForm.pill;
   int _timesPerDay = 1;
-  bool _isOngoing = true;
+  bool _isOngoing = false; // Defaulted to false as requested
+  ScheduleFrequency _frequency = ScheduleFrequency.daily;
+  int _intervalDays = 2; // For everyXDays
+  List<int> _monthlyDays = [1]; // For monthly / twiceMonthly
   List<String> _scheduledTimes = ['08:00'];
   String _clinicalRationale = '';
   List<CompanionMealReminder> _companionMealReminders = [];
@@ -64,6 +67,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       _selectedForm = med.form;
       _timesPerDay = med.timesPerDay;
       _isOngoing = med.isOngoing;
+      _frequency = med.scheduleFrequency;
+      _intervalDays = med.intervalDays ?? 2;
+      _monthlyDays = List.from(med.monthlyDays);
       _scheduledTimes = List.from(med.scheduledTimes);
       _daysOfWeek = List.from(med.daysOfWeek);
       for (final c in med.preConditions) {
@@ -325,6 +331,10 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
           : _notesController.text.trim(),
       safetyFlags: _activeSafetyFlags,
       daysOfWeek: _daysOfWeek.isEmpty ? const [1, 2, 3, 4, 5, 6, 7] : _daysOfWeek,
+      scheduleFrequency: _frequency,
+      intervalDays: _intervalDays,
+      monthlyDays: _monthlyDays,
+      foodRestrictions: _matchedTemplate?.foodRestrictions ?? (widget.medicationToEdit?.foodRestrictions ?? const []),
       inactiveExcipients: _matchedTemplate?.inactiveExcipients ?? (widget.medicationToEdit?.inactiveExcipients ?? const []),
       mealCondition: isMealLinked ? 'after_meal' : null,
       doseLog: widget.medicationToEdit?.doseLog ?? {},
@@ -582,7 +592,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.check_circle,
+                      Icons.check_circle_rounded,
                       color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                       size: 16,
                     ),
@@ -600,49 +610,147 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                   ],
                 ),
               ),
-            ],
 
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _dosageController,
-                    style: TextStyle(color: AppTheme.textPrimary(context)),
-                    decoration: const InputDecoration(
-                      labelText: 'Dosage *',
-                      hintText: 'e.g. 500 mg, 1 tablet',
-                      prefixIcon: Icon(Icons.fitness_center),
+              // Clinical Food Restrictions & Dietary Precautions
+              if (_matchedTemplate!.foodRestrictions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF3B1D0B) : const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF92400E) : const Color(0xFFFDE68A),
                     ),
-                    validator: (val) => val == null || val.trim().isEmpty
-                        ? 'Enter dosage'
-                        : null,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<MedicationForm>(
-                    initialValue: _selectedForm,
-                    decoration: const InputDecoration(
-                      labelText: 'Form',
-                      prefixIcon: Icon(Icons.category),
-                    ),
-                    dropdownColor: AppTheme.cardColor(context),
-                    items: MedicationForm.values.map((f) {
-                      return DropdownMenuItem(
-                        value: f,
-                        child: Text(
-                          f.name[0].toUpperCase() + f.name.substring(1),
-                          style: TextStyle(color: AppTheme.textPrimary(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.restaurant_menu_rounded,
+                            color: isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Suggested Food & Dietary Precautions:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? AppTheme.warningAmberLight : const Color(0xFF92400E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      for (final r in _matchedTemplate!.foodRestrictions)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '• $r',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF78350F),
+                              height: 1.3,
+                            ),
+                          ),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedForm = val);
-                    },
+                    ],
                   ),
                 ),
               ],
+            ],
+
+            const SizedBox(height: 12),
+            // Responsive Overflow-Safe Dosage & Form Fields
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 360;
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      TextFormField(
+                        controller: _dosageController,
+                        style: TextStyle(color: AppTheme.textPrimary(context)),
+                        decoration: const InputDecoration(
+                          labelText: 'Dosage *',
+                          hintText: 'e.g. 500 mg, 1 tablet',
+                          prefixIcon: Icon(Icons.fitness_center_rounded),
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Enter dosage'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<MedicationForm>(
+                        initialValue: _selectedForm,
+                        decoration: const InputDecoration(
+                          labelText: 'Form',
+                          prefixIcon: Icon(Icons.category_rounded),
+                        ),
+                        dropdownColor: AppTheme.cardColor(context),
+                        items: MedicationForm.values.map((f) {
+                          return DropdownMenuItem(
+                            value: f,
+                            child: Text(
+                              f.name[0].toUpperCase() + f.name.substring(1),
+                              style: TextStyle(color: AppTheme.textPrimary(context)),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedForm = val);
+                        },
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _dosageController,
+                        style: TextStyle(color: AppTheme.textPrimary(context)),
+                        decoration: const InputDecoration(
+                          labelText: 'Dosage *',
+                          hintText: 'e.g. 500 mg, 1 tablet',
+                          prefixIcon: Icon(Icons.fitness_center_rounded),
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Enter dosage'
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<MedicationForm>(
+                        initialValue: _selectedForm,
+                        decoration: const InputDecoration(
+                          labelText: 'Form',
+                          prefixIcon: Icon(Icons.category_rounded),
+                        ),
+                        dropdownColor: AppTheme.cardColor(context),
+                        items: MedicationForm.values.map((f) {
+                          return DropdownMenuItem(
+                            value: f,
+                            child: Text(
+                              f.name[0].toUpperCase() + f.name.substring(1),
+                              style: TextStyle(color: AppTheme.textPrimary(context)),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedForm = val);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -790,9 +898,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ),
             const SizedBox(height: 24),
 
-            // Section 4: Weekly Timing & Days of Week
+            // Section 4: Schedule Frequency & Recurrence
             Text(
-              '4. Weekly Timing & Schedule Days',
+              '4. Schedule Frequency & Recurrence',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -801,7 +909,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Choose the days of the week this medication should be taken.',
+              'Select whether this medication is daily, specific days, bi-weekly, monthly, or as needed.',
               style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
             ),
             const SizedBox(height: 8),
@@ -811,48 +919,230 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _daysOfWeek.length == 7 ? 'Active: Every Day' : 'Active: ${_daysOfWeek.length} days/week',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary(context),
+                    // Frequency Selector (Horizontal scrolling to prevent overflow at all scales)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          _buildFrequencyChip(
+                            label: 'Daily',
+                            frequency: ScheduleFrequency.daily,
                           ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              if (_daysOfWeek.length == 7) {
-                                _daysOfWeek = [DateTime.now().weekday];
-                              } else {
-                                _daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
-                              }
-                            });
-                          },
-                          child: Text(
-                            _daysOfWeek.length == 7 ? 'Custom Days' : 'Select All',
-                            style: TextStyle(
-                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'Specific Days',
+                            frequency: ScheduleFrequency.weekly,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'Every X Days',
+                            frequency: ScheduleFrequency.everyXDays,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'Bi-Weekly (2 Wks)',
+                            frequency: ScheduleFrequency.biWeekly,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'Monthly (1x/Mo)',
+                            frequency: ScheduleFrequency.monthly,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'Twice a Month',
+                            frequency: ScheduleFrequency.twiceMonthly,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'As Needed (PRN)',
+                            frequency: ScheduleFrequency.asNeeded,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Sub-panel for Frequency Details
+                    if (_frequency == ScheduleFrequency.daily ||
+                        _frequency == ScheduleFrequency.weekly ||
+                        _frequency == ScheduleFrequency.biWeekly) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _daysOfWeek.length == 7
+                                  ? (_frequency == ScheduleFrequency.biWeekly ? 'Every 2 Weeks: All Days' : 'Active: Every Day')
+                                  : 'Active: ${_daysOfWeek.length} days/week',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                if (_daysOfWeek.length == 7) {
+                                  _daysOfWeek = [DateTime.now().weekday];
+                                } else {
+                                  _daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
+                                }
+                              });
+                            },
+                            child: Text(
+                              _daysOfWeek.length == 7 ? 'Custom Days' : 'Select All',
+                              style: TextStyle(
+                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Horizontal scroll for days guarantees zero overflow at any text scale
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _DayChip(label: 'M', dayInt: 1, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                            const SizedBox(width: 8),
+                            _DayChip(label: 'T', dayInt: 2, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                            const SizedBox(width: 8),
+                            _DayChip(label: 'W', dayInt: 3, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                            const SizedBox(width: 8),
+                            _DayChip(label: 'T', dayInt: 4, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                            const SizedBox(width: 8),
+                            _DayChip(label: 'F', dayInt: 5, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                            const SizedBox(width: 8),
+                            _DayChip(label: 'S', dayInt: 6, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                            const SizedBox(width: 8),
+                            _DayChip(label: 'S', dayInt: 7, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _DayChip(label: 'M', dayInt: 1, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                        _DayChip(label: 'T', dayInt: 2, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                        _DayChip(label: 'W', dayInt: 3, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                        _DayChip(label: 'T', dayInt: 4, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                        _DayChip(label: 'F', dayInt: 5, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                        _DayChip(label: 'S', dayInt: 6, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                        _DayChip(label: 'S', dayInt: 7, selectedDays: _daysOfWeek, onChanged: _toggleDay),
-                      ],
-                    ),
+                      ),
+                    ] else if (_frequency == ScheduleFrequency.monthly) ...[
+                      Text(
+                        'Scheduled Day of Each Month:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [1, 5, 10, 15, 20, 25, 28].map((dayNum) {
+                            final isSel = _monthlyDays.contains(dayNum);
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('Day $dayNum'),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _monthlyDays = [dayNum];
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ] else if (_frequency == ScheduleFrequency.twiceMonthly) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceVariant(context),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_month_rounded,
+                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Scheduled on the 1st and 15th of each month (~15-day intervals)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (_frequency == ScheduleFrequency.everyXDays) ...[
+                      Text(
+                        'Select Day Interval:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [2, 3, 4, 5, 7].map((interval) {
+                            final isSel = _intervalDays == interval;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('Every $interval Days'),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _intervalDays = interval;
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ] else if (_frequency == ScheduleFrequency.asNeeded) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceVariant(context),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.healing_rounded,
+                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'PRN / As-Needed: Active on demand whenever symptoms arise.',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -869,14 +1159,19 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '5. Dose Times & Daily Frequency',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary(context),
+                        Expanded(
+                          child: Text(
+                            '5. Dose Times & Daily Frequency',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
                         DropdownButton<int>(
                           value: _timesPerDay,
                           dropdownColor: AppTheme.cardColor(context),
@@ -1129,6 +1424,38 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFrequencyChip({
+    required String label,
+    required ScheduleFrequency frequency,
+  }) {
+    final isSelected = _frequency == frequency;
+    final isDark = AppTheme.isDark(context);
+
+    return ChoiceChip(
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        color: isSelected
+            ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+            : AppTheme.textPrimary(context),
+      ),
+      selected: isSelected,
+      selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+      backgroundColor: AppTheme.surfaceVariant(context),
+      side: BorderSide(
+        color: isSelected
+            ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+            : AppTheme.cardBorder(context),
+      ),
+      onSelected: (_) {
+        setState(() {
+          _frequency = frequency;
+        });
+      },
     );
   }
 

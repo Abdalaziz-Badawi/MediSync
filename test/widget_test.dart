@@ -77,6 +77,14 @@ class FakeMedicationsNotifier extends StateNotifier<List<Medication>>
 
   @override
   Future<void> toggleDoseTaken(String medId, DateTime date, String time) async {}
+
+  @override
+  Future<void> setDoseStatus(
+    String medId,
+    DateTime date,
+    String time,
+    DoseStatus status,
+  ) async {}
 }
 
 // Test mock notifier for Theme
@@ -224,20 +232,21 @@ void main() {
     );
 
     expect(find.text('Profile & Routine'), findsOneWidget);
-    expect(find.text('Appearance & Theme'), findsOneWidget);
-    expect(find.text('Light'), findsOneWidget);
-    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Daily Routine & Meal Times'), findsOneWidget);
+    expect(find.text('Wake Up Time'), findsOneWidget);
+    expect(find.text('Penicillin'), findsWidgets);
 
-    // Scroll down to reveal allergies
+    // Scroll down to reveal Settings & Preferences
     await tester.scrollUntilVisible(
-      find.text('Allergies & Excipient Sensitivities'),
+      find.text('Appearance & Theme'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Allergies & Excipient Sensitivities'), findsOneWidget);
-    expect(find.text('Penicillin'), findsWidgets);
+    expect(find.text('Appearance & Theme'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
   });
 
   testWidgets('Renders Onboarding Setup Wizard with welcome step',

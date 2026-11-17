@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medisync/core/data/medicines_database.dart';
 import 'package:medisync/core/models/condition.dart';
+import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
 import 'package:medisync/core/models/side_effect.dart';
 import 'package:medisync/core/models/user_profile.dart';
@@ -110,6 +111,134 @@ void main() {
       );
 
       expect(flags.isEmpty, true);
+    });
+
+    test('Detects Drug-Drug Interaction: NSAID + Anticoagulant Hemorrhage Risk', () {
+      final existingWarfarin = Medication(
+        id: 'med_warfarin',
+        name: 'Coumadin',
+        dosage: '5mg',
+        form: MedicationForm.pill,
+        timesPerDay: 1,
+        scheduledTimes: const ['18:00'],
+        startDate: DateTime(2026, 11, 1),
+      );
+
+      final flags = SchedulerService.checkSafety(
+        medicationName: 'Advil',
+        profile: testProfile,
+        existingMeds: [existingWarfarin],
+      );
+
+      expect(flags.any((f) => f.title.contains('Bleeding Risk') || f.title.contains('Anticoagulant')), true);
+    });
+
+    test('Detects Chelation & Absorption Spacing Advisory for Fluoroquinolones & Cations', () {
+      final existingAntacid = Medication(
+        id: 'med_calcium',
+        name: 'Calcium Carbonate',
+        dosage: '500mg',
+        form: MedicationForm.pill,
+        timesPerDay: 1,
+        scheduledTimes: const ['08:00'],
+        startDate: DateTime(2026, 11, 1),
+      );
+
+      final flags = SchedulerService.checkSafety(
+        medicationName: 'Cipro',
+        profile: testProfile,
+        existingMeds: [existingAntacid],
+      );
+
+      expect(flags.any((f) => f.title.contains('Absorption') || f.title.contains('Chelation')), true);
+    });
+
+    test('Medication frequency active checks for Monthly, Twice-Monthly, Every-X-Days', () {
+      final startDate = DateTime(2026, 11, 1);
+
+      final monthlyMed = Medication(
+        id: 'monthly_1',
+        name: 'Monthly Injection',
+        dosage: '1 dose',
+        form: MedicationForm.injection,
+        timesPerDay: 1,
+        scheduledTimes: const ['09:00'],
+        startDate: startDate,
+        scheduleFrequency: ScheduleFrequency.monthly,
+        monthlyDays: const [1],
+      );
+
+      expect(monthlyMed.isActiveOn(DateTime(2026, 11, 1)), true);
+      expect(monthlyMed.isActiveOn(DateTime(2026, 11, 2)), false);
+      expect(monthlyMed.isActiveOn(DateTime(2026, 12, 1)), true);
+
+      final twiceMonthlyMed = Medication(
+        id: 'bi_monthly_1',
+        name: 'Bi-Monthly Med',
+        dosage: '1 tablet',
+        form: MedicationForm.pill,
+        timesPerDay: 1,
+        scheduledTimes: const ['09:00'],
+        startDate: startDate,
+        scheduleFrequency: ScheduleFrequency.twiceMonthly,
+        monthlyDays: const [1, 15],
+      );
+
+      expect(twiceMonthlyMed.isActiveOn(DateTime(2026, 11, 1)), true);
+      expect(twiceMonthlyMed.isActiveOn(DateTime(2026, 11, 15)), true);
+      expect(twiceMonthlyMed.isActiveOn(DateTime(2026, 11, 10)), false);
+
+      final every3DaysMed = Medication(
+        id: 'every_3_days',
+        name: 'Intermittent Med',
+        dosage: '1 capsule',
+        form: MedicationForm.capsule,
+        timesPerDay: 1,
+        scheduledTimes: const ['10:00'],
+        startDate: startDate,
+        scheduleFrequency: ScheduleFrequency.everyXDays,
+        intervalDays: 3,
+      );
+
+      expect(every3DaysMed.isActiveOn(DateTime(2026, 11, 1)), true); // day 0
+      expect(every3DaysMed.isActiveOn(DateTime(2026, 11, 2)), false); // day 1
+      expect(every3DaysMed.isActiveOn(DateTime(2026, 11, 3)), false); // day 2
+      expect(every3DaysMed.isActiveOn(DateTime(2026, 11, 4)), true); // day 3
+    });
+
+    test('Medication DoseStatus records and tracks Taken, Delayed, and Missed states', () {
+      final med = Medication(
+        id: 'med_test_status',
+        name: 'Lipitor',
+        dosage: '20mg',
+        form: MedicationForm.pill,
+        timesPerDay: 2,
+        scheduledTimes: const ['08:00', '20:00'],
+        startDate: DateTime(2026, 11, 1),
+        doseLog: const {
+          '2026-11-17': ['08:00:taken', '20:00:delayed'],
+          '2026-11-16': ['08:00:missed'],
+          '2026-11-15': ['08:00'], // legacy format -> defaults to taken
+        },
+      );
+
+      final targetDate = DateTime(2026, 11, 17);
+      expect(med.getDoseStatus(targetDate, '08:00'), DoseStatus.taken);
+      expect(med.getDoseStatus(targetDate, '20:00'), DoseStatus.delayed);
+      expect(med.getDoseStatus(DateTime(2026, 11, 16), '08:00'), DoseStatus.missed);
+      expect(med.getDoseStatus(DateTime(2026, 11, 15), '08:00'), DoseStatus.taken);
+      expect(med.getDoseStatus(targetDate, '12:00'), DoseStatus.pending);
+    });
+
+    test('MedicinesDatabase supplies evidence-based food & dietary restrictions', () {
+      final lipitor = MedicinesDatabase.search('Lipitor').first;
+      expect(lipitor.foodRestrictions.any((r) => r.toLowerCase().contains('grapefruit')), true);
+
+      final cipro = MedicinesDatabase.search('Cipro').first;
+      expect(cipro.foodRestrictions.any((r) => r.toLowerCase().contains('dairy') || r.toLowerCase().contains('calcium')), true);
+
+      final synthroid = MedicinesDatabase.search('Synthroid').first;
+      expect(synthroid.foodRestrictions.any((r) => r.toLowerCase().contains('empty stomach') || r.toLowerCase().contains('breakfast')), true);
     });
   });
 }

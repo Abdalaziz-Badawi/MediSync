@@ -117,7 +117,10 @@ class AppTheme {
   }
 
   // Light Theme (Soothing clinical porcelain background)
-  static ThemeData get lightTheme {
+  static ThemeData lightTheme([AppPalette palette = AppPalette.emeraldTeal]) {
+    final primary = palette.primary;
+    final secondary = palette.secondary;
+
     const textTheme = TextTheme(
       displayLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
       displayMedium: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
@@ -134,15 +137,15 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryTeal,
-        primary: primaryTeal,
+        seedColor: primary,
+        primary: primary,
         onPrimary: Colors.white,
-        primaryContainer: const Color(0xFFCCFBF1),
-        onPrimaryContainer: const Color(0xFF115E59),
-        secondary: secondaryCyan,
+        primaryContainer: primary.withValues(alpha: 0.15),
+        onPrimaryContainer: primary,
+        secondary: secondary,
         onSecondary: Colors.white,
-        secondaryContainer: const Color(0xFFE0F2FE),
-        onSecondaryContainer: const Color(0xFF0369A1),
+        secondaryContainer: secondary.withValues(alpha: 0.15),
+        onSecondaryContainer: secondary,
         tertiary: accentIndigo,
         surface: Colors.white,
         onSurface: const Color(0xFF0F172A),
@@ -199,13 +202,13 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: primaryTeal, width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryTeal,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -216,10 +219,10 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
         elevation: 3,
-        indicatorColor: primaryTeal.withValues(alpha: 0.15),
+        indicatorColor: primary.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryTeal, fontWeight: FontWeight.w700, fontSize: 12);
+            return TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 12);
           }
           return const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500, fontSize: 12);
         }),
@@ -228,7 +231,12 @@ class AppTheme {
   }
 
   // Dark Theme (Deep obsidian slate, optimal for eye-care)
-  static ThemeData get darkTheme {
+  static ThemeData darkTheme([AppPalette palette = AppPalette.emeraldTeal]) {
+    final primary = palette == AppPalette.emeraldTeal
+        ? primaryTealLight
+        : (palette == AppPalette.oceanBlue ? secondaryCyanLight : accentIndigoLight);
+    final secondary = palette == AppPalette.royalIndigo ? secondaryCyanLight : palette.secondary;
+
     const textTheme = TextTheme(
       displayLarge: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.bold),
       displayMedium: TextStyle(color: Color(0xFFF8FAFC), fontWeight: FontWeight.bold),
@@ -245,15 +253,15 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryTealLight,
-        primary: primaryTealLight,
+        seedColor: primary,
+        primary: primary,
         onPrimary: const Color(0xFF042F2E),
-        primaryContainer: const Color(0xFF134E4A),
-        onPrimaryContainer: const Color(0xFF5EEAD4),
-        secondary: secondaryCyanLight,
+        primaryContainer: primary.withValues(alpha: 0.25),
+        onPrimaryContainer: primary,
+        secondary: secondary,
         onSecondary: const Color(0xFF082F49),
-        secondaryContainer: const Color(0xFF0C4A6E),
-        onSecondaryContainer: const Color(0xFFBAE6FD),
+        secondaryContainer: secondary.withValues(alpha: 0.2),
+        onSecondaryContainer: secondary,
         tertiary: accentIndigoLight,
         surface: const Color(0xFF151E2E),
         onSurface: const Color(0xFFF8FAFC),

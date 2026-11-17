@@ -33,12 +33,13 @@ class MediSyncApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
+    final palette = ref.watch(paletteNotifierProvider);
 
     return MaterialApp(
       title: 'MediSync',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme(palette),
+      darkTheme: AppTheme.darkTheme(palette),
       themeMode: themeMode,
       builder: (context, child) {
         return MediaQuery(

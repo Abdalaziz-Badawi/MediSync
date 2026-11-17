@@ -1,5 +1,6 @@
 class UserProfile {
   final String name;
+  final String avatarId;
   final List<String> allergies;
   final List<String> chronicConditions;
   final String wakeTime;      // "HH:mm" e.g. "07:00"
@@ -11,6 +12,7 @@ class UserProfile {
 
   const UserProfile({
     this.name = 'User',
+    this.avatarId = 'avatar_wellness',
     this.allergies = const [],
     this.chronicConditions = const [],
     this.wakeTime = '07:00',
@@ -23,6 +25,7 @@ class UserProfile {
 
   UserProfile copyWith({
     String? name,
+    String? avatarId,
     List<String>? allergies,
     List<String>? chronicConditions,
     String? wakeTime,
@@ -34,6 +37,7 @@ class UserProfile {
   }) {
     return UserProfile(
       name: name ?? this.name,
+      avatarId: avatarId ?? this.avatarId,
       allergies: allergies ?? this.allergies,
       chronicConditions: chronicConditions ?? this.chronicConditions,
       wakeTime: wakeTime ?? this.wakeTime,
@@ -48,6 +52,7 @@ class UserProfile {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      'avatarId': avatarId,
       'allergies': allergies,
       'chronicConditions': chronicConditions,
       'wakeTime': wakeTime,
@@ -62,6 +67,7 @@ class UserProfile {
   factory UserProfile.fromJson(Map<dynamic, dynamic> json) {
     return UserProfile(
       name: json['name'] as String? ?? 'User',
+      avatarId: json['avatarId'] as String? ?? 'avatar_wellness',
       allergies: (json['allergies'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

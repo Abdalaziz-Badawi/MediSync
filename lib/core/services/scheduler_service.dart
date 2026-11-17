@@ -326,7 +326,7 @@ class SchedulerService {
       }
     }
 
-    // 4. Duplicate Existing Medication Check
+    // 4. Duplicate Existing Medication Check & Drug-Drug Interactions
     for (final existing in existingMeds) {
       final existingClean = existing.name.trim().toLowerCase();
       if (cleanName == existingClean) {
@@ -341,7 +341,113 @@ class SchedulerService {
       }
     }
 
+    // 5. Drug-Drug Cross-Referencing & Required Spacing Analysis
+    _checkDrugDrugInteractions(
+      medicationName: medicationName,
+      cleanName: cleanName,
+      matchedTemplate: matchedTemplate,
+      existingMeds: existingMeds,
+      flags: flags,
+    );
+
     return flags;
+  }
+
+  /// Fact-checks drug interactions, dangerous clinical combinations and required spacing.
+  static void _checkDrugDrugInteractions({
+    required String medicationName,
+    required String cleanName,
+    required MedicineTemplate? matchedTemplate,
+    required List<Medication> existingMeds,
+    required List<SafetyFlag> flags,
+  }) {
+    for (final existing in existingMeds) {
+      final existingClean = existing.name.trim().toLowerCase();
+      if (existingClean == cleanName) continue;
+
+      // 1. NSAID + Anticoagulant/Antiplatelet
+      final isNewNSAID = _isNsaid(cleanName, matchedTemplate);
+      final isExistingNSAID = _isNsaid(existingClean, null);
+      final isNewAnticoagulant = _isAnticoagulant(cleanName, matchedTemplate);
+      final isExistingAnticoagulant = _isAnticoagulant(existingClean, null);
+
+      if ((isNewNSAID && isExistingAnticoagulant) || (isNewAnticoagulant && isExistingNSAID)) {
+        flags.add(SafetyFlag(
+          severity: FlagSeverity.critical,
+          tier: AlertTier.tier1HardStop,
+          title: 'Critical Conflict: Major Bleeding Risk',
+          message: 'DANGER: Combining "$medicationName" with "${existing.name}" dramatically heightens gastrointestinal ulceration and severe bleeding risk.',
+          relatedMedicationName: existing.name,
+          clinicalRationale: 'Synergistic antiplatelet and anticoagulant effects compromise mucosal hemostasis.',
+        ));
+      }
+
+      // 2. Dual NSAID Therapy
+      if (isNewNSAID && isExistingNSAID) {
+        flags.add(SafetyFlag(
+          severity: FlagSeverity.warning,
+          tier: AlertTier.tier2HighAdvisory,
+          title: 'Duplicate Class: Dual NSAID Warning',
+          message: 'Caution: Taking "$medicationName" alongside "${existing.name}" elevates gastric and renal toxicity without extra pain relief.',
+          relatedMedicationName: existing.name,
+          clinicalRationale: 'Additive COX inhibition produces redundant toxicity without therapeutic synergy.',
+        ));
+      }
+
+      // 3. Chelation & Absorption Spacing (Tetracyclines/Fluoroquinolones vs Calcium/Iron/Antacids)
+      final isNewChelator = _isChelatorAntibiotic(cleanName, matchedTemplate);
+      final isExistingChelator = _isChelatorAntibiotic(existingClean, null);
+      final isNewMineral = _isMineralOrAntacid(cleanName, matchedTemplate);
+      final isExistingMineral = _isMineralOrAntacid(existingClean, null);
+
+      if ((isNewChelator && isExistingMineral) || (isNewMineral && isExistingChelator)) {
+        flags.add(SafetyFlag(
+          severity: FlagSeverity.warning,
+          tier: AlertTier.tier2HighAdvisory,
+          title: 'Absorption Conflict: Separate by ≥ 2-4 Hours',
+          message: 'Spacing Required: "$medicationName" binds with multivalent cations in "${existing.name}". Separate doses by at least 2 to 4 hours.',
+          relatedMedicationName: existing.name,
+          clinicalRationale: 'Polyvalent metal ions (Ca, Mg, Fe, Al) form unabsorbable chelate complexes with the antibiotic.',
+        ));
+      }
+
+      // 4. Thyroid Hormone Spacing (Levothyroxine vs Minerals/PPIs)
+      final isNewThyroid = cleanName.contains('levothyroxine') || cleanName.contains('synthroid');
+      final isExistingThyroid = existingClean.contains('levothyroxine') || existingClean.contains('synthroid');
+
+      if ((isNewThyroid && isExistingMineral) || (isNewMineral && isExistingThyroid)) {
+        flags.add(SafetyFlag(
+          severity: FlagSeverity.warning,
+          tier: AlertTier.tier2HighAdvisory,
+          title: 'Endocrine Spacing: Separate by ≥ 4 Hours',
+          message: 'Spacing Required: Taking "$medicationName" with "${existing.name}" impairs thyroid hormone uptake. Separate by at least 4 hours.',
+          relatedMedicationName: existing.name,
+          clinicalRationale: 'Direct chelation and altered gastric pH sharply reduce levothyroxine intestinal absorption.',
+        ));
+      }
+    }
+  }
+
+  static bool _isNsaid(String name, MedicineTemplate? tmpl) {
+    if (tmpl != null && tmpl.drugClass.toLowerCase().contains('nsaid')) return true;
+    const nsaids = ['ibuprofen', 'advil', 'motrin', 'aspirin', 'naproxen', 'aleve', 'celebrex', 'celecoxib', 'diclofenac', 'voltaren', 'meloxicam'];
+    return nsaids.any((n) => name.contains(n));
+  }
+
+  static bool _isAnticoagulant(String name, MedicineTemplate? tmpl) {
+    if (tmpl != null && (tmpl.drugClass.toLowerCase().contains('anticoagulant') || tmpl.drugClass.toLowerCase().contains('antiplatelet'))) return true;
+    const bloodThinners = ['warfarin', 'coumadin', 'eliquis', 'apixaban', 'xarelto', 'rivaroxaban', 'pradaxa', 'plavix', 'clopidogrel'];
+    return bloodThinners.any((b) => name.contains(b));
+  }
+
+  static bool _isChelatorAntibiotic(String name, MedicineTemplate? tmpl) {
+    const chelators = ['doxycycline', 'vibramycin', 'cipro', 'ciprofloxacin', 'levofloxacin', 'levaquin', 'tetracycline', 'minocycline'];
+    return chelators.any((c) => name.contains(c));
+  }
+
+  static bool _isMineralOrAntacid(String name, MedicineTemplate? tmpl) {
+    const minerals = ['calcium', 'iron', 'ferrous', 'antacid', 'tums', 'maalox', 'multivitamin', 'zinc', 'magnesium'];
+    return minerals.any((m) => name.contains(m));
   }
 
   /// Screens inactive pharmaceutical excipients against food, additive, and animal allergies.

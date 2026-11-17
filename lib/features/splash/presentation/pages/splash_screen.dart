@@ -27,6 +27,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       duration: const Duration(milliseconds: 1800),
     );
 
+    final palette = ref.read(paletteNotifierProvider);
+
     // Phase 1: Subtle breathing pulse (0.0 to 0.6 of duration)
     _pulseAnimation = TweenSequence<double>([
       TweenSequenceItem(
@@ -45,21 +47,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     ]).animate(_controller);
 
-    // Palette Color Shift: Emerald -> Ocean Cyan -> Royal Indigo
+    // Theme Palette Color Shift matching Today page & active palette
     _colorAnimation = TweenSequence<Color?>([
       TweenSequenceItem(
         tween: ColorTween(
-          begin: AppTheme.primaryTeal,
-          end: AppTheme.secondaryCyan,
+          begin: palette.primary,
+          end: palette.secondary,
         ),
-        weight: 50,
+        weight: 60,
       ),
       TweenSequenceItem(
         tween: ColorTween(
-          begin: AppTheme.secondaryCyan,
-          end: AppTheme.accentIndigo,
+          begin: palette.secondary,
+          end: palette.primary,
         ),
-        weight: 50,
+        weight: 40,
       ),
     ]).animate(CurvedAnimation(
       parent: _controller,

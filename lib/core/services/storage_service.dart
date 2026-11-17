@@ -141,28 +141,56 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
     state = _storage.getMedications();
   }
 
-  Future<void> toggleDoseTaken(String medId, DateTime date, String time) async {
+  Future<void> setDoseStatus(
+    String medId,
+    DateTime date,
+    String time,
+    DoseStatus status,
+  ) async {
     final med = state.firstWhere((m) => m.id == medId);
     final dateKey =
         "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
     final updatedMap = Map<String, List<String>>.from(med.doseLog);
-    final times = List<String>.from(updatedMap[dateKey] ?? []);
+    final entries = List<String>.from(updatedMap[dateKey] ?? []);
 
-    if (times.contains(time)) {
-      times.remove(time);
-    } else {
-      times.add(time);
+    // Remove any existing entry for this time slot
+    entries.removeWhere((e) => e == time || e.startsWith('$time:'));
+
+    switch (status) {
+      case DoseStatus.pending:
+        // Removed
+        break;
+      case DoseStatus.taken:
+        entries.add('$time:taken');
+        break;
+      case DoseStatus.delayed:
+        entries.add('$time:delayed');
+        break;
+      case DoseStatus.missed:
+        entries.add('$time:missed');
+        break;
     }
 
-    if (times.isEmpty) {
+    if (entries.isEmpty) {
       updatedMap.remove(dateKey);
     } else {
-      updatedMap[dateKey] = times;
+      updatedMap[dateKey] = entries;
     }
 
     final updatedMed = med.copyWith(doseLog: updatedMap);
     await addOrUpdate(updatedMed);
+  }
+
+  Future<void> toggleDoseTaken(String medId, DateTime date, String time) async {
+    final med = state.firstWhere((m) => m.id == medId);
+    final isTaken = med.isDoseTaken(date, time);
+    await setDoseStatus(
+      medId,
+      date,
+      time,
+      isTaken ? DoseStatus.pending : DoseStatus.taken,
+    );
   }
 }
 

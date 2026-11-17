@@ -14,6 +14,7 @@ class MedicineTemplate {
   final List<String> allergenTriggers;
   final List<String> inactiveExcipients;
   final List<String> clinicalConsiderations;
+  final List<String> foodRestrictions;
   final String standardInstructions;
 
   const MedicineTemplate({
@@ -28,6 +29,7 @@ class MedicineTemplate {
     this.allergenTriggers = const [],
     this.inactiveExcipients = const [],
     this.clinicalConsiderations = const [],
+    this.foodRestrictions = const [],
     this.standardInstructions = '',
   });
 }
@@ -50,6 +52,9 @@ class MedicinesDatabase {
         'Avoid concurrent alcohol consumption',
         'Check labels of combination cough/cold remedies to prevent accidental overdose',
       ],
+      foodRestrictions: [
+        'Avoid alcohol consumption to prevent acute liver toxicity',
+      ],
       standardInstructions: 'Take with a glass of water. Do not exceed 4000 mg in 24 hours.',
     ),
     MedicineTemplate(
@@ -65,6 +70,9 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'Safe first-line option for patients with mild NSAID/aspirin intolerance',
         'Monitor liver function with chronic daily administration',
+      ],
+      foodRestrictions: [
+        'Avoid alcoholic beverages while taking acetaminophen',
       ],
       standardInstructions: 'Take with water. Avoid alcohol while taking.',
     ),
@@ -83,6 +91,10 @@ class MedicinesDatabase {
         'Contraindicated in active peptic ulcer disease and severe renal impairment',
         'Cross-reactive in Aspirin-Exacerbated Respiratory Disease (AERD / Samter Triad)',
       ],
+      foodRestrictions: [
+        'Always take with food or milk to buffer gastric acid',
+        'Strictly avoid alcohol (sharply increases risk of stomach bleeding and ulcers)',
+      ],
       standardInstructions: 'Always take with food or milk to prevent stomach upset.',
     ),
     MedicineTemplate(
@@ -99,6 +111,10 @@ class MedicinesDatabase {
         'Report any black/tarry stools or unusual petechial bruising immediately',
         'Never administer to children or adolescents with viral fever (Reye syndrome)',
       ],
+      foodRestrictions: [
+        'Take with meals or milk to protect stomach lining',
+        'Avoid alcohol (significantly heightens gastrointestinal bleeding risk)',
+      ],
       standardInstructions: 'Take with food and full glass of water. Report unusual bruising.',
     ),
     MedicineTemplate(
@@ -114,6 +130,9 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'Contains chemical sulfonamide moiety; monitor in documented sulfa allergy',
         'Lower gastrointestinal toxicity risk compared to non-selective NSAIDs',
+      ],
+      foodRestrictions: [
+        'Take with a meal or snack to minimize gastrointestinal discomfort',
       ],
       standardInstructions: 'Take with food. Contains sulfonamide moiety.',
     ),
@@ -133,6 +152,9 @@ class MedicinesDatabase {
         'Cross-reactive with Ampicillin and first-generation cephalosporins (shared R1 side chain)',
         'Complete the entire prescribed antibacterial regimen',
       ],
+      foodRestrictions: [
+        'Can be taken with or without food; take with food if nausea or stomach discomfort occurs',
+      ],
       standardInstructions: 'Complete full prescribed course even if symptoms resolve.',
     ),
     MedicineTemplate(
@@ -149,6 +171,9 @@ class MedicinesDatabase {
         'Clavulanate increases gastrointestinal motility; take strictly with first bite of food',
         'Avoid in patients with prior amoxicillin/clavulanate cholestatic jaundice history',
       ],
+      foodRestrictions: [
+        'Take right at the start of a meal to enhance absorption and drastically reduce nausea/diarrhea',
+      ],
       standardInstructions: 'Take at the start of a meal to enhance absorption and reduce GI upset.',
     ),
     MedicineTemplate(
@@ -164,6 +189,9 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'High cross-reactivity with Ampicillin due to identical R1 side chain',
         'Use cautiously if patient had severe anaphylaxis to penicillins',
+      ],
+      foodRestrictions: [
+        'Can be taken with meals or milk if stomach upset occurs',
       ],
       standardInstructions: 'Shares R1 side chain with ampicillin. Cross-reacts with severe penicillin allergy.',
     ),
@@ -182,6 +210,10 @@ class MedicinesDatabase {
         'Avoid direct sunlight and tanning beds (high photosensitivity risk)',
         'Monitor potassium levels when co-administered with ACE inhibitors or spironolactone',
       ],
+      foodRestrictions: [
+        'Drink at least 6-8 full glasses of water daily to prevent renal crystal formation',
+        'Avoid potassium-rich salt substitutes without clinician supervision',
+      ],
       standardInstructions: 'Drink plenty of water to prevent crystalluria. Avoid prolonged sun exposure.',
     ),
     MedicineTemplate(
@@ -197,6 +229,9 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'Caution in patients with cardiac conduction disorders (risk of QT prolongation)',
         'Contains lactose monohydrate filler; flag for severe dairy anaphylaxis',
+      ],
+      foodRestrictions: [
+        'Can be taken with or without food; take with a light meal if stomach distress occurs',
       ],
       standardInstructions: 'Take once daily. Can be taken with or without meals.',
     ),
@@ -215,6 +250,10 @@ class MedicinesDatabase {
         'Black box warning for tendonitis and tendon rupture; stop immediately if pain occurs',
         'Causes severe photosensitivity; wear sunscreen and protective clothing',
       ],
+      foodRestrictions: [
+        'Strictly avoid milk, yogurt, calcium-fortified juice, or antacids within 2 hours before or after taking (calcium chelates and inhibits absorption)',
+        'Limit excessive coffee and caffeinated energy drinks (ciprofloxacin blocks caffeine metabolism)',
+      ],
       standardInstructions: 'Avoid calcium, dairy, or antacids within 2 hours of taking.',
     ),
     MedicineTemplate(
@@ -231,6 +270,10 @@ class MedicinesDatabase {
         'Take with a full 250ml glass of water and remain upright for at least 30 minutes to prevent pill-induced esophagitis',
         'Avoid dairy, iron, calcium, and magnesium within 2 hours',
         'Causes marked cutaneous photosensitivity (sunburn risk)',
+      ],
+      foodRestrictions: [
+        'Do NOT consume dairy products (milk, cheese, yogurt) or iron supplements within 2 hours of dose (cation chelation blocks absorption)',
+        'Drink a full glass of water and stay upright for 30 minutes',
       ],
       standardInstructions: 'Take with a full glass of water. Do not lie down for 30 minutes after taking.',
     ),
@@ -250,6 +293,9 @@ class MedicinesDatabase {
         'STRICT CONTRAINDICATION for patients with severe IgE-mediated cow milk protein allergy',
         'Rinse mouth thoroughly with water and spit out after each use to prevent oral candidiasis (thrush)',
       ],
+      foodRestrictions: [
+        'Rinse mouth thoroughly with water and spit out immediately after each dose before eating',
+      ],
       standardInstructions: 'Rinse mouth with water and spit after inhalation. CONTRAINDICATED in severe milk protein allergy.',
     ),
     MedicineTemplate(
@@ -265,6 +311,7 @@ class MedicinesDatabase {
         'Rescue inhaler for acute bronchospasm; keep immediately accessible at all times',
         'May cause temporary tachycardia, palpitations, and fine skeletal muscle tremor',
       ],
+      foodRestrictions: [],
       standardInstructions: 'Inhale 2 puffs every 4-6 hours as needed for bronchospasm. Rinse mouth.',
     ),
     MedicineTemplate(
@@ -280,6 +327,9 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'Chewable formulation contains Aspartame (metabolizes to Phenylalanine); caution in PKU',
         'FDA Black box advisory for neuropsychiatric events (mood/sleep disturbances); take in evening',
+      ],
+      foodRestrictions: [
+        'Can be taken with or without food. Take in the evening.',
       ],
       standardInstructions: 'Take once daily in the evening. Report changes in mood or sleep behavior.',
     ),
@@ -300,6 +350,10 @@ class MedicinesDatabase {
         'Temporarily discontinue prior to iodinated contrast radiological procedures',
         'Periodic monitoring of eGFR renal status and serum Vitamin B12 recommended',
       ],
+      foodRestrictions: [
+        'Take strictly with or right after meals to prevent stomach distress',
+        'Strictly avoid excessive or acute alcohol intake (heightens risk of dangerous lactic acidosis)',
+      ],
       standardInstructions: 'Always take with meals to reduce gastrointestinal adverse effects.',
     ),
     MedicineTemplate(
@@ -317,7 +371,30 @@ class MedicinesDatabase {
         'Report unexplained muscle tenderness, cramps, or dark tea-colored urine promptly',
         'Take in the evening or at bedtime for circadian alignment with hepatic cholesterol synthesis',
       ],
+      foodRestrictions: [
+        'Strictly avoid grapefruit and grapefruit juice (potent CYP3A4 inhibition causes dangerous toxic blood levels and muscle breakdown/rhabdomyolysis)',
+      ],
       standardInstructions: 'Take once daily in the evening or at bedtime. Avoid large amounts of grapefruit juice.',
+    ),
+    MedicineTemplate(
+      name: 'Coumadin',
+      genericName: 'Warfarin Sodium',
+      drugClass: 'Vitamin K Antagonist Anticoagulant',
+      commonDosages: ['1 mg', '2 mg', '2.5 mg', '5 mg'],
+      defaultForm: MedicationForm.pill,
+      knownSideEffects: [SideEffectType.nausea],
+      preConditions: [ConditionType.drinkWater],
+      allergenTriggers: ['warfarin', 'coumadin'],
+      inactiveExcipients: ['lactose', 'corn starch', 'magnesium stearate'],
+      clinicalConsiderations: [
+        'High bleeding hazard; requires regular INR monitoring',
+        'Avoid sudden changes in diet affecting Vitamin K levels',
+      ],
+      foodRestrictions: [
+        'Keep dietary intake of Vitamin K consistent (kale, spinach, broccoli, brussels sprouts); do not suddenly increase or stop',
+        'Strictly avoid cranberry juice and alcohol (destabilizes INR and promotes major hemorrhage)',
+      ],
+      standardInstructions: 'Take at the same time each evening. Keep Vitamin K food intake consistent.',
     ),
     MedicineTemplate(
       name: 'Zestril',
@@ -334,6 +411,9 @@ class MedicinesDatabase {
         'Avoid potassium-containing salt substitutes; risk of hyperkalemia',
         'Dry non-productive cough is bradykinin-mediated and does not indicate allergy',
       ],
+      foodRestrictions: [
+        'Avoid potassium-containing salt substitutes and excessive high-potassium foods (bananas, dried fruits) without clinical advice',
+      ],
       standardInstructions: 'Take at the same time each day. Report any swelling of face, lips, or tongue immediately.',
     ),
     MedicineTemplate(
@@ -349,6 +429,10 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'Take with a full glass of water on an empty stomach 30 to 60 minutes before breakfast',
         'Do not take with calcium, iron, or soy products within 4 hours (drastically reduces absorption)',
+      ],
+      foodRestrictions: [
+        'Take with plain water 30-60 minutes before breakfast on an empty stomach',
+        'Strictly avoid soy products, high-fiber cereals, walnuts, espresso/coffee, calcium, or iron within 4 hours (drastically impedes hormone absorption)',
       ],
       standardInstructions: 'Take on an empty stomach 30-60 minutes before breakfast with a full glass of water.',
     ),
@@ -368,6 +452,9 @@ class MedicinesDatabase {
         'ABSOLUTE HARD-STOP CONTRAINDICATION in patients with documented peanut allergy',
         'Suspended in pharmaceutical peanut oil (Arachis hypogaea); take at bedtime due to sedation',
       ],
+      foodRestrictions: [
+        'Contraindicated for peanut allergy patients. Take with water at bedtime.',
+      ],
       standardInstructions: 'Contains peanut oil. ABSOLUTE CONTRAINDICATION for peanut allergy. Take at bedtime.',
     ),
     MedicineTemplate(
@@ -383,6 +470,7 @@ class MedicinesDatabase {
         'Vehicle is sesame oil; verify sesame seed allergy status before administration',
         'Deep gluteal intramuscular injection only; monitor hematocrit and liver profiles',
       ],
+      foodRestrictions: [],
       standardInstructions: 'For deep intramuscular gluteal injection only. Vehicle is sesame oil.',
     ),
 
@@ -401,6 +489,9 @@ class MedicinesDatabase {
         'Take 30 to 60 minutes before morning meal for optimal parietal cell proton pump inhibition',
         'Swallow whole; do not chew or crush delayed-release enteric pellets',
       ],
+      foodRestrictions: [
+        'Take on an empty stomach 30 to 60 minutes before morning breakfast for optimal acid suppression',
+      ],
       standardInstructions: 'Take 30 to 60 minutes before breakfast on an empty stomach with water.',
     ),
 
@@ -418,6 +509,9 @@ class MedicinesDatabase {
       clinicalConsiderations: [
         'Causes pronounced central nervous system sedation; do not drive or operate machinery',
         'Anticholinergic effects (dry mouth, urinary retention, blurred vision); caution in elderly',
+      ],
+      foodRestrictions: [
+        'Strictly avoid alcohol (causes dangerous additive sedation and central nervous system depression)',
       ],
       standardInstructions: 'Take 30 minutes before bedtime. Do not drive or operate machinery.',
     ),

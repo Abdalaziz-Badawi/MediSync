@@ -73,12 +73,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               width: 1.2,
             ),
             boxShadow: [
-              // Upward content ambient glow
+              // 360-degree surrounding ambient glow aura
+              BoxShadow(
+                color: activeColor.withValues(alpha: isDark ? 0.32 : 0.20),
+                blurRadius: 28,
+                spreadRadius: 2.5,
+                offset: Offset.zero,
+              ),
               BoxShadow(
                 color: (isDark ? activeColor : const Color(0xFF0F172A))
-                    .withValues(alpha: isDark ? 0.16 : 0.06),
-                blurRadius: 24,
-                offset: const Offset(0, -6),
+                    .withValues(alpha: isDark ? 0.22 : 0.10),
+                blurRadius: 14,
+                spreadRadius: 1,
+                offset: Offset.zero,
               ),
               // Floating downward elevation shadow
               ...AppTheme.floatingShadow(context),
@@ -90,22 +97,22 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             children: [
               _buildNavItem(
                 index: 0,
-                icon: Icons.today_outlined,
-                selectedIcon: Icons.today,
+                icon: Icons.calendar_today_outlined,
+                selectedIcon: Icons.calendar_today_rounded,
                 label: 'Today',
                 activeColor: activeColor,
               ),
               _buildNavItem(
                 index: 1,
                 icon: Icons.medication_outlined,
-                selectedIcon: Icons.medication,
+                selectedIcon: Icons.medication_rounded,
                 label: 'Medications',
                 activeColor: activeColor,
               ),
               _buildNavItem(
                 index: 2,
-                icon: Icons.person_outline,
-                selectedIcon: Icons.person,
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
                 label: 'Profile',
                 activeColor: activeColor,
               ),

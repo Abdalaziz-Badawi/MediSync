@@ -31,7 +31,7 @@ class MedicationsListPage extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.medication_outlined,
+                    Icons.medication_liquid_rounded,
                     size: 80,
                     color: AppTheme.textMuted(context),
                   ),
@@ -59,7 +59,7 @@ class MedicationsListPage extends ConsumerWidget {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add_rounded),
                     label: const Text('Add Medication'),
                   ),
                 ],
@@ -90,7 +90,7 @@ class MedicationsListPage extends ConsumerWidget {
                 ),
               );
             },
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_rounded),
             label: const Text('Add Medicine'),
           ),
         ),
@@ -207,7 +207,7 @@ class _MedicationCard extends ConsumerWidget {
                         value: 'edit',
                         child: Row(
                           children: [
-                            const Icon(Icons.edit, size: 18),
+                            const Icon(Icons.edit_rounded, size: 18),
                             const SizedBox(width: 8),
                             Text('Edit', style: TextStyle(color: AppTheme.textPrimary(context))),
                           ],
@@ -217,7 +217,7 @@ class _MedicationCard extends ConsumerWidget {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, color: AppTheme.dangerRed, size: 18),
+                            Icon(Icons.delete_outline_rounded, color: AppTheme.dangerRed, size: 18),
                             SizedBox(width: 8),
                             Text('Delete', style: TextStyle(color: AppTheme.dangerRed)),
                           ],
@@ -277,7 +277,7 @@ class _MedicationCard extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.access_time, size: 12, color: AppTheme.textMuted(context)),
+                        Icon(Icons.access_time_rounded, size: 12, color: AppTheme.textMuted(context)),
                         const SizedBox(width: 4),
                         Text(
                           time,
@@ -299,7 +299,7 @@ class _MedicationCard extends ConsumerWidget {
                 Row(
                   children: [
                     Icon(
-                      Icons.science_outlined,
+                      Icons.science_rounded,
                       size: 12,
                       color: AppTheme.textSecondary(context),
                     ),

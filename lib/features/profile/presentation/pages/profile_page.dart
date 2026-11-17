@@ -16,6 +16,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late TextEditingController _nameController;
 
+  late String _avatarId;
   late String _wakeTime;
   late String _sleepTime;
   late String _breakfastTime;
@@ -30,11 +31,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   // Collapsible Allergies Section State (Starts collapsed by default)
   bool _isAllergiesExpanded = false;
 
+  static const List<Map<String, dynamic>> _availableAvatars = [
+    {'id': 'avatar_wellness', 'icon': Icons.spa_rounded, 'label': 'Wellness'},
+    {'id': 'avatar_doctor', 'icon': Icons.medical_services_rounded, 'label': 'Clinical'},
+    {'id': 'avatar_shield', 'icon': Icons.shield_rounded, 'label': 'Protector'},
+    {'id': 'avatar_heart', 'icon': Icons.favorite_rounded, 'label': 'Heart'},
+    {'id': 'avatar_person', 'icon': Icons.person_rounded, 'label': 'Individual'},
+    {'id': 'avatar_star', 'icon': Icons.stars_rounded, 'label': 'Star'},
+  ];
+
   @override
   void initState() {
     super.initState();
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
+    _avatarId = profile.avatarId;
 
     _wakeTime = profile.wakeTime;
     _sleepTime = profile.sleepTime;
@@ -54,6 +65,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   bool get _hasChanges {
     final profile = ref.read(profileNotifierProvider);
     if (_nameController.text.trim() != profile.name) return true;
+    if (_avatarId != profile.avatarId) return true;
     if (_wakeTime != profile.wakeTime) return true;
     if (_sleepTime != profile.sleepTime) return true;
     if (_breakfastTime != profile.breakfastTime) return true;
@@ -133,6 +145,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       name: _nameController.text.trim().isEmpty
           ? 'User'
           : _nameController.text.trim(),
+      avatarId: _avatarId,
       allergies: _allergies,
       wakeTime: _wakeTime,
       sleepTime: _sleepTime,
@@ -157,6 +170,101 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (!_isPrivacyMaskActive) return text;
     if (text.isEmpty) return '••••••';
     return '${text[0]}${'•' * (text.length - 1).clamp(4, 10)}';
+  }
+
+  IconData _getAvatarIcon(String id) {
+    final match = _availableAvatars.firstWhere(
+      (a) => a['id'] == id,
+      orElse: () => _availableAvatars.first,
+    );
+    return match['icon'] as IconData;
+  }
+
+  void _openAvatarPicker() {
+    final isDark = AppTheme.isDark(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Select Account Avatar (PFP)',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(ctx),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Choose an icon avatar to personalize your account:',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx)),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: _availableAvatars.map((av) {
+                    final isSel = _avatarId == av['id'];
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          _avatarId = av['id'] as String;
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      borderRadius: BorderRadius.circular(36),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSel
+                              ? (isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1))
+                              : AppTheme.surfaceVariant(ctx),
+                          border: Border.all(
+                            color: isSel
+                                ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                                : AppTheme.cardBorder(ctx),
+                            width: isSel ? 2.5 : 1,
+                          ),
+                        ),
+                        child: Icon(
+                          av['icon'] as IconData,
+                          size: 32,
+                          color: isSel
+                              ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                              : AppTheme.textSecondary(ctx),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _openEditProfileDialog() {
@@ -192,7 +300,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -204,11 +312,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 decoration: InputDecoration(
                   labelText: 'Your Name or Nickname',
                   prefixIcon: Icon(
-                    Icons.person_outline,
+                    Icons.person_outline_rounded,
                     color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                   ),
                 ),
                 onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                  child: Icon(
+                    _getAvatarIcon(_avatarId),
+                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                  ),
+                ),
+                title: const Text('Change Avatar Icon'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openAvatarPicker();
+                },
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -250,7 +375,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           IconButton(
             tooltip: _isPrivacyMaskActive ? 'Disable Privacy Mask' : 'Enable Privacy Mask',
             icon: Icon(
-              _isPrivacyMaskActive ? Icons.visibility_off : Icons.visibility,
+              _isPrivacyMaskActive ? Icons.visibility_off_rounded : Icons.visibility_rounded,
               color: _isPrivacyMaskActive
                   ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
                   : AppTheme.textSecondary(context),
@@ -280,86 +405,304 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         children: [
           // ==========================================
-          // 1. COMPACT USER ACCOUNT CARD (Tap to Edit Details)
+          // 1. MASTER USER PROFILE CARD (Houses PFP, Routine, & Allergies)
           // ==========================================
-          InkWell(
-            onTap: _openEditProfileDialog,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor(context),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.cardBorder(context)),
-                boxShadow: AppTheme.softShadow(context),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
-                    child: Text(
-                      _nameController.text.isNotEmpty
-                          ? _nameController.text[0].toUpperCase()
-                          : 'U',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _maskText(_nameController.text),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary(context),
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor(context),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppTheme.cardBorder(context)),
+              boxShadow: AppTheme.softShadow(context),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Account Info Row with PFP Avatar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Avatar PFP (Tap to choose new avatar)
+                      GestureDetector(
+                        onTap: _openAvatarPicker,
+                        child: Stack(
                           children: [
-                            Icon(
-                              Icons.security,
-                              size: 13,
-                              color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
+                              child: Icon(
+                                _getAvatarIcon(_avatarId),
+                                size: 30,
+                                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                'Offline Encrypted Local Storage (100% Private)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary(context),
-                                  fontWeight: FontWeight.w500,
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.edit_rounded,
+                                  size: 11,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: InkWell(
+                          onTap: _openEditProfileDialog,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _maskText(_nameController.text),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.security_rounded,
+                                    size: 13,
+                                    color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      'Offline Encrypted Local Storage (100% Private)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.textSecondary(context),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Edit Name',
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 20,
+                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        ),
+                        onPressed: _openEditProfileDialog,
+                      ),
+                    ],
+                  ),
+                ),
+
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+
+                // --- INTEGRATED DAILY ROUTINE & MEAL SCHEDULE ---
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_filled_rounded,
+                        size: 18,
+                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Daily Routine & Meal Times',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      _RoutineTimeRow(
+                        icon: Icons.wb_sunny_rounded,
+                        label: 'Wake Up Time',
+                        time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
+                        onTap: () => _pickTime(
+                          currentTime: _wakeTime,
+                          onPicked: (t) => _wakeTime = t,
+                        ),
+                      ),
+                      Divider(height: 14, color: AppTheme.cardBorder(context)),
+                      _RoutineTimeRow(
+                        icon: Icons.breakfast_dining_rounded,
+                        label: 'Breakfast Time',
+                        time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
+                        onTap: () => _pickTime(
+                          currentTime: _breakfastTime,
+                          onPicked: (t) => _breakfastTime = t,
+                        ),
+                      ),
+                      Divider(height: 14, color: AppTheme.cardBorder(context)),
+                      _RoutineTimeRow(
+                        icon: Icons.lunch_dining_rounded,
+                        label: 'Lunch Time',
+                        time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
+                        onTap: () => _pickTime(
+                          currentTime: _lunchTime,
+                          onPicked: (t) => _lunchTime = t,
+                        ),
+                      ),
+                      Divider(height: 14, color: AppTheme.cardBorder(context)),
+                      _RoutineTimeRow(
+                        icon: Icons.dinner_dining_rounded,
+                        label: 'Dinner Time',
+                        time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
+                        onTap: () => _pickTime(
+                          currentTime: _dinnerTime,
+                          onPicked: (t) => _dinnerTime = t,
+                        ),
+                      ),
+                      Divider(height: 14, color: AppTheme.cardBorder(context)),
+                      _RoutineTimeRow(
+                        icon: Icons.bedtime_rounded,
+                        label: 'Sleep / Bedtime',
+                        time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
+                        onTap: () => _pickTime(
+                          currentTime: _sleepTime,
+                          onPicked: (t) => _sleepTime = t,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+
+                // --- INTEGRATED ALLERGIES & EXCIPIENTS (Collapsible View) ---
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isAllergiesExpanded = !_isAllergiesExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.shield_rounded,
+                            size: 18,
+                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${_allergies.length} Active Safety Trigger${_allergies.length == 1 ? '' : 's'}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                              Text(
+                                _isAllergiesExpanded
+                                    ? 'Tap to collapse allergy triggers'
+                                    : 'Tap to expand & edit allergy triggers',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textSecondary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _isAllergiesExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: AppTheme.textSecondary(context),
+                          size: 24,
+                        ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceVariant(context),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                ),
+
+                // Collapsed Preview Badges
+                if (!_isAllergiesExpanded && _allergies.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: _allergies.take(4).map((allergy) {
+                          final displayText = _isPrivacyMaskActive ? '••••••••' : allergy;
+                          return Chip(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                            side: BorderSide(color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed),
+                            label: Text(
+                              displayText,
+                              style: TextStyle(
+                                color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
                 ],
-              ),
+
+                // Expanded Taxonomy Selector
+                if (_isAllergiesExpanded) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: AllergySelectorWidget(
+                      selectedAllergies: _allergies,
+                      onToggleAllergy: _toggleAllergy,
+                      onAddCustomAllergy: _addCustomAllergy,
+                      isMasked: _isPrivacyMaskActive,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -370,7 +713,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           _buildSectionHeader(
             icon: Icons.tune_rounded,
             title: 'User Settings & Preferences',
-            subtitle: 'Appearance themes, overflow-proof text scaling, and alerts',
+            subtitle: 'Theme palettes, text scaling, and audible/haptic alerts',
           ),
           const SizedBox(height: 8),
           Container(
@@ -399,7 +742,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
                 ),
                 const SizedBox(height: 12),
-                // Overflow-Safe Theme Selector
+                // Theme Mode Selector
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
@@ -407,17 +750,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     segments: const [
                       ButtonSegment(
                         value: ThemeMode.light,
-                        icon: Icon(Icons.light_mode_outlined),
+                        icon: Icon(Icons.light_mode_rounded),
                         label: Text('Light'),
                       ),
                       ButtonSegment(
                         value: ThemeMode.dark,
-                        icon: Icon(Icons.dark_mode_outlined),
+                        icon: Icon(Icons.dark_mode_rounded),
                         label: Text('Dark'),
                       ),
                       ButtonSegment(
                         value: ThemeMode.system,
-                        icon: Icon(Icons.brightness_auto_outlined),
+                        icon: Icon(Icons.brightness_auto_rounded),
                         label: Text('System'),
                       ),
                     ],
@@ -429,7 +772,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
                 const SizedBox(height: 18),
 
-                // Theme Palette Suggestion Section
+                // Theme Palette Style Section
                 Text(
                   'Color Palette Style',
                   style: TextStyle(
@@ -478,18 +821,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Font Size & Text Scaling (Guaranteed Overflow-Safe at ALL Scales 85%-145%)
+                // Font Size & Text Scaling (GUARANTEED ZERO OVERFLOW AT 145%)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Font Size & Text Scaling',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary(context),
+                    Expanded(
+                      child: Text(
+                        'Font Size & Text Scaling',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -531,7 +879,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     const Text('A', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                // Horizontal Scroll for Font Presets (Guarantees zero overflow at all scale percentages)
+                // Horizontal Scroll for Font Presets
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
@@ -557,7 +905,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 Row(
                   children: [
                     Icon(
-                      Icons.notifications_active_outlined,
+                      Icons.notifications_active_rounded,
                       color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                       size: 22,
                     ),
@@ -596,7 +944,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       );
                     }
                   },
-                  icon: Icon(Icons.alarm, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                  icon: Icon(Icons.alarm_rounded, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                   label: Text(
                     'Test Notification, Sound & Vibration',
                     style: TextStyle(color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
@@ -606,206 +954,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // ==========================================
-          // 3. DAILY ROUTINE & MEAL SCHEDULE (Outside Settings)
-          // ==========================================
-          _buildSectionHeader(
-            icon: Icons.access_time_filled_rounded,
-            title: 'Daily Routine & Meal Schedule',
-            subtitle: 'Smart engine aligns doses 20 min post-meal for comfortable absorption',
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor(context),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.cardBorder(context)),
-              boxShadow: AppTheme.softShadow(context),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _RoutineTimeRow(
-                  icon: Icons.wb_sunny_outlined,
-                  label: 'Wake Up Time',
-                  time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
-                  onTap: () => _pickTime(
-                    currentTime: _wakeTime,
-                    onPicked: (t) => _wakeTime = t,
-                  ),
-                ),
-                Divider(height: 20, color: AppTheme.cardBorder(context)),
-                _RoutineTimeRow(
-                  icon: Icons.breakfast_dining_outlined,
-                  label: 'Breakfast Time',
-                  time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
-                  onTap: () => _pickTime(
-                    currentTime: _breakfastTime,
-                    onPicked: (t) => _breakfastTime = t,
-                  ),
-                ),
-                Divider(height: 20, color: AppTheme.cardBorder(context)),
-                _RoutineTimeRow(
-                  icon: Icons.lunch_dining_outlined,
-                  label: 'Lunch Time',
-                  time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
-                  onTap: () => _pickTime(
-                    currentTime: _lunchTime,
-                    onPicked: (t) => _lunchTime = t,
-                  ),
-                ),
-                Divider(height: 20, color: AppTheme.cardBorder(context)),
-                _RoutineTimeRow(
-                  icon: Icons.dinner_dining_outlined,
-                  label: 'Dinner Time',
-                  time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
-                  onTap: () => _pickTime(
-                    currentTime: _dinnerTime,
-                    onPicked: (t) => _dinnerTime = t,
-                  ),
-                ),
-                Divider(height: 20, color: AppTheme.cardBorder(context)),
-                _RoutineTimeRow(
-                  icon: Icons.bedtime_outlined,
-                  label: 'Sleep / Bedtime',
-                  time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
-                  onTap: () => _pickTime(
-                    currentTime: _sleepTime,
-                    onPicked: (t) => _sleepTime = t,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // ==========================================
-          // 4. COLLAPSIBLE ALLERGIES & EXCIPIENTS SECTION (Outside Settings)
-          // ==========================================
-          _buildSectionHeader(
-            icon: Icons.health_and_safety_rounded,
-            title: 'Allergies & Excipient Sensitivities',
-            subtitle: 'Clinical screening against drugs, food fillers (lactose), additives & latex',
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor(context),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.cardBorder(context)),
-              boxShadow: AppTheme.softShadow(context),
-            ),
-            child: Column(
-              children: [
-                // Collapsible Header Row
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isAllergiesExpanded = !_isAllergiesExpanded;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.shield_rounded,
-                            size: 20,
-                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${_allergies.length} Active Safety Trigger${_allergies.length == 1 ? '' : 's'}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary(context),
-                                ),
-                              ),
-                              Text(
-                                _isAllergiesExpanded
-                                    ? 'Tap to collapse allergy triggers'
-                                    : 'Tap to view and manage all allergy triggers',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          _isAllergiesExpanded
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          color: AppTheme.textSecondary(context),
-                          size: 26,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Collapsed Preview Pills (always visible when collapsed)
-                if (!_isAllergiesExpanded && _allergies.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: _allergies.take(4).map((allergy) {
-                          final displayText = _isPrivacyMaskActive ? '••••••••' : allergy;
-                          return Chip(
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
-                            side: BorderSide(color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed),
-                            label: Text(
-                              displayText,
-                              style: TextStyle(
-                                color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ],
-
-                // Expanded Full Taxonomy Selector
-                if (_isAllergiesExpanded) ...[
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: AllergySelectorWidget(
-                      selectedAllergies: _allergies,
-                      onToggleAllergy: _toggleAllergy,
-                      onAddCustomAllergy: _addCustomAllergy,
-                      isMasked: _isPrivacyMaskActive,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
 
           // Bottom Save Button (Only shown when changes are pending)
           if (hasChanges) ...[
@@ -945,6 +1093,8 @@ class _RoutineTimeRow extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary(context),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             Container(
@@ -965,7 +1115,7 @@ class _RoutineTimeRow extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Icon(
-              Icons.chevron_right,
+              Icons.chevron_right_rounded,
               color: AppTheme.textMuted(context),
               size: 20,
             ),
