@@ -4,6 +4,7 @@ import '../models/medication.dart';
 import '../models/safety_flag.dart';
 import '../models/side_effect.dart';
 import '../models/user_profile.dart';
+import 'routine_inference_service.dart';
 
 class CompanionMealReminder {
   final String mealName; // "Breakfast", "Lunch", "Dinner"
@@ -18,6 +19,24 @@ class CompanionMealReminder {
     required this.medicationTime,
     required this.medicationName,
     required this.advice,
+  });
+}
+
+class ScheduleSuggestionOption {
+  final String id;
+  final String title;
+  final List<String> times;
+  final String rationale;
+  final List<CompanionMealReminder> companionMealReminders;
+  final bool isRecommended;
+
+  const ScheduleSuggestionOption({
+    required this.id,
+    required this.title,
+    required this.times,
+    required this.rationale,
+    this.companionMealReminders = const [],
+    this.isRecommended = false,
   });
 }
 
@@ -249,6 +268,143 @@ class SchedulerService {
     }
 
     return _distributeAcrossDay(profile.wakeTime, profile.sleepTime, timesPerDay);
+  }
+
+  /// Generates viable alternative schedule proposals tailored to the user's
+  /// routine, meal schedules, and transit/driving safety.
+  static List<ScheduleSuggestionOption> generateViableScheduleOptions({
+    required int timesPerDay,
+    required UserProfile profile,
+    required List<SideEffect> sideEffects,
+    required List<MedicationCondition> preConditions,
+    required List<MedicationCondition> postConditions,
+    InferredRoutine? inferredRoutine,
+    String medicationName = '',
+  }) {
+    final options = <ScheduleSuggestionOption>[];
+
+    final wake = inferredRoutine?.wakeTime ?? profile.wakeTime;
+    final sleep = inferredRoutine?.sleepTime ?? profile.sleepTime;
+    final breakfast = inferredRoutine?.breakfastTime ?? profile.breakfastTime;
+    final lunch = inferredRoutine?.lunchTime ?? profile.lunchTime;
+    final dinner = inferredRoutine?.dinnerTime ?? profile.dinnerTime;
+
+    final causesDrowsiness = sideEffects.any(
+      (s) =>
+          s.type == SideEffectType.drowsiness ||
+          s.scheduleHint == ScheduleHint.scheduleNearBedtime,
+    );
+    final requiresFood = sideEffects.any(
+          (s) =>
+              s.type == SideEffectType.stomachUpset ||
+              s.type == SideEffectType.nausea ||
+              s.scheduleHint == ScheduleHint.scheduleAfterMeal,
+        ) ||
+        preConditions.any((c) => c.type == ConditionType.meal) ||
+        postConditions.any((c) => c.type == ConditionType.meal);
+    final requiresEmptyStomach = preConditions.any(
+      (c) => c.type == ConditionType.emptyStomach,
+    );
+    final avoidDriving =
+        postConditions.any((c) => c.type == ConditionType.avoidDriving);
+
+    // --- Option 1: Meal & Routine Synchronized ---
+    final smartResult = calculateSmartScheduleWithRationale(
+      timesPerDay: timesPerDay,
+      profile: profile.copyWith(
+        wakeTime: wake,
+        sleepTime: sleep,
+        breakfastTime: breakfast,
+        lunchTime: lunch,
+        dinnerTime: dinner,
+      ),
+      sideEffects: sideEffects,
+      preConditions: preConditions,
+      postConditions: postConditions,
+      medicationName: medicationName,
+    );
+
+    options.add(ScheduleSuggestionOption(
+      id: 'meal_aligned',
+      title: 'Meal & Routine Synchronized',
+      times: smartResult.times,
+      rationale: smartResult.rationale,
+      companionMealReminders: smartResult.companionMealReminders,
+      isRecommended: requiresFood || requiresEmptyStomach || causesDrowsiness,
+    ));
+
+    // --- Option 2: Activity & Transit-Aware Schedule ---
+    final transitTimes = <String>[];
+    String transitRationale = '';
+    if (timesPerDay == 1) {
+      if (causesDrowsiness || avoidDriving) {
+        final bedSlot = _adjustMinutes(sleep, -30);
+        transitTimes.add(bedSlot);
+        transitRationale =
+            'Scheduled before bed ($bedSlot) to prevent daytime sedation or driving impairment.';
+      } else {
+        final safeSlot = _adjustMinutes(breakfast, 50);
+        transitTimes.add(safeSlot);
+        transitRationale =
+            'Positioned at $safeSlot safely after morning transit and commute intervals.';
+      }
+    } else if (timesPerDay == 2) {
+      final morningSlot = _adjustMinutes(breakfast, 45);
+      final eveningSlot = causesDrowsiness
+          ? _adjustMinutes(sleep, -30)
+          : _adjustMinutes(dinner, 45);
+      transitTimes.addAll([morningSlot, eveningSlot]);
+      transitRationale = causesDrowsiness
+          ? 'Morning dose ($morningSlot) scheduled after morning commute; evening dose ($eveningSlot) placed at bedtime for complete driving safety.'
+          : 'Doses placed after morning and evening transit windows ($morningSlot & $eveningSlot) for calm administration.';
+    } else if (timesPerDay == 3) {
+      final morningSlot = _adjustMinutes(breakfast, 45);
+      final middaySlot = _adjustMinutes(lunch, 20);
+      final eveningSlot = causesDrowsiness
+          ? _adjustMinutes(sleep, -30)
+          : _adjustMinutes(dinner, 45);
+      transitTimes.addAll([morningSlot, middaySlot, eveningSlot]);
+      transitRationale =
+          'Three-session distribution coordinated around workday breaks, safely clear of rush-hour travel.';
+    } else {
+      transitTimes.addAll(_distributeAcrossDay(wake, sleep, timesPerDay));
+      transitRationale =
+          'Multi-dose spacing mapped cleanly across your active waking hours.';
+    }
+
+    if (transitTimes.isNotEmpty) {
+      options.add(ScheduleSuggestionOption(
+        id: 'transit_aware',
+        title: 'Transit & Activity Safe',
+        times: transitTimes,
+        rationale: transitRationale,
+        isRecommended: avoidDriving || (causesDrowsiness && !requiresFood),
+      ));
+    }
+
+    // --- Option 3: Even Clinical Spacing ---
+    final evenTimes = _distributeAcrossDay(wake, sleep, timesPerDay);
+    options.add(ScheduleSuggestionOption(
+      id: 'even_distribution',
+      title: 'Even Clinical Spacing',
+      times: evenTimes,
+      rationale:
+          'Even hourly intervals distributed from wake ($wake) to sleep ($sleep) to maintain stable therapeutic plasma levels.',
+      isRecommended: !requiresFood && !requiresEmptyStomach && !causesDrowsiness,
+    ));
+
+    // --- Option 4: Symmetrical 12-Hour Cycle (for 2x daily) ---
+    if (timesPerDay == 2) {
+      options.add(const ScheduleSuggestionOption(
+        id: 'twelve_hour',
+        title: 'Symmetrical 12-Hour Cycle',
+        times: ['08:00', '20:00'],
+        rationale:
+            'Standard 12-hour BID spacing (08:00 AM & 08:00 PM) for optimal pharmacological equilibrium.',
+      ));
+    }
+
+    return options;
   }
 
   /// Verifies safety against user's allergies and existing medications

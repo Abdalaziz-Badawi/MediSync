@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
 
@@ -329,6 +330,88 @@ class MedicationDetailsPage extends ConsumerWidget {
               ),
             ),
           ],
+
+          const SizedBox(height: 16),
+
+          // External Clinical Research & Database Reference (100% Privacy-Preserving)
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: AppTheme.cardBorder(context)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.travel_explore_rounded,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Online Medical Reference & Monograph',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Access official FDA drug monographs, clinical trial data, and pharmacological details on trusted online medical databases.',
+                    style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary(context), height: 1.3),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      ref.read(deviceIntegrationServiceProvider).openOnlineDrugMonograph(medication.name);
+                    },
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: Text('Search "${medication.name}" Online Monograph'),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant(context),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.lock_rounded, size: 14, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Strict Privacy Guarantee: Only the public drug name is searched. Zero personal health info, logs, or identities are transmitted.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary(context),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -30,6 +30,7 @@ enum DoseStatus {
   delayed,    // Taken delayed / late
   missed,     // Missed dosing window
   notNeeded,  // As needed / PRN medication was not required / skipped
+  takenEarly, // Taken early ahead of scheduled time slot
 }
 
 class Medication {
@@ -164,6 +165,9 @@ class Medication {
       if (entry == '$time:notNeeded' || entry == '$time:not_needed' || entry == '$time:skipped') {
         return DoseStatus.notNeeded;
       }
+      if (entry == '$time:takenEarly' || entry == '$time:early') {
+        return DoseStatus.takenEarly;
+      }
     }
     return DoseStatus.pending;
   }
@@ -198,9 +202,10 @@ class Medication {
   }
 
   /// Returns total counts for adherence continuity calculations:
-  /// {'taken': X, 'delayed': Y, 'missed': Z, 'notNeeded': W}
+  /// {'taken': X, 'takenEarly': Y, 'delayed': Z, 'missed': W, 'notNeeded': V}
   Map<String, int> get continuityStats {
     int taken = 0;
+    int takenEarly = 0;
     int delayed = 0;
     int missed = 0;
     int notNeeded = 0;
@@ -213,6 +218,9 @@ class Medication {
           delayed++;
         } else if (item.endsWith(':notNeeded') || item.endsWith(':not_needed')) {
           notNeeded++;
+        } else if (item.endsWith(':takenEarly')) {
+          takenEarly++;
+          taken++;
         } else {
           taken++;
         }
@@ -221,6 +229,7 @@ class Medication {
 
     return {
       'taken': taken,
+      'takenEarly': takenEarly,
       'delayed': delayed,
       'missed': missed,
       'notNeeded': notNeeded,
@@ -229,7 +238,9 @@ class Medication {
 
   bool isDoseTaken(DateTime date, String time) {
     final status = getDoseStatus(date, time);
-    return status == DoseStatus.taken || status == DoseStatus.delayed;
+    return status == DoseStatus.taken ||
+        status == DoseStatus.delayed ||
+        status == DoseStatus.takenEarly;
   }
 
   /// Returns true if this dose is resolved (taken, delayed, missed, or marked not needed).

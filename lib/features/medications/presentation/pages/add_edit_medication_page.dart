@@ -5,6 +5,7 @@ import 'package:medisync/core/models/condition.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
 import 'package:medisync/core/models/side_effect.dart';
+import 'package:medisync/core/services/routine_inference_service.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
@@ -314,6 +315,241 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
+    );
+  }
+
+  int _currentSuggestionIndex = 0;
+
+  List<ScheduleSuggestionOption> _getViableOptions() {
+    final profile = ref.read(profileNotifierProvider);
+    final inferenceEngine = ref.read(routineInferenceServiceProvider);
+    final inferredRoutine = inferenceEngine.inferRoutine(profile: profile);
+
+    final preList = _selectedPreConditions.map((type) {
+      return MedicationCondition(
+        type: type,
+        timing: ConditionTiming.before,
+        description: type.name,
+      );
+    }).toList();
+
+    final postList = _selectedPostConditions.map((type) {
+      return MedicationCondition(
+        type: type,
+        timing: ConditionTiming.after,
+        description: type.name,
+      );
+    }).toList();
+
+    final sideEffectsList = _selectedSideEffects.map((type) {
+      return SideEffect(
+        type: type,
+        description: type.name,
+        scheduleHint: SideEffect.defaultHintFor(type),
+      );
+    }).toList();
+
+    return SchedulerService.generateViableScheduleOptions(
+      timesPerDay: _scheduledTimes.length,
+      profile: profile,
+      sideEffects: sideEffectsList,
+      preConditions: preList,
+      postConditions: postList,
+      inferredRoutine: inferredRoutine,
+      medicationName: _nameController.text.trim(),
+    );
+  }
+
+  void _cycleNextViableSchedule() {
+    final options = _getViableOptions();
+    if (options.isEmpty) return;
+
+    _currentSuggestionIndex = (_currentSuggestionIndex + 1) % options.length;
+    final selectedOption = options[_currentSuggestionIndex];
+
+    setState(() {
+      _scheduledTimes = List<String>.from(selectedOption.times);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.auto_fix_high_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Applied: ${selectedOption.title} (${selectedOption.times.join(', ')})',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  void _showViableScheduleSuggestionsSheet() {
+    final options = _getViableOptions();
+    final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.psychology_rounded, color: primary, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Suggested Routine Timings',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(ctx),
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Intelligent schedule options calculated from your waking routine, meals, and transit intervals:',
+                  style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary(ctx)),
+                ),
+                const SizedBox(height: 16),
+                for (final opt in options)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant(ctx),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: opt.isRecommended ? primary : AppTheme.cardBorder(ctx),
+                        width: opt.isRecommended ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              opt.title,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(ctx),
+                              ),
+                            ),
+                            if (opt.isRecommended) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Recommended',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor: primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _scheduledTimes = List<String>.from(opt.times);
+                                });
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('✓ Applied "${opt.title}": ${opt.times.join(', ')}'),
+                                    backgroundColor: primary,
+                                  ),
+                                );
+                              },
+                              child: const Text('Apply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          children: opt.times.map((t) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppTheme.cardBorder(ctx)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.access_time_rounded, size: 12, color: primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    t,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppTheme.textPrimary(ctx),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          opt.rationale,
+                          style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary(ctx), height: 1.3),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1438,33 +1674,74 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     ],
 
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           'Scheduled Times (tap to customize):',
                           style: TextStyle(
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
                             color: AppTheme.textPrimary(context),
                           ),
                         ),
-                        if (_scheduledTimes.length > 1)
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            ),
-                            onPressed: _respaceAllTimesEvenly,
-                            icon: Icon(Icons.auto_awesome, size: 14, color: Theme.of(context).colorScheme.primary),
-                            label: Text(
-                              'Re-space Evenly',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              ),
+                              onPressed: _showViableScheduleSuggestionsSheet,
+                              icon: Icon(Icons.psychology_rounded, size: 15, color: Theme.of(context).colorScheme.primary),
+                              label: Text(
+                                'Suggest Timings',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                               ),
                             ),
-                          ),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              ),
+                              onPressed: _cycleNextViableSchedule,
+                              icon: Icon(Icons.sync_rounded, size: 15, color: Theme.of(context).colorScheme.secondary),
+                              label: Text(
+                                'Cycle',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                            ),
+                            if (_scheduledTimes.length > 1)
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                ),
+                                onPressed: _respaceAllTimesEvenly,
+                                icon: Icon(Icons.auto_awesome, size: 14, color: Theme.of(context).colorScheme.primary),
+                                label: Text(
+                                  'Re-space',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                     if (_scheduledTimes.length > 1) ...[

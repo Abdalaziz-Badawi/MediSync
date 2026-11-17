@@ -59,6 +59,35 @@ class DeviceIntegrationService {
     }
   }
 
+  /// Opens an external web URL using the device's default web browser.
+  Future<bool> openBrowserUrl(String url) async {
+    try {
+      final res = await _channel.invokeMethod<bool>('openBrowserUrl', {'url': url});
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens an online clinical drug reference monograph for a specific medicine.
+  /// 100% Privacy Preserving: Transmits ONLY the public drug name, with ZERO patient identifiers.
+  Future<bool> openOnlineDrugMonograph(String medicationName) async {
+    final query = Uri.encodeComponent(medicationName.trim());
+    final url = 'https://www.drugs.com/search.php?searchterm=$query';
+    return openBrowserUrl(url);
+  }
+
+  /// Queries native local calendar events for the active time window.
+  Future<List<Map<String, dynamic>>> getCalendarEvents() async {
+    try {
+      final res = await _channel.invokeMethod<List<dynamic>>('getCalendarEvents');
+      if (res == null) return [];
+      return res.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// Generates standard offline iCalendar (.ics) format string for all medications.
   /// Standard RFC 5545 compatible with Android Calendar, Apple Calendar, and Windows Calendar.
   String generateIcsCalendar(List<Medication> medications) {

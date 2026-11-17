@@ -6,6 +6,7 @@ import 'package:medisync/core/models/safety_flag.dart';
 import 'package:medisync/core/models/side_effect.dart';
 import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
+import 'package:medisync/core/services/routine_inference_service.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 
 void main() {
@@ -355,6 +356,87 @@ void main() {
         ).length,
         4,
       );
+    });
+
+    test('DoseStatus.takenEarly records early dose and marks dose as taken', () {
+      final med = Medication(
+        id: 'med_early_test',
+        name: 'Early Med',
+        dosage: '10mg',
+        form: MedicationForm.pill,
+        timesPerDay: 1,
+        scheduledTimes: const ['14:00'],
+        startDate: DateTime(2026, 11, 1),
+        doseLog: const {
+          '2026-11-17': ['14:00:takenEarly'],
+        },
+      );
+
+      final date = DateTime(2026, 11, 17);
+      expect(med.getDoseStatus(date, '14:00'), DoseStatus.takenEarly);
+      expect(med.isDoseTaken(date, '14:00'), isTrue);
+      expect(med.continuityStats['takenEarly'], 1);
+    });
+
+    test('RoutineInferenceEngine deduces wake, commute, and meal windows from calendar events', () {
+      final engine = RoutineInferenceEngine();
+      final today = DateTime.now();
+
+      final mockEvents = [
+        {
+          'title': 'Daily Standup Meeting',
+          'dtStart': DateTime(today.year, today.month, today.day, 9, 0).millisecondsSinceEpoch,
+          'dtEnd': DateTime(today.year, today.month, today.day, 9, 30).millisecondsSinceEpoch,
+        },
+        {
+          'title': 'Morning Highway Driving Commute',
+          'dtStart': DateTime(today.year, today.month, today.day, 8, 0).millisecondsSinceEpoch,
+          'dtEnd': DateTime(today.year, today.month, today.day, 8, 45).millisecondsSinceEpoch,
+        },
+        {
+          'title': 'Team Lunch at Bistro',
+          'dtStart': DateTime(today.year, today.month, today.day, 12, 30).millisecondsSinceEpoch,
+          'dtEnd': DateTime(today.year, today.month, today.day, 13, 30).millisecondsSinceEpoch,
+        },
+        {
+          'title': 'Driving home / Traffic commute',
+          'dtStart': DateTime(today.year, today.month, today.day, 17, 30).millisecondsSinceEpoch,
+          'dtEnd': DateTime(today.year, today.month, today.day, 18, 30).millisecondsSinceEpoch,
+        },
+      ];
+
+      final inferred = engine.inferRoutine(
+        profile: testProfile,
+        calendarEvents: mockEvents,
+      );
+
+      expect(inferred.transitWindows.isNotEmpty, isTrue);
+      expect(inferred.isDuringTransit(8 * 60 + 15), isTrue); // 8:15 during driving commute
+      expect(inferred.lunchTime, '12:30');
+      expect(inferred.source.contains('Calendar'), isTrue);
+    });
+
+    test('SchedulerService.generateViableScheduleOptions generates multiple viable routine options', () {
+      final engine = RoutineInferenceEngine();
+      final inferred = engine.inferRoutine(profile: testProfile);
+
+      final optionsBID = SchedulerService.generateViableScheduleOptions(
+        timesPerDay: 2,
+        profile: testProfile,
+        sideEffects: const [],
+        preConditions: const [],
+        postConditions: const [],
+        inferredRoutine: inferred,
+        medicationName: 'Metoprolol',
+      );
+
+      // Should offer Meal Aligned, Transit Aware, Even Distribution, and Symmetrical 12-Hour
+      expect(optionsBID.length, greaterThanOrEqualTo(3));
+      final optionIds = optionsBID.map((o) => o.id).toSet();
+      expect(optionIds.contains('meal_aligned'), isTrue);
+      expect(optionIds.contains('transit_aware'), isTrue);
+      expect(optionIds.contains('even_distribution'), isTrue);
+      expect(optionIds.contains('twelve_hour'), isTrue);
     });
   });
 }

@@ -338,7 +338,7 @@ void main() {
         home: Scaffold(
           body: NextDoseCountdownCard(
             medications: [med],
-            onMarkTaken: (_, __, ___) {},
+            onMarkTaken: (medId, time, date) {},
           ),
         ),
       ),
@@ -347,5 +347,42 @@ void main() {
 
     expect(find.text("Today We're Done!"), findsOneWidget);
     expect(find.text("TOMORROW'S SCHEDULE SUMMARY"), findsOneWidget);
+  });
+
+  testWidgets('Date selection locking locks timeline actions on non-today dates',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          profileNotifierProvider.overrideWith((ref) => FakeProfileNotifier()),
+          medicationsNotifierProvider
+              .overrideWith((ref) => FakeMedicationsNotifier()),
+        ],
+        child: const MaterialApp(
+          home: HomePage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Default is today - verify no locked message is present
+    expect(find.byIcon(Icons.lock_clock_rounded), findsNothing);
+
+    // Tap on the next day's date chip in the horizontal calendar strip
+    final futureDayFinder = find.byType(InkWell);
+    if (futureDayFinder.evaluate().isNotEmpty) {
+      // Find a day chip that has text of future day
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final tomorrowDayNumber = tomorrow.day.toString();
+      final tomorrowChip = find.text(tomorrowDayNumber);
+      if (tomorrowChip.evaluate().isNotEmpty) {
+        await tester.tap(tomorrowChip.first);
+        await tester.pumpAndSettle();
+
+        // Lock icon and notice should now be visible
+        expect(find.byIcon(Icons.lock_clock_rounded), findsOneWidget);
+        expect(find.textContaining('Doses are locked and cannot be logged ahead of time.'), findsOneWidget);
+      }
+    }
   });
 }

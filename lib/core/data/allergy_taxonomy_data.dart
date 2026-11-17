@@ -246,6 +246,72 @@ class AllergyTaxonomyData {
       subcategory: 'Adhesive Tackifier',
       clinicalNote: 'Resin used in bandage and patch manufacturing',
     ),
+    TaxonomyAllergen(
+      name: 'Tetracyclines (Doxycycline / Minocycline)',
+      category: AllergyCategoryType.directDrug,
+      subcategory: 'Broad-Spectrum Antibiotic',
+      clinicalNote: 'Cross-sensitivity across tetracycline class; severe phototoxic and hypersensitivity reactions',
+    ),
+    TaxonomyAllergen(
+      name: 'Aromatic Anticonvulsants (Carbamazepine / Phenytoin)',
+      category: AllergyCategoryType.directDrug,
+      subcategory: 'Antiepileptic / Mood Stabilizer',
+      clinicalNote: 'High risk of DRESS syndrome and SJS/TEN; screening for HLA-B*1502 indicated',
+    ),
+    TaxonomyAllergen(
+      name: 'Local Anesthetics (Lidocaine / Procaine)',
+      category: AllergyCategoryType.directDrug,
+      subcategory: 'Anesthetic',
+      clinicalNote: 'Distinguish between amide-type (Lidocaine) and ester-type (Procaine) allergies',
+    ),
+    TaxonomyAllergen(
+      name: 'Heparin / Low-Molecular-Weight Heparin (LMWH)',
+      category: AllergyCategoryType.directDrug,
+      subcategory: 'Anticoagulant',
+      clinicalNote: 'Type II Heparin-Induced Thrombocytopenia (HIT) antibody immune-mediated risk',
+    ),
+    TaxonomyAllergen(
+      name: 'Tree Nuts (Almond / Walnut / Cashew)',
+      category: AllergyCategoryType.foodExcipient,
+      subcategory: 'Nut Oils & Derivatives',
+      clinicalNote: 'Nut-derived lipophilic carriers and topical dermatological formulations',
+    ),
+    TaxonomyAllergen(
+      name: 'Corn Starch / Dextrose',
+      category: AllergyCategoryType.foodExcipient,
+      subcategory: 'Tablet Binder & Diluent',
+      clinicalNote: 'Common pharmaceutical binder; verify source in severe maize allergy',
+    ),
+    TaxonomyAllergen(
+      name: 'Aspartame (Artificial Sweetener)',
+      category: AllergyCategoryType.inactiveAdditive,
+      subcategory: 'Sweetener & Flavoring Excipient',
+      clinicalNote: 'Contains phenylalanine; dangerous in Phenylketonuria (PKU) and oral chewables',
+    ),
+    TaxonomyAllergen(
+      name: 'Tartrazine (FD&C Yellow No. 5)',
+      category: AllergyCategoryType.inactiveAdditive,
+      subcategory: 'Azo Dye Colorant',
+      clinicalNote: 'Cross-reacts frequently in aspirin-sensitive asthmatic patients (AERD)',
+    ),
+    TaxonomyAllergen(
+      name: 'Chlorhexidine Gluconate',
+      category: AllergyCategoryType.environmentalMaterial,
+      subcategory: 'Topical Antiseptic',
+      clinicalNote: 'Sensitization from surgical preps, impregnated catheters, and oral mouthwashes',
+    ),
+    TaxonomyAllergen(
+      name: 'Nickel / Surgical Metal Alloys',
+      category: AllergyCategoryType.environmentalMaterial,
+      subcategory: 'Contact Metal',
+      clinicalNote: 'Dermatitis from medical device components, clips, and needle coatings',
+    ),
+    TaxonomyAllergen(
+      name: 'Photosensitivity / Sunlight (Drug-Induced)',
+      category: AllergyCategoryType.environmentalMaterial,
+      subcategory: 'Environmental Interaction',
+      clinicalNote: 'Severe phototoxic/photoallergic flares with Thiazides, Tetracyclines, and Fluoroquinolones',
+    ),
   ];
 
   static Color getCategoryColor(AllergyCategoryType category, BuildContext context) {

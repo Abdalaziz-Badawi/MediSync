@@ -374,6 +374,41 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           const SizedBox(height: 12),
 
+          // Date Locking Notice for past or future days
+          if (!isToday) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.cardBorder(context)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_clock_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _selectedDate.isAfter(DateTime.now())
+                          ? 'Viewing future schedule (${DateFormat('EEEE, d MMM').format(_selectedDate)}). Doses are locked and cannot be logged ahead of time.'
+                          : 'Viewing historical schedule (${DateFormat('EEEE, d MMM').format(_selectedDate)}). Past records are locked in read-only mode.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // 7. Dose Timeline Items
           if (selectedDayDoses.isEmpty) ...[
             Container(
@@ -428,6 +463,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               _DoseTimelineCard(
                 dose: dose,
                 date: _selectedDate,
+                isLocked: !isToday,
                 onUpdateStatus: (newStatus) {
                   ref
                       .read(medicationsNotifierProvider.notifier)
@@ -634,11 +670,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 class _DoseTimelineCard extends StatelessWidget {
   final DoseItem dose;
   final DateTime date;
+  final bool isLocked;
   final ValueChanged<DoseStatus> onUpdateStatus;
 
   const _DoseTimelineCard({
     required this.dose,
     required this.date,
+    this.isLocked = false,
     required this.onUpdateStatus,
   });
 
@@ -692,6 +730,15 @@ class _DoseTimelineCard extends StatelessWidget {
                   subtitle: 'Taken as scheduled within optimal therapeutic window',
                   icon: Icons.check_circle_rounded,
                   color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                ),
+                const SizedBox(height: 8),
+                _buildStatusOption(
+                  ctx: ctx,
+                  status: DoseStatus.takenEarly,
+                  title: 'Taken Early',
+                  subtitle: 'Administered in advance ahead of the scheduled time slot',
+                  icon: Icons.alarm_on_rounded,
+                  color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
                 ),
                 const SizedBox(height: 8),
                 _buildStatusOption(
@@ -822,6 +869,11 @@ class _DoseTimelineCard extends StatelessWidget {
         statusIcon = Icons.check_circle_rounded;
         statusLabel = 'Taken';
         break;
+      case DoseStatus.takenEarly:
+        statusColor = isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488);
+        statusIcon = Icons.alarm_on_rounded;
+        statusLabel = 'Taken Early';
+        break;
       case DoseStatus.delayed:
         statusColor = isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber;
         statusIcon = Icons.schedule_rounded;
@@ -845,12 +897,13 @@ class _DoseTimelineCard extends StatelessWidget {
     }
 
     final isResolved = status == DoseStatus.taken ||
+        status == DoseStatus.takenEarly ||
         status == DoseStatus.delayed ||
         status == DoseStatus.notNeeded;
 
     return Dismissible(
       key: Key('dose_${med.id}_${dose.time}_${date.toIso8601String()}'),
-      direction: DismissDirection.horizontal,
+      direction: isLocked ? DismissDirection.none : DismissDirection.horizontal,
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Swipe Right: Mark Taken
@@ -924,7 +977,36 @@ class _DoseTimelineCard extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        onTap: () => _showStatusPicker(context),
+        onTap: isLocked
+            ? () {
+                final now = DateTime.now();
+                final todayMidnight = DateTime(now.year, now.month, now.day);
+                final cardMidnight = DateTime(date.year, date.month, date.day);
+                final isFuture = cardMidnight.isAfter(todayMidnight);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.lock_outline_rounded,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isFuture
+                                ? 'Future dates are locked. Doses can only be logged on today\'s schedule.'
+                                : 'Past records are locked. Historical records are view-only.',
+                            style: const TextStyle(fontSize: 12.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: AppTheme.textPrimary(context),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            : () => _showStatusPicker(context),
         borderRadius: BorderRadius.circular(18),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),

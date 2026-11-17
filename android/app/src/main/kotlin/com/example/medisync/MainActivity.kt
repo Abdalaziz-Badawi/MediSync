@@ -99,6 +99,67 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(foundName)
                 }
+                "openBrowserUrl" -> {
+                    try {
+                        val url = call.argument<String>("url")
+                        if (url != null) {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_URL", "URL cannot be null", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("BROWSER_ERROR", e.message, null)
+                    }
+                }
+                "getCalendarEvents" -> {
+                    try {
+                        if (checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            val projection = arrayOf(
+                                CalendarContract.Events.TITLE,
+                                CalendarContract.Events.DTSTART,
+                                CalendarContract.Events.DTEND,
+                                CalendarContract.Events.DESCRIPTION,
+                                CalendarContract.Events.EVENT_LOCATION
+                            )
+                            val startTime = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
+                            val endTime = System.currentTimeMillis() + 48 * 60 * 60 * 1000L
+                            val selection = "(${CalendarContract.Events.DTSTART} >= ?) AND (${CalendarContract.Events.DTSTART} <= ?)"
+                            val selectionArgs = arrayOf(startTime.toString(), endTime.toString())
+                            val cursor = contentResolver.query(
+                                CalendarContract.Events.CONTENT_URI,
+                                projection,
+                                selection,
+                                selectionArgs,
+                                "${CalendarContract.Events.DTSTART} ASC"
+                            )
+                            val events = mutableListOf<Map<String, Any?>>()
+                            cursor?.use {
+                                val titleIdx = it.getColumnIndex(CalendarContract.Events.TITLE)
+                                val startIdx = it.getColumnIndex(CalendarContract.Events.DTSTART)
+                                val endIdx = it.getColumnIndex(CalendarContract.Events.DTEND)
+                                val descIdx = it.getColumnIndex(CalendarContract.Events.DESCRIPTION)
+                                val locIdx = it.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
+                                while (it.moveToNext()) {
+                                    events.add(mapOf(
+                                        "title" to (if (titleIdx >= 0) it.getString(titleIdx) else null),
+                                        "dtStart" to (if (startIdx >= 0) it.getLong(startIdx) else null),
+                                        "dtEnd" to (if (endIdx >= 0) it.getLong(endIdx) else null),
+                                        "description" to (if (descIdx >= 0) it.getString(descIdx) else null),
+                                        "location" to (if (locIdx >= 0) it.getString(locIdx) else null)
+                                    ))
+                                }
+                            }
+                            result.success(events)
+                        } else {
+                            result.success(emptyList<Map<String, Any?>>())
+                        }
+                    } catch (e: Exception) {
+                        result.success(emptyList<Map<String, Any?>>())
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

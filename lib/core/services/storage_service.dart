@@ -164,6 +164,9 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
       case DoseStatus.taken:
         entries.add('$time:taken');
         break;
+      case DoseStatus.takenEarly:
+        entries.add('$time:takenEarly');
+        break;
       case DoseStatus.delayed:
         entries.add('$time:delayed');
         break;

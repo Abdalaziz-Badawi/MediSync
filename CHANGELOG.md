@@ -4,6 +4,34 @@ All notable developments, architectural transitions, clinical safety features, a
 
 ---
 
+## [1.5.0] - 2026-11-17
+
+### Added
+- **Intelligent Routine & Viable Schedule Recalculator (`AddEditMedicationPage`)**:
+  - Added bottom sheet modal and quick-cycle button to explore viable alternative dose timings tailored to patient routines.
+  - Automatically calculates up to 4 distinct clinical schedule proposals:
+    - **Meal & Routine Synchronized**: Aligns intake with breakfast, lunch, or dinner depending on food requirements, stomach sensitivity, or empty-stomach absorption.
+    - **Transit & Activity Safe**: Safeguards against administering sedating or dizziness-inducing medications during commute and driving intervals.
+    - **Even Clinical Spacing**: Maintains equal pharmacological separation across waking hours.
+    - **Symmetrical 12-Hour Cycle**: Standard 12-hour BID spacing (08:00 & 20:00) for twice-daily regimens.
+- **Calendar & Activity Inference Engine (`RoutineInferenceEngine`)**:
+  - Context-aware engine that reads device calendar events via native Android `MethodChannel` (`CalendarContract.Events`).
+  - Infers patient wake times, bedtime, lunch/dinner times, and transit windows from calendar events and commute entries.
+  - Falls back seamlessly to profile baseline routines when calendar access is not granted.
+- **Expanded Clinical Drug Database & Allergy Taxonomy**:
+  - Expanded `MedicinesDatabase` with 14 drug templates (Amlodipine, Losartan, Hydrochlorothiazide, Metoprolol, Simvastatin, Gabapentin, Sertraline, Escitalopram, Alprazolam, Prednisone, Empagliflozin, Esomeprazole, Ondansetron, Fluconazole) with comprehensive excipients, side effects, food restrictions, and conflict pairs.
+  - Expanded `AllergyTaxonomyData` with 11 allergen categories (Tetracyclines, Aromatic Anticonvulsants, Local Anesthetics, Heparin, Tree Nuts, Corn Starch, Aspartame, Tartrazine, Chlorhexidine, Nickel, Photosensitivity).
+- **Privacy-Preserving Verified Online Medical Monograph Link**:
+  - Added dedicated clinical monograph lookup button on `MedicationDetailsPage`.
+  - Opens verified medical monographs on Drugs.com / OpenFDA via native intent.
+  - Strictly preserves 100% on-device privacy: only the public drug name is queried, with zero patient identifiers, logs, or personal health records transmitted.
+- **Strict Date Locking on Dose Logging & Early Dose Handling**:
+  - **Date Locking**: Restricted dose taking and editing to the current day. Future and past days in the daily horizontal strip are locked in read-only mode with informative date-lock banners.
+  - **"Taken Early" Scenario**: Added `DoseStatus.takenEarly` to accommodate users who administer doses ahead of schedule, properly crediting adherence while preserving timeline accuracy.
+  - **Countdown Card Isolation**: Next dose countdown card strictly tracks today's active doses and does not offer "Take" actions on tomorrow's medications.
+
+---
+
 ## [1.4.0] - 2026-11-17
 
 ### Added

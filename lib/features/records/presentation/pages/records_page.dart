@@ -98,7 +98,7 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
           final status = med.getDoseStatus(date, time);
           if (status == DoseStatus.missed) hasMissed = true;
           if (status == DoseStatus.delayed) hasDelayed = true;
-          if (status == DoseStatus.taken) hasTaken = true;
+          if (status == DoseStatus.taken || status == DoseStatus.takenEarly) hasTaken = true;
           if (status == DoseStatus.notNeeded) hasNotNeeded = true;
         }
       }
@@ -1010,6 +1010,11 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
         statusColor = isDark ? AppTheme.successGreenLight : AppTheme.successGreen;
         statusLabel = 'Taken On Time';
         statusIcon = Icons.check_circle_rounded;
+        break;
+      case DoseStatus.takenEarly:
+        statusColor = isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488);
+        statusLabel = 'Taken Early';
+        statusIcon = Icons.alarm_on_rounded;
         break;
       case DoseStatus.delayed:
         statusColor = isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber;

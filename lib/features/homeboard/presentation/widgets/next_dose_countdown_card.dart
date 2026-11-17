@@ -242,7 +242,7 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        nextDose.isTomorrow ? 'NEXT DOSE (TOMORROW)' : 'NEXT MEDICATION',
+                        'NEXT MEDICATION',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -323,10 +323,7 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      final targetDate = nextDose.isTomorrow
-                          ? DateTime.now().add(const Duration(days: 1))
-                          : DateTime.now();
-                      widget.onMarkTaken(med.id, targetDate, nextDose.timeString);
+                      widget.onMarkTaken(med.id, DateTime.now(), nextDose.timeString);
                     },
                     icon: const Icon(Icons.check_rounded, size: 16),
                     label: const Text('Take'),
