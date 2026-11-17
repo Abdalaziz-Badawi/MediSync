@@ -1,0 +1,597 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MedicationSafetyAllergyTaxonomy",
+  "version": "2.4.0",
+  "description": "Comprehensive Clinical Allergy Taxonomy and Cross-Referencing Knowledge Base for Active Ingredients and Inactive Excipients in Pharmaceutical Products.",
+  "metadata_schema": {
+    "type": "object",
+    "description": "Standard User Entry Metadata Schema for patient-reported or clinician-verified allergy profiles",
+    "required": [
+      "allergy_id",
+      "category",
+      "trigger_name",
+      "reaction_type",
+      "severity",
+      "symptoms",
+      "verification_status"
+    ],
+    "properties": {
+      "allergy_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique identifier for the patient's allergy record"
+      },
+      "category": {
+        "type": "string",
+        "enum": [
+          "Direct_Drug",
+          "Drug_Class",
+          "Food_Excipient",
+          "Inactive_Additive",
+          "Preservative_Solvent",
+          "Animal_Product",
+          "Environmental_Material",
+          "Dye_Colorant",
+          "Sweetener"
+        ]
+      },
+      "trigger_name": {
+        "type": "string",
+        "description": "Name of the drug, drug class, food allergen, or excipient (e.g., Amoxicillin, Penicillins, Lactose Monohydrate, Gelatin, Latex)"
+      },
+      "reaction_type": {
+        "type": "string",
+        "enum": [
+          "IgE_Allergy",
+          "Delayed_Hypersensitivity",
+          "Intolerance",
+          "Side_Effect"
+        ],
+        "description": "Immunologic classification of the adverse response"
+      },
+      "severity": {
+        "type": "string",
+        "enum": [
+          "Mild",
+          "Moderate",
+          "Severe_Anaphylaxis"
+        ],
+        "description": "Clinical peak severity rating"
+      },
+      "symptoms": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of clinical symptoms (e.g., Urticaria, Angioedema, Bronchospasm, Hypotension, Maculopapular Rash, Dyspepsia, Headache)"
+      },
+      "verification_status": {
+        "type": "string",
+        "enum": [
+          "Self_Reported",
+          "Clinically_Diagnosed"
+        ],
+        "description": "Source of medical confirmation"
+      },
+      "notes": {
+        "type": "string",
+        "description": "Clinical context, date of onset, or diagnostic test details (skin prick, specific IgE)"
+      },
+      "clinical_codes": {
+        "type": "object",
+        "properties": {
+          "rxnorm_cui": { "type": "string" },
+          "snomed_concept_id": { "type": "string" },
+          "unii_code": { "type": "string" },
+          "icd10_cm": { "type": "string" }
+        }
+      }
+    }
+  },
+  "taxonomy": {
+    "direct_drug_and_class_allergies": {
+      "antibiotics": {
+        "penicillins": {
+          "class_name": "Penicillins (Beta-Lactams)",
+          "atc_code": "J01C",
+          "snomed_code": "373270004",
+          "rxnorm_cui": "7980",
+          "members": [
+            "Penicillin G", "Penicillin V", "Amoxicillin", "Ampicillin",
+            "Oxacillin", "Nafcillin", "Dicloxacillin", "Piperacillin",
+            "Ticarcillin", "Augmentin", "Unasyn", "Zosyn"
+          ],
+          "cross_reactive_classes": [
+            {
+              "target_class": "Cephalosporins",
+              "risk_level": "Moderate_to_Low",
+              "mechanism": "Beta-lactam ring core plus R1 side-chain similarity. 1st-generation cephalosporins (Cephalexin, Cefadroxil, Cefazolin) share high R1 similarity with ampicillin/amoxicillin (~5-10% cross-reactivity). 3rd/4th/5th-gen (Ceftriaxone, Cefepime) have distinct side-chains (<1% cross-reactivity unless side chains match).",
+              "r1_side_chain_groups": {
+                "ampicillin_like": ["Cephalexin", "Cefaclor", "Cephradine"],
+                "amoxicillin_like": ["Cefadroxil", "Cefprozil"]
+              }
+            },
+            {
+              "target_class": "Carbapenems",
+              "risk_level": "Low",
+              "mechanism": "Bicyclic beta-lactam core cross-reactivity historically cited as 50%, modern clinical evidence demonstrates <1% cross-reactivity in proven IgE-mediated penicillin allergy."
+            },
+            {
+              "target_class": "Monobactams (Aztreonam)",
+              "risk_level": "Negligible",
+              "mechanism": "Monocyclic beta-lactam ring does not cross-react with penicillins, EXCEPT Ceftazidime (shares identical R1 side chain with Aztreonam)."
+            }
+          ]
+        },
+        "cephalosporins": {
+          "class_name": "Cephalosporins",
+          "atc_code": "J01D",
+          "snomed_code": "372833007",
+          "generations": {
+            "first_generation": ["Cefazolin", "Cephalexin", "Cefadroxil"],
+            "second_generation": ["Cefuroxime", "Cefaclor", "Cefprozil", "Cefoxitin"],
+            "third_generation": ["Ceftriaxone", "Cefotaxime", "Ceftazidime", "Cefdinir", "Cefixime"],
+            "fourth_generation": ["Cefepime"],
+            "fifth_generation": ["Ceftaroline", "Ceftobiprole"]
+          },
+          "cross_reactive_classes": [
+            {
+              "target_class": "Penicillins",
+              "risk_level": "Variable_By_Side_Chain",
+              "rule": "Flag exact R1/R2 side chain match as Critical. Flag discordant side chain generations as Caution."
+            }
+          ]
+        },
+        "sulfonamides": {
+          "class_name": "Sulfonamides (Sulfa)",
+          "snomed_code": "91302008",
+          "structural_differentiation": {
+            "antibiotic_arylamines": {
+              "description": "Contain N4 aromatic amine substituent directly attached to benzene ring linked to sulfonamide group (N1). Primary driver of severe IgE and T-cell mediated reactions (SJS/TEN).",
+              "members": ["Sulfamethoxazole", "Sulfadiazine", "Sulfisoxazole", "Bactrim", "Septra"],
+              "risk_level": "Absolute_Cross_Reactivity"
+            },
+            "non_antibiotic_sulfonamides": {
+              "description": "Lack the N4 arylamine moiety. Cross-reactivity with antibiotic sulfas is immunologically minimal to nonexistent, but cautious clinical awareness is warranted.",
+              "members": [
+                "Furosemide", "Bumetanide", "Hydrochlorothiazide", "Chlorthalidone",
+                "Celecoxib", "Sumatriptan", "Topiramate", "Zonisamide", "Glipizide", "Glyburide"
+              ],
+              "risk_level": "Low_to_Negligible_True_Cross_Reactivity"
+            }
+          }
+        },
+        "macrolides": {
+          "class_name": "Macrolides",
+          "snomed_code": "372687004",
+          "members": ["Azithromycin", "Clarithromycin", "Erythromycin", "Fidaxomicin"],
+          "cross_reactive_classes": [
+            {
+              "target_class": "Intra-macrolide",
+              "risk_level": "High",
+              "mechanism": "Large macrocyclic lactone ring shared across members."
+            }
+          ]
+        },
+        "fluoroquinolones": {
+          "class_name": "Fluoroquinolones",
+          "snomed_code": "372834001",
+          "members": ["Ciprofloxacin", "Levofloxacin", "Moxifloxacin", "Ofloxacin", "Delafloxacin"],
+          "cross_reactive_classes": [
+            {
+              "target_class": "Intra-quinolone",
+              "risk_level": "High",
+              "mechanism": "Common bicyclic core structure; high rates of IgE cross-sensitization."
+            }
+          ]
+        },
+        "tetracyclines": {
+          "class_name": "Tetracyclines",
+          "snomed_code": "372837008",
+          "members": ["Doxycycline", "Minocycline", "Tetracycline", "Tigecycline"],
+          "cross_reactive_classes": [
+            {
+              "target_class": "Intra-tetracycline",
+              "risk_level": "Moderate_to_High",
+              "mechanism": "Four-ring naphthacene carboxamide structure."
+            }
+          ]
+        },
+        "other_antibacterials": {
+          "vancomycin": {
+            "reaction_types": ["Red_Man_Syndrome_Histaminoid", "True_IgE", "DRESS"],
+            "differentiating_note": "Rapid infusion causes non-IgE mast cell degranulation (Red Man Syndrome); rate reduction mitigates response. True IgE requires desensitization."
+          },
+          "aminoglycosides": {
+            "members": ["Gentamicin", "Tobramycin", "Amikacin", "Neomycin"]
+          }
+        }
+      },
+      "analgesics_and_anti_inflammatories": {
+        "nsaids_and_aspirin": {
+          "class_name": "Nonsteroidal Anti-inflammatory Drugs (NSAIDs) & Salicylates",
+          "snomed_code": "372665008",
+          "pathophysiology_subtypes": {
+            "aerd_cross_reactive": {
+              "name": "Aspirin-Exacerbated Respiratory Disease / Cross-Reactive Urticaria",
+              "mechanism": "Non-allergic pseudoallergy driven by COX-1 inhibition shifting arachidonic acid cascade to overproduction of cysteinyl leukotrienes.",
+              "cross_reactive_drugs": [
+                "Aspirin", "Ibuprofen", "Naproxen", "Ketorolac", "Indomethacin",
+                "Diclofenac", "Meloxicam", "Piroxicam", "Etodolac"
+              ],
+              "safe_alternatives": [
+                "Acetaminophen (low dose <= 1000mg)",
+                "Celecoxib (selective COX-2 inhibitor, highly tolerated in AERD)"
+              ]
+            },
+            "single_nsaid_ige_allergy": {
+              "name": "Single Drug IgE-Mediated Hypersensitivity",
+              "mechanism": "Immunologic IgE specific to single chemical structure (e.g., Ibuprofen IgE may tolerate Diclofenac or Naproxen)."
+            }
+          }
+        },
+        "opioids": {
+          "class_name": "Opioids",
+          "snomed_code": "373492002",
+          "chemical_classes": {
+            "phenanthrenes": {
+              "members": ["Morphine", "Codeine", "Hydromorphone", "Hydrocodone", "Oxycodone", "Oxymorphone"],
+              "note": "Most prone to non-immunologic direct mast cell degranulation causing flushing/pruritus. Cross-reactivity within phenanthrenes is high."
+            },
+            "phenylpiperidines": {
+              "members": ["Fentanyl", "Meperidine", "Remifentanil", "Sufentanil"],
+              "note": "Distinct structure; rarely causes direct histamine release. Safe choice in phenanthrene allergy."
+            },
+            "diphenylheptanes": {
+              "members": ["Methadone"],
+              "note": "Structurally distinct third class for true opioid allergy substitution."
+            }
+          }
+        },
+        "acetaminophen": {
+          "class_name": "Acetaminophen / Paracetamol",
+          "rxnorm_cui": "161",
+          "snomed_code": "387517004",
+          "reaction_profile": "Hypersensitivity is rare. Doses > 1000mg may weakly inhibit COX-1 and trigger mild bronchospasm in 25% of severe AERD patients."
+        }
+      },
+      "anesthetics_and_neuromuscular_blockers": {
+        "local_anesthetics": {
+          "esters": {
+            "members": ["Procaine", "Tetracaine", "Benzocaine", "Chloroprocaine", "Cocaine"],
+            "metabolite": "Para-aminobenzoic acid (PABA)",
+            "cross_reactivity": "High cross-reactivity within ester group due to PABA. Also cross-reacts with methylparaben preservative in multidose vials."
+          },
+          "amides": {
+            "members": ["Lidocaine", "Bupivacaine", "Mepivacaine", "Ropivacaine", "Prilocaine", "Articaine"],
+            "cross_reactivity": "Virtually zero cross-reactivity between Esters and Amides. Amide-to-amide cross-reactivity is extremely rare. True allergy is <1%; most reactions are vasovagal or epinephrine-related."
+          }
+        },
+        "general_anesthetics": {
+          "propofol": {
+            "vehicle": "Oil-in-water lipid emulsion containing 10% soybean oil and 1.2% purified egg phosphatide (egg lecithin).",
+            "clinical_guidance": "AAAI guidelines note egg phosphatide is purified from yolk (not egg white ovalbumin); true reactions in egg-allergic patients are exceedingly rare. Soybean oil is refined and devoid of protein. Flag as Tier 3 Caution, not Hard Stop."
+          }
+        },
+        "neuromuscular_blocking_agents": {
+          "class_name": "NMBAs",
+          "members": ["Succinylcholine", "Rocuronium", "Vecuronium", "Atracurium", "Pancuronium", "Cisatracurium"],
+          "mechanism": "Quaternary ammonium ion epitopes. Cross-reactivity between different NMBAs ranges between 60% and 80%."
+        }
+      },
+      "cardiovascular_and_contrast": {
+        "ace_inhibitors": {
+          "class_name": "Angiotensin-Converting Enzyme (ACE) Inhibitors",
+          "members": ["Lisinopril", "Enalapril", "Ramipril", "Benazepril", "Captopril"],
+          "reaction": "Bradykinin-mediated Angioedema (life-threatening airway swelling).",
+          "contraindication_rule": "Angioedema to one ACE inhibitor is an ABSOLUTE CONTRAINDICATION to ALL other ACE inhibitors. ARBs (Losartan, Valsartan) carry ~2-7% theoretical cross-over risk."
+        },
+        "statins": {
+          "class_name": "HMG-CoA Reductase Inhibitors (Statins)",
+          "members": ["Atorvastatin", "Rosuvastatin", "Simvastatin", "Pravastatin"],
+          "reaction_types": ["Myopathy_Intolerance", "Immune_Mediated_Necrotizing_Myopathy_AntiHMGCR", "True_Hypersensitivity"]
+        },
+        "iodinated_contrast_media": {
+          "class_name": "Radiopaque Iodinated Contrast Media (ICM)",
+          "reaction": "Non-allergic chemotoxic or anaphylactoid (direct complement/mast cell) reaction.",
+          "clinical_myth_rule": "DEBUNKED: Seafood/shellfish allergy is caused by tropomyosin protein, NOT iodine. Shellfish allergy does NOT increase ICM reaction risk more than any general atopic condition."
+        }
+      },
+      "biologics_and_vaccines": {
+        "monoclonal_antibodies": {
+          "chimeric_murine": {
+            "suffix": "-ximab (e.g., Infliximab, Cetuximab, Rituximab)",
+            "risk": "Contains human/mouse chimeric sequences. Cetuximab contains alpha-gal epitope."
+          },
+          "humanized": {
+            "suffix": "-zumab (e.g., Trastuzumab, Bevacizumab)",
+            "risk": "90-95% human; lower immunogenicity."
+          },
+          "fully_human": {
+            "suffix": "-umab (e.g., Adalimumab, Ustekinumab)",
+            "risk": "100% human sequence; lowest anti-drug antibody formation."
+          }
+        },
+        "vaccines": {
+          "egg_protein_content": {
+            "yellow_fever_vaccine": "High ovalbumin content; requires skin testing/specialist desensitization in severe egg allergy.",
+            "influenza_vaccines": "Current CDC/ACIP guidelines state egg-allergic individuals may receive any licensed, age-appropriate flu vaccine without special precautions."
+          },
+          "gelatin_stabilizer": {
+            "vaccines": ["MMR", "Varicella", "Zoster"],
+            "risk": "Porcine gelatin stabilizer can trigger severe anaphylaxis in gelatin-sensitized or Alpha-gal patients."
+          }
+        }
+      }
+    },
+    "food_allergies_mapped_to_excipients": {
+      "dairy_and_milk": {
+        "food_trigger": "Cow's Milk / Dairy",
+        "major_allergens": ["Casein", "Beta-lactoglobulin", "Alpha-lactalbumin"],
+        "pharmaceutical_excipients": [
+          {
+            "excipient_name": "Lactose Monohydrate",
+            "unii": "EWQ57Q8I5X",
+            "usage": "Filler/binder in tablets and carrier in Dry Powder Inhalers (DPIs e.g. Fluticasone/Salmeterol Diskus).",
+            "clinical_significance": "Pharmaceutical-grade lactose may contain trace milk proteins. While tolerated by lactose intolerant patients, DPI inhalation in severe milk IgE anaphylaxis has caused fatal bronchospasm.",
+            "risk_tier": "Critical_For_DPI_Inhalers_Caution_For_Oral"
+          },
+          {
+            "excipient_name": "Casein / Sodium Caseinate",
+            "unii": "4733076F4G",
+            "usage": "Nutritional supplements, protein binders."
+          },
+          {
+            "excipient_name": "Whey Protein",
+            "unii": "2E951D61V8",
+            "usage": "Nutritional formulations."
+          }
+        ]
+      },
+      "seeds_and_vegetable_oils": {
+        "food_trigger": "Seeds and Vegetable Oils",
+        "pharmaceutical_excipients": [
+          {
+            "excipient_name": "Sesame Oil",
+            "unii": "QX50QK397W",
+            "usage": "Solvent/vehicle in sustained-release intramuscular injections (Testosterone cypionate/enanthate, Haloperidol decanoate, Progesterone, Fluphenazine).",
+            "clinical_significance": "Pure sesame allergy can trigger systemic anaphylaxis upon IM injection of sesame oil depot.",
+            "risk_tier": "Critical_Hard_Stop"
+          },
+          {
+            "excipient_name": "Peanut Oil (Arachis Oil)",
+            "unii": "5EXP385QVF",
+            "usage": "Capsule solvent (Prometrium / Progesterone capsules), Dimercaprol injections, topical emollients.",
+            "clinical_significance": "Refined peanut oil has reduced protein, but FDA mandates contraindication on Prometrium for peanut-allergic individuals.",
+            "risk_tier": "Critical_Hard_Stop"
+          },
+          {
+            "excipient_name": "Soybean Oil",
+            "unii": "241ATL177A",
+            "usage": "Lipid vehicle in Propofol emulsions, Clevidipine (Cleviprex), Total Parenteral Nutrition (TPN/Intralipid).",
+            "clinical_significance": "Highly refined oil has low antigenic protein; extreme IgE cases warrant cautious evaluation.",
+            "risk_tier": "Caution_Yellow"
+          },
+          {
+            "excipient_name": "Cottonseed Oil",
+            "unii": "A07WAZ9617",
+            "usage": "Injectable depot vehicle (e.g., Testosterone cypionate)."
+          }
+        ]
+      },
+      "tree_nuts": {
+        "food_trigger": "Tree Nuts",
+        "botanical_members": ["Almond", "Walnut", "Cashew", "Pistachio", "Hazelnut", "Macadamia", "Pecan"],
+        "pharmaceutical_excipients": [
+          {
+            "excipient_name": "Almond Oil",
+            "unii": "66Y3367NGF",
+            "usage": "Topical dermatologics, ear drops, lipophilic bases.",
+            "clinical_significance": "Risk of cutaneous and mucosal absorption triggering contact dermatitis or systemic symptoms."
+          },
+          {
+            "excipient_name": "Cashew Nut Shell Liquid / Derivatives",
+            "unii": "06051L4V0G",
+            "usage": "Rare chemical synthesis intermediates."
+          }
+        ]
+      },
+      "egg_and_poultry": {
+        "food_trigger": "Egg & Poultry Products",
+        "major_allergens": ["Ovalbumin", "Ovomucoid", "Lysozyme"],
+        "pharmaceutical_excipients": [
+          {
+            "excipient_name": "Egg Lecithin / Egg Phosphatides",
+            "unii": "1Z74W3E5NO",
+            "usage": "Emulsifying agent in Propofol, Clevidipine, and TPN lipid emulsions.",
+            "clinical_significance": "Derived from yolk; generally low in ovomucoid/white allergen, but FDA prescribing information notes contraindication for severe egg allergy.",
+            "risk_tier": "Moderate_Warning"
+          },
+          {
+            "excipient_name": "Lysozyme",
+            "unii": "79V6DD4723",
+            "usage": "Antibacterial preservative in troches, lozenges, and topical ophthalmics."
+          }
+        ]
+      },
+      "grains_and_starches": {
+        "food_trigger": "Grains & Starches (Gluten / Wheat)",
+        "pharmaceutical_excipients": [
+          {
+            "excipient_name": "Wheat Starch (Gluten trace)",
+            "unii": "45095IE47T",
+            "usage": "Tablet and capsule binder/disintegrant.",
+            "clinical_significance": "Contains residual gliadin/gluten (<100 ppm). Critical for Celiac Disease patients and IgE wheat-allergic patients.",
+            "risk_tier": "Critical_For_Celiac_And_Wheat_IgE"
+          },
+          {
+            "excipient_name": "Corn Starch (Maize Starch)",
+            "unii": "O8232NY3SJ",
+            "usage": "Most widely used tablet filler and disintegrant; safe for gluten-sensitive patients."
+          },
+          {
+            "excipient_name": "Potato Starch",
+            "unii": "SE32P8H31D",
+            "usage": "Alternate hypoallergenic binder."
+          }
+        ]
+      },
+      "seafood_and_marine": {
+        "food_trigger": "Fish and Crustacean Shellfish",
+        "pharmaceutical_excipients": [
+          {
+            "excipient_name": "Glucosamine (Crustacean-Derived)",
+            "unii": "N08U5BOQ1K",
+            "usage": "Over-the-counter joint supplement synthesized from chitin of shrimp/crab shells.",
+            "clinical_significance": "Shellfish IgE allergy is to muscle protein (tropomyosin), not chitin; however, cross-contamination with flesh protein during processing can occur. Non-shellfish synthetic/vegetarian forms exist.",
+            "risk_tier": "Caution_Yellow"
+          },
+          {
+            "excipient_name": "Protamine Sulfate",
+            "unii": "0D4781744P",
+            "usage": "Heparin reversal agent and NPH insulin component.",
+            "clinical_significance": "Derived from salmon or other fish sperm. Significant anaphylaxis risk in individuals with severe fish allergy or previous vasectomy.",
+            "risk_tier": "Critical_Hard_Stop"
+          },
+          {
+            "excipient_name": "Cod Liver Oil / Omega-3 Fatty Acids",
+            "unii": "BBL281NW97",
+            "usage": "Fish oil capsules (Lovaza, Vascepa); highly purified ethyl esters, but contraindicated in severe fish anaphylaxis."
+          }
+        ]
+      }
+    },
+    "inactive_additives_preservatives_and_animal_products": {
+      "animal_derivatives": {
+        "gelatin": {
+          "sources": ["Bovine (Cow)", "Porcine (Pig)"],
+          "excipient_forms": ["Hard gelatin capsule shells", "Softgel capsules", "Hemostatic sponges (Gelfoam)", "Vaccine stabilizers (MMR, Varicella, Flumist)"],
+          "clinical_significance": "Strong IgE reactivity; pivotal trigger in patients with Alpha-gal syndrome (mammalian carbohydrate allergy) who cannot tolerate porcine/bovine gelatin.",
+          "risk_tier": "Critical_For_Alpha_Gal_And_Gelatin_IgE"
+        },
+        "alpha_gal_syndrome": {
+          "trigger": "Galactose-alpha-1,3-galactose",
+          "mechanism": "Carbohydrate epitope transferred via Lone Star tick (Amblyomma americanum) bites, sensitizing IgE to mammalian meat and products.",
+          "pharmaceutical_threats": [
+            "Cetuximab (contains alpha-gal on murine Fab portion -> fatal first-dose anaphylaxis)",
+            "Porcine Heparin and Enoxaparin (low molecular weight heparins)",
+            "Gelatin-based capsules and intravenous colloid plasma volume expanders (Gelofusine)",
+            "Bovine/Porcine Heart Valves",
+            "Pancrelipase (porcine pancreatic enzymes)",
+            "Thyroid extract (Armour Thyroid, porcine origin)"
+          ],
+          "risk_tier": "Critical_Hard_Stop"
+        },
+        "stearates": {
+          "members": ["Magnesium Stearate", "Stearic Acid"],
+          "source": "May be derived from bovine tallow or plant/vegetable oils. Vegetarian formulations avoid animal stearate."
+        }
+      },
+      "dyes_and_colorants": {
+        "tartrazine_fdc_yellow_5": {
+          "unii": "I753WB2F1M",
+          "usage": "Widely used yellow pigment in coated tablets, syrups, and vitamin preparations.",
+          "clinical_significance": "Known to cause urticaria, angioedema, and bronchospasm in 10-15% of aspirin-sensitive (AERD) patients due to shared inflammatory mediator pathways.",
+          "risk_tier": "High_Caution_For_Aspirin_Sensitives"
+        },
+        "fdc_red_40_allura_red": {
+          "unii": "WZB9127XOA",
+          "usage": "Pediatric liquid medications, suspension flavor colorings."
+        },
+        "carmine_cochineal_natural_red_4": {
+          "unii": "P062V13T5Q",
+          "usage": "Natural red dye derived from crushed female Dactylopius coccus insects.",
+          "clinical_significance": "Direct protein-mediated IgE anaphylaxis documented in allergic patients.",
+          "risk_tier": "Critical_For_Carmine_IgE"
+        }
+      },
+      "preservatives_surfactants_and_solvents": {
+        "sulfites": {
+          "members": ["Sodium Metabisulfite", "Sodium Bisulfite", "Sodium Sulfite"],
+          "usage": "Antioxidant in injectable Epinephrine (EpiPen), local anesthetics containing epinephrine, dexamethasone injections, and topical eye drops.",
+          "clinical_significance": "Induces severe steroid-dependent bronchospasm in asthmatics. Note: Epinephrine must NEVER be withheld during anaphylaxis regardless of sulfite content.",
+          "risk_tier": "Critical_In_Asthma_Warning"
+        },
+        "parabens": {
+          "members": ["Methylparaben", "Propylparaben", "Butylparaben"],
+          "usage": "Antimicrobial preservative in multidose vials (multidose local anesthetics, heparin, bacteriostatic saline), creams, and cosmetics.",
+          "clinical_significance": "Ester of PABA. Responsible for pseudo-local anesthetic allergies (reactions to multidose lidocaine are often paraben reactions)."
+        },
+        "benzyl_alcohol": {
+          "unii": "LKG8494WBH",
+          "usage": "Bacteriostatic preservative in multidose injectable solutions and heparin flush.",
+          "clinical_significance": "Contraindicated in neonates and low-birth-weight infants due to toxic 'gasping syndrome', metabolic acidosis, and CNS depression."
+        },
+        "propylene_glycol": {
+          "unii": "6DC9Q167V3",
+          "usage": "Solvent for poorly soluble IV drugs (Lorazepam, Diazepam, Phenytoin, Trimethoprim/Sulfamethoxazole).",
+          "clinical_significance": "High-dose continuous IV infusions cause severe hyperosmolality, lactic acidosis, acute kidney injury, and contact hypersensitivity."
+        },
+        "benzalkonium_chloride_bak": {
+          "unii": "F5UM2KM3W7",
+          "usage": "Ophthalmic and nasal preservative.",
+          "clinical_significance": "Causes corneal epithelial toxicity, blepharoconjunctivitis, and paradoxical bronchoconstriction in nebulizer solutions."
+        },
+        "polysorbate_and_peg": {
+          "polyethylene_glycol_peg": {
+            "unii": "3WJQ0SDW1A",
+            "usage": "Bowel cleansing solutions (MiraLAX, GoLYTELY), mRNA COVID-19 vaccine lipid nanoparticles, drug pegylation."
+          },
+          "polysorbate_80_and_20": {
+            "unii": "6OZP39ZG8H",
+            "usage": "Non-ionic surfactants in biologic infusions (Monoclonal antibodies, Darbepoetin, Intravenous Amiodarone).",
+            "cross_reactivity": "High cross-reactivity between PEG and Polysorbate due to shared polymerized ethylene oxide moieties."
+          }
+        }
+      },
+      "sweeteners_and_sugar_alcohols": {
+        "aspartame": {
+          "unii": "Z0H242BBR1",
+          "usage": "Artificial sweetener in chewable tablets, orally disintegrating tablets (ODTs), and pediatric liquids.",
+          "clinical_significance": "Metabolized to phenylalanine. ABSOLUTE CONTRAINDICATION for patients with Phenylketonuria (PKU).",
+          "risk_tier": "Critical_Hard_Stop_For_PKU"
+        },
+        "sorbitol_and_mannitol": {
+          "usage": "Osmotic fillers in chewable tablets and sugar-free syrups. May cause osmotic diarrhea, bloating, and abdominal cramping at high cumulative daily doses."
+        }
+      }
+    },
+    "environmental_and_material_sensitivities": {
+      "natural_rubber_latex": {
+        "snomed_code": "300916003",
+        "medical_devices_and_packaging": [
+          "Vial elastomeric rubber stoppers",
+          "Prefilled syringe plunger tips",
+          "IV tubing injection ports",
+          "Rubber bulb medicine droppers",
+          "Transdermal patch backing layers",
+          "Adhesive bandages and surgical tapes"
+        ],
+        "cross_reactivity": {
+          "latex_fruit_syndrome": {
+            "food_triggers": ["Banana", "Avocado", "Kiwi", "Chestnut", "Papaya", "Tomato"],
+            "mechanism": "Class I chitinases with hevein-like domains cross-react with Hev b 6.02 latex major allergen in 30-50% of latex-allergic patients."
+          }
+        },
+        "screening_rule": "Flag any injectable or transdermal product whose package insert does not state 'Not Made with Natural Rubber Latex'."
+      },
+      "topical_adhesives": {
+        "acrylates": {
+          "members": ["Methyl methacrylate", "Ethyl cyanoacrylate", "Isobornyl acrylate"],
+          "usage": "Continuous glucose monitor (CGM) adhesives, insulin pump infusion sets, transdermal drug delivery patches (Fentanyl, Clonidine, Nicotine).",
+          "clinical_significance": "Causes severe allergic contact dermatitis and blistering."
+        },
+        "colophony_rosin": {
+          "snomed_code": "256440004",
+          "usage": "Tackifying agent in adhesive surgical tapes, wound dressings, and topical ointments."
+        }
+      },
+      "contact_metals": {
+        "nickel": {
+          "snomed_code": "256248006",
+          "risk": "Contact hypersensitivity from dental appliances, surgical staples, cardiac occluder devices."
+        }
+      }
+    }
+  }
+}

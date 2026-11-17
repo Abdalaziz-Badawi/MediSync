@@ -90,10 +90,8 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     }
 
     if (todayList.isNotEmpty) {
-      // Sort: closest upcoming or overdue first
       todayList.sort((a, b) => a.scheduledDateTime.compareTo(b.scheduledDateTime));
 
-      // Prefer future/due now doses; if all are past due today, pick the earliest overdue
       final upcomingToday = todayList.where((d) => d.scheduledDateTime.isAfter(now.subtract(const Duration(minutes: 60)))).toList();
       if (upcomingToday.isNotEmpty) {
         return upcomingToday.first;
@@ -153,28 +151,34 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     final isOverdue = diff.isNegative && diff.abs().inMinutes >= 15;
     final isDueSoon = !diff.isNegative && diff.inMinutes <= 45;
 
-    // Condition details
+    final isDark = AppTheme.isDark(context);
     final preConditions = med.preConditions;
     final postConditions = med.postConditions;
     final sideEffects = med.sideEffects;
 
+    final cardBgStart = isDark
+        ? (isOverdue ? const Color(0xFF451A03) : const Color(0xFF134E4A))
+        : (isOverdue ? const Color(0xFFFEF3C7) : const Color(0xFFCCFBF1));
+    final cardBgEnd = AppTheme.cardColor(context);
+
     return Card(
-      elevation: 3,
+      elevation: isDark ? 2 : 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: isOverdue
-            ? const BorderSide(color: AppTheme.warningAmber, width: 2)
-            : isDueSoon
-                ? const BorderSide(color: AppTheme.accentCyan, width: 2)
-                : BorderSide.none,
+        side: BorderSide(
+          color: isOverdue
+              ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
+              : (isDueSoon
+                  ? (isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan)
+                  : AppTheme.cardBorder(context)),
+          width: isOverdue || isDueSoon ? 2 : 1,
+        ),
       ),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
-            colors: isOverdue
-                ? [const Color(0xFFFFF8E1), Colors.white]
-                : [const Color(0xFFE0F2F1), Colors.white],
+            colors: [cardBgStart, cardBgEnd],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -192,7 +196,9 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                     Icon(
                       Icons.timer_outlined,
                       size: 18,
-                      color: isOverdue ? AppTheme.warningAmber : AppTheme.primaryTeal,
+                      color: isOverdue
+                          ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
+                          : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -201,7 +207,9 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.8,
-                        color: isOverdue ? const Color(0xFFB45309) : AppTheme.primaryTeal,
+                        color: isOverdue
+                            ? (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309))
+                            : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                       ),
                     ),
                   ],
@@ -210,10 +218,12 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: isOverdue
-                        ? const Color(0xFFFDE68A)
-                        : isDueSoon
-                            ? AppTheme.accentCyan.withValues(alpha: 0.2)
-                            : AppTheme.primaryTeal.withValues(alpha: 0.12),
+                        ? (isDark
+                            ? AppTheme.warningAmberLight.withValues(alpha: 0.25)
+                            : const Color(0xFFFDE68A))
+                        : (isDark
+                            ? AppTheme.primaryTealLight.withValues(alpha: 0.2)
+                            : AppTheme.primaryTeal.withValues(alpha: 0.12)),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -221,7 +231,9 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: isOverdue ? const Color(0xFF92400E) : AppTheme.primaryTeal,
+                      color: isOverdue
+                          ? (isDark ? AppTheme.warningAmberLight : const Color(0xFF92400E))
+                          : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                     ),
                   ),
                 ),
@@ -233,23 +245,17 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
             Row(
               children: [
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    color: AppTheme.surfaceVariant(context),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.cardBorder(context)),
                   ),
                   child: Icon(
                     med.icon,
                     size: 28,
-                    color: AppTheme.primaryTeal,
+                    color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -259,10 +265,10 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                     children: [
                       Text(
                         med.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+                          color: AppTheme.textPrimary(context),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -270,7 +276,7 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                         '${med.dosage} • Scheduled for ${nextDose.timeString}',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade700,
+                          color: AppTheme.textSecondary(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -287,8 +293,8 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
                   icon: const Icon(Icons.check, size: 16),
                   label: const Text('Take'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryTeal,
-                    foregroundColor: Colors.white,
+                    backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                    foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -299,16 +305,16 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
             ),
 
             const SizedBox(height: 14),
-            const Divider(height: 1),
+            Divider(height: 1, color: AppTheme.cardBorder(context)),
             const SizedBox(height: 12),
 
             // Conditions Surrounding This Medication
-            const Text(
+            Text(
               'Required Conditions & Instructions:',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF334155),
+                color: AppTheme.textPrimary(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -317,17 +323,18 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.surfaceVariant(context),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.cardBorder(context)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check_circle_outline, size: 16, color: Colors.grey),
-                    SizedBox(width: 8),
+                    Icon(Icons.check_circle_outline, size: 16, color: AppTheme.textMuted(context)),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'No special pre/post conditions. Take with a standard glass of water.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context)),
                       ),
                     ),
                   ],
@@ -338,9 +345,10 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               if (preConditions.isNotEmpty) ...[
                 for (final pre in preConditions)
                   _buildConditionTile(
+                    context: context,
                     icon: _conditionIcon(pre.type),
                     badge: 'BEFORE',
-                    badgeColor: const Color(0xFF0284C7),
+                    badgeColor: isDark ? AppTheme.secondaryCyanLight : const Color(0xFF0284C7),
                     title: _conditionTitle(pre),
                     subtitle: pre.description,
                   ),
@@ -350,9 +358,10 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               if (postConditions.isNotEmpty) ...[
                 for (final post in postConditions)
                   _buildConditionTile(
+                    context: context,
                     icon: _conditionIcon(post.type),
                     badge: 'AFTER',
-                    badgeColor: const Color(0xFF0D9488),
+                    badgeColor: isDark ? AppTheme.primaryTealLight : const Color(0xFF0D9488),
                     title: _conditionTitle(post),
                     subtitle: post.description,
                   ),
@@ -362,9 +371,10 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               if (sideEffects.isNotEmpty) ...[
                 for (final effect in sideEffects)
                   _buildConditionTile(
+                    context: context,
                     icon: Icons.info_outline,
                     badge: 'CAUTION',
-                    badgeColor: const Color(0xFFD97706),
+                    badgeColor: isDark ? AppTheme.warningAmberLight : const Color(0xFFD97706),
                     title: 'Known effect: ${effect.description}',
                     subtitle: _hintExplanation(effect.scheduleHint),
                   ),
@@ -377,18 +387,22 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.surfaceVariant(context),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: AppTheme.cardBorder(context)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.note_alt_outlined, size: 16, color: Colors.blueGrey),
+                    Icon(Icons.note_alt_outlined, size: 16, color: AppTheme.textMuted(context)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Note: ${med.doctorNotes}',
-                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: AppTheme.textPrimary(context),
+                        ),
                       ),
                     ),
                   ],
@@ -402,6 +416,7 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
   }
 
   Widget _buildConditionTile({
+    required BuildContext context,
     required IconData icon,
     required String badge,
     required Color badgeColor,
@@ -412,9 +427,9 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceVariant(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppTheme.cardBorder(context)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -422,9 +437,9 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
           Icon(icon, size: 18, color: badgeColor),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: badgeColor.withValues(alpha: 0.12),
+              color: badgeColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
@@ -443,17 +458,20 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: AppTheme.textPrimary(context),
                   ),
                 ),
                 if (subtitle.isNotEmpty && subtitle != title) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary(context),
+                    ),
                   ),
                 ],
               ],
@@ -468,8 +486,8 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     switch (c.type) {
       case ConditionType.meal:
         return c.timing == ConditionTiming.before
-            ? 'Eat Food First (Take with or after meal)'
-            : 'Eat Food Shortly After Taking';
+            ? 'Eat Food First (20-30 mins before)'
+            : 'Take 20 mins After Your Meal';
       case ConditionType.emptyStomach:
         return 'Empty Stomach (1 hr before or 2 hrs after eating)';
       case ConditionType.sleep:

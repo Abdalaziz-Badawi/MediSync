@@ -13,10 +13,17 @@ class MedicationsListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final medications = ref.watch(medicationsNotifierProvider);
+    final isDark = AppTheme.isDark(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Medications'),
+        title: Text(
+          'My Medications',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
       ),
       body: medications.isEmpty
           ? Center(
@@ -26,17 +33,21 @@ class MedicationsListPage extends ConsumerWidget {
                   Icon(
                     Icons.medication_outlined,
                     size: 80,
-                    color: Colors.grey.shade400,
+                    color: AppTheme.textMuted(context),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'No medications added yet',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(context),
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Tap the button below to add your first medicine',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: AppTheme.textSecondary(context)),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
@@ -63,8 +74,8 @@ class MedicationsListPage extends ConsumerWidget {
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primaryTeal,
-        foregroundColor: Colors.white,
+        backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+        foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
         onPressed: () {
           Navigator.push(
             context,
@@ -87,17 +98,22 @@ class _MedicationCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = AppTheme.isDark(context);
     final hasCriticalFlag = medication.safetyFlags.any(
       (f) => f.severity == FlagSeverity.critical,
     );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: isDark ? 2 : 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: hasCriticalFlag
-            ? const BorderSide(color: AppTheme.dangerRed, width: 1.5)
-            : BorderSide.none,
+        side: BorderSide(
+          color: hasCriticalFlag
+              ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+              : AppTheme.cardBorder(context),
+          width: hasCriticalFlag ? 1.5 : 1,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -123,15 +139,15 @@ class _MedicationCard extends ConsumerWidget {
                     height: 48,
                     decoration: BoxDecoration(
                       color: hasCriticalFlag
-                          ? const Color(0xFFFFEBEE)
-                          : const Color(0xFFE0F2F1),
+                          ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                          : AppTheme.surfaceVariant(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       medication.icon,
                       color: hasCriticalFlag
-                          ? AppTheme.dangerRed
-                          : AppTheme.primaryTeal,
+                          ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                          : (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
                       size: 26,
                     ),
                   ),
@@ -142,10 +158,10 @@ class _MedicationCard extends ConsumerWidget {
                       children: [
                         Text(
                           medication.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: AppTheme.textPrimary(context),
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -153,13 +169,14 @@ class _MedicationCard extends ConsumerWidget {
                           '${medication.dosage} • ${medication.timesPerDay}x daily',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color: AppTheme.textSecondary(context),
                           ),
                         ),
                       ],
                     ),
                   ),
                   PopupMenuButton<String>(
+                    color: AppTheme.cardColor(context),
                     onSelected: (val) {
                       if (val == 'edit') {
                         Navigator.push(
@@ -175,13 +192,13 @@ class _MedicationCard extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 18),
-                            SizedBox(width: 8),
-                            Text('Edit'),
+                            const Icon(Icons.edit, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Edit', style: TextStyle(color: AppTheme.textPrimary(context))),
                           ],
                         ),
                       ),
@@ -189,9 +206,9 @@ class _MedicationCard extends ConsumerWidget {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, color: Colors.red, size: 18),
+                            Icon(Icons.delete, color: AppTheme.dangerRed, size: 18),
                             SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
+                            Text('Delete', style: TextStyle(color: AppTheme.dangerRed)),
                           ],
                         ),
                       ),
@@ -206,22 +223,25 @@ class _MedicationCard extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
+                    color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded,
-                          color: AppTheme.dangerRed, size: 16),
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                        size: 16,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           medication.safetyFlags.first.message,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppTheme.dangerRed,
+                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -238,23 +258,22 @@ class _MedicationCard extends ConsumerWidget {
                 runSpacing: 4,
                 children: medication.scheduledTimes.map((time) {
                   return Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: AppTheme.surfaceVariant(context),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.access_time, size: 12, color: Colors.grey),
+                        Icon(Icons.access_time, size: 12, color: AppTheme.textMuted(context)),
                         const SizedBox(width: 4),
                         Text(
                           time,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
+                            color: AppTheme.textPrimary(context),
                           ),
                         ),
                       ],
@@ -269,14 +288,18 @@ class _MedicationCard extends ConsumerWidget {
                 children: [
                   if (medication.preConditions.isNotEmpty ||
                       medication.postConditions.isNotEmpty) ...[
-                    const Icon(Icons.info_outline, size: 14, color: AppTheme.accentCyan),
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         _buildConditionSummary(medication),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF00838F),
+                          color: isDark ? AppTheme.secondaryCyanLight : AppTheme.secondaryCyan,
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
@@ -286,12 +309,11 @@ class _MedicationCard extends ConsumerWidget {
                   ],
                   if (medication.refillsRemaining != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: medication.refillsRemaining! <= 1
-                            ? const Color(0xFFFFF3E0)
-                            : const Color(0xFFF1F5F9),
+                            ? (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7))
+                            : AppTheme.surfaceVariant(context),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -300,8 +322,8 @@ class _MedicationCard extends ConsumerWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: medication.refillsRemaining! <= 1
-                              ? AppTheme.warningAmber
-                              : Colors.grey.shade700,
+                              ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
+                              : AppTheme.textSecondary(context),
                         ),
                       ),
                     ),
@@ -338,7 +360,7 @@ class _MedicationCard extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerRed),
             onPressed: () {
               ref
                   .read(medicationsNotifierProvider.notifier)

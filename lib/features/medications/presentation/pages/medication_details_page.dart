@@ -12,12 +12,23 @@ class MedicationDetailsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = AppTheme.isDark(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(medication.name),
+        title: Text(
+          medication.name,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined),
+            icon: Icon(
+              Icons.edit_outlined,
+              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+            ),
             onPressed: () {
               Navigator.pushReplacement(
                 context,
@@ -43,12 +54,13 @@ class MedicationDetailsPage extends ConsumerWidget {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2F1),
+                      color: AppTheme.surfaceVariant(context),
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.cardBorder(context)),
                     ),
                     child: Icon(
                       medication.icon,
-                      color: AppTheme.primaryTeal,
+                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                       size: 32,
                     ),
                   ),
@@ -59,10 +71,10 @@ class MedicationDetailsPage extends ConsumerWidget {
                       children: [
                         Text(
                           medication.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: AppTheme.textPrimary(context),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -70,7 +82,7 @@ class MedicationDetailsPage extends ConsumerWidget {
                           '${medication.dosage} • ${medication.form.name.toUpperCase()}',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade700,
+                            color: AppTheme.textSecondary(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -88,8 +100,16 @@ class MedicationDetailsPage extends ConsumerWidget {
             for (final flag in medication.safetyFlags)
               Card(
                 color: flag.severity == FlagSeverity.critical
-                    ? const Color(0xFFFFEBEE)
-                    : const Color(0xFFFFF8E1),
+                    ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                    : (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: flag.severity == FlagSeverity.critical
+                        ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                        : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
+                  ),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -98,8 +118,8 @@ class MedicationDetailsPage extends ConsumerWidget {
                       Icon(
                         Icons.warning_amber_rounded,
                         color: flag.severity == FlagSeverity.critical
-                            ? AppTheme.dangerRed
-                            : AppTheme.warningAmber,
+                            ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                            : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
                         size: 28,
                       ),
                       const SizedBox(width: 12),
@@ -113,14 +133,17 @@ class MedicationDetailsPage extends ConsumerWidget {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                                 color: flag.severity == FlagSeverity.critical
-                                    ? AppTheme.dangerRed
-                                    : const Color(0xFF8D6E63),
+                                    ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                                    : (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309)),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               flag.message,
-                              style: const TextStyle(fontSize: 13),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textPrimary(context),
+                              ),
                             ),
                           ],
                         ),
@@ -132,129 +155,112 @@ class MedicationDetailsPage extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
 
-          // Timing & Schedule
+          // Weekly Active Days
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Daily Schedule',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    '${medication.timesPerDay} time(s) a day',
-                    style: const TextStyle(color: Colors.grey),
+                    'Active Days of Week',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(context),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: medication.scheduledTimes.map((time) {
-                      return Chip(
-                        avatar: const Icon(Icons.access_time, size: 16),
-                        label: Text(
-                          time,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const Divider(height: 24),
+                  const SizedBox(height: 10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      const Text('Course Duration:'),
-                      Text(
-                        medication.isOngoing
-                            ? 'Ongoing (Routine)'
-                            : '${medication.durationDays} days',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      _buildDayIndicator(context, 'M', 1),
+                      _buildDayIndicator(context, 'T', 2),
+                      _buildDayIndicator(context, 'W', 3),
+                      _buildDayIndicator(context, 'T', 4),
+                      _buildDayIndicator(context, 'F', 5),
+                      _buildDayIndicator(context, 'S', 6),
+                      _buildDayIndicator(context, 'S', 7),
                     ],
                   ),
-                  if (medication.refillsRemaining != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Refills Remaining:'),
-                        Text(
-                          '${medication.refillsRemaining}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // Conditions
+          // Schedule Card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Usage Instructions & Conditions',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Text(
+                    'Dose Schedule (${medication.timesPerDay}x daily)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(context),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  if (medication.preConditions.isEmpty &&
-                      medication.postConditions.isEmpty)
-                    const Text('No special conditions specified.',
-                        style: TextStyle(color: Colors.grey)),
-                  if (medication.preConditions.isNotEmpty) ...[
-                    const Text(
-                      'Before taking this medicine:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    for (final c in medication.preConditions)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.arrow_right, color: AppTheme.primaryTeal),
-                            Text(c.description),
-                          ],
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: medication.scheduledTimes.map((t) {
+                      return Chip(
+                        avatar: Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                         ),
-                      ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (medication.postConditions.isNotEmpty) ...[
-                    const Text(
-                      'After taking this medicine:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.accentCyan,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    for (final c in medication.postConditions)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.arrow_right, color: AppTheme.accentCyan),
-                            Text(c.description),
-                          ],
+                        label: Text(
+                          t,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
+                          ),
                         ),
-                      ),
-                  ],
+                        backgroundColor: AppTheme.surfaceVariant(context),
+                        side: BorderSide(color: AppTheme.cardBorder(context)),
+                      );
+                    }).toList(),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
+
+          // Conditions & Instructions
+          if (medication.preConditions.isNotEmpty ||
+              medication.postConditions.isNotEmpty) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Conditions & Instructions',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    for (final c in medication.preConditions)
+                      _buildConditionRow(context, 'Before Taking', c.description, Icons.timer_outlined),
+                    for (final c in medication.postConditions)
+                      _buildConditionRow(context, 'After Taking', c.description, Icons.check_circle_outline),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Side Effects
           if (medication.sideEffects.isNotEmpty) ...[
@@ -264,20 +270,24 @@ class MedicationDetailsPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Known Side Effects',
+                    Text(
+                      'Side Effects & Advisory',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(context),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
+                      runSpacing: 6,
                       children: medication.sideEffects.map((s) {
                         return Chip(
-                          backgroundColor: const Color(0xFFF1F5F9),
                           label: Text(s.description),
+                          labelStyle: TextStyle(color: AppTheme.textPrimary(context)),
+                          backgroundColor: AppTheme.surfaceVariant(context),
+                          side: BorderSide(color: AppTheme.cardBorder(context)),
                         );
                       }).toList(),
                     ),
@@ -288,7 +298,7 @@ class MedicationDetailsPage extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
 
-          // Doctor Notes
+          // Notes
           if (medication.doctorNotes != null &&
               medication.doctorNotes!.isNotEmpty) ...[
             Card(
@@ -297,23 +307,89 @@ class MedicationDetailsPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Doctor / Pharmacist Notes',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(context),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       medication.doctorNotes!,
-                      style: const TextStyle(fontSize: 14, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                        color: AppTheme.textSecondary(context),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayIndicator(BuildContext context, String label, int day) {
+    final isActive = medication.daysOfWeek.contains(day);
+    final isDark = AppTheme.isDark(context);
+    final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: isActive ? activeColor : AppTheme.surfaceVariant(context),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isActive ? activeColor : AppTheme.cardBorder(context),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          color: isActive
+              ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+              : AppTheme.textMuted(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConditionRow(BuildContext context, String prefix, String text, IconData icon) {
+    final isDark = AppTheme.isDark(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textPrimary(context),
+                ),
+                children: [
+                  TextSpan(
+                    text: '$prefix: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(text: text),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

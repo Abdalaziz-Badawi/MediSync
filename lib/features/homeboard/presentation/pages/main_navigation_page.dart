@@ -22,6 +22,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -29,26 +32,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        indicatorColor: AppTheme.primaryTeal.withValues(alpha: 0.18),
+        indicatorColor: activeColor.withValues(alpha: 0.2),
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today, color: AppTheme.primaryTeal),
+            icon: const Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today, color: activeColor),
             label: 'Today',
           ),
           NavigationDestination(
-            icon: Icon(Icons.medication_outlined),
-            selectedIcon: Icon(Icons.medication, color: AppTheme.primaryTeal),
+            icon: const Icon(Icons.medication_outlined),
+            selectedIcon: Icon(Icons.medication, color: activeColor),
             label: 'Medications',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: AppTheme.primaryTeal),
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: activeColor),
             label: 'Profile',
           ),
         ],

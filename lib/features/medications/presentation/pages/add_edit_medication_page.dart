@@ -34,8 +34,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   bool _isOngoing = true;
   List<String> _scheduledTimes = ['08:00'];
   String _clinicalRationale = '';
+  List<CompanionMealReminder> _companionMealReminders = [];
 
-  // Conditions & Side Effects (Now placed BEFORE scheduled times!)
+  // Weekly Schedule: 1 = Mon, 7 = Sun
+  List<int> _daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
+
+  // Conditions & Side Effects
   final Set<ConditionType> _selectedPreConditions = {};
   final Set<ConditionType> _selectedPostConditions = {};
   final Set<SideEffectType> _selectedSideEffects = {};
@@ -61,6 +65,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       _timesPerDay = med.timesPerDay;
       _isOngoing = med.isOngoing;
       _scheduledTimes = List.from(med.scheduledTimes);
+      _daysOfWeek = List.from(med.daysOfWeek);
       for (final c in med.preConditions) {
         _selectedPreConditions.add(c.type);
       }
@@ -186,20 +191,22 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       sideEffects: sideEffectsList,
       preConditions: preList,
       postConditions: postList,
+      medicationName: _nameController.text.trim(),
     );
 
     setState(() {
       _scheduledTimes = result.times;
       _clinicalRationale = result.rationale;
+      _companionMealReminders = result.companionMealReminders;
     });
 
     if (!silent && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Studied Schedule generated: ${result.times.join(", ")}',
+            'Smart Timing Generated: ${result.times.join(", ")}',
           ),
-          backgroundColor: AppTheme.primaryTeal,
+          backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
         ),
       );
     }
@@ -259,6 +266,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
         : int.tryParse(_durationDaysController.text.trim());
     final refills = int.tryParse(_refillsController.text.trim());
 
+    final isMealLinked = _selectedPreConditions.contains(ConditionType.meal) ||
+        _selectedPostConditions.contains(ConditionType.meal);
+
     final med = Medication(
       id: widget.medicationToEdit?.id ?? const Uuid().v4(),
       name: _nameController.text.trim(),
@@ -277,6 +287,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
           ? null
           : _notesController.text.trim(),
       safetyFlags: _activeSafetyFlags,
+      daysOfWeek: _daysOfWeek.isEmpty ? const [1, 2, 3, 4, 5, 6, 7] : _daysOfWeek,
+      inactiveExcipients: _matchedTemplate?.inactiveExcipients ?? (widget.medicationToEdit?.inactiveExcipients ?? const []),
+      mealCondition: isMealLinked ? 'after_meal' : null,
       doseLog: widget.medicationToEdit?.doseLog ?? {},
     );
 
@@ -287,11 +300,11 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   String _conditionLabel(ConditionType type) {
     switch (type) {
       case ConditionType.meal:
-        return 'Eat Food / Meal';
+        return 'Eat Food / Meal (Take 20m After)';
       case ConditionType.emptyStomach:
-        return 'Empty Stomach';
+        return 'Empty Stomach (1h before)';
       case ConditionType.sleep:
-        return 'Go to Sleep';
+        return 'Go to Sleep / Bedtime';
       case ConditionType.drinkWater:
         return 'Drink Full Glass of Water';
       case ConditionType.rest:
@@ -327,19 +340,29 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.medicationToEdit != null;
+    final isDark = AppTheme.isDark(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Medication' : 'Add Medication'),
+        title: Text(
+          isEditing ? 'Edit Medication' : 'Add Medication',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
         actions: [
           TextButton.icon(
             onPressed: _saveMedication,
-            icon: const Icon(Icons.check, color: AppTheme.primaryTeal),
-            label: const Text(
+            icon: Icon(
+              Icons.check,
+              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+            ),
+            label: Text(
               'Save',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryTeal,
+                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
               ),
             ),
           ),
@@ -355,14 +378,14 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
               for (final flag in _activeSafetyFlags)
                 Card(
                   color: flag.severity == FlagSeverity.critical
-                      ? const Color(0xFFFFEBEE)
-                      : const Color(0xFFFFF8E1),
+                      ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                      : (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7)),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     side: BorderSide(
                       color: flag.severity == FlagSeverity.critical
-                          ? AppTheme.dangerRed
-                          : AppTheme.warningAmber,
+                          ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                          : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
                       width: 1.5,
                     ),
                   ),
@@ -374,8 +397,8 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                         Icon(
                           Icons.warning_amber_rounded,
                           color: flag.severity == FlagSeverity.critical
-                              ? AppTheme.dangerRed
-                              : AppTheme.warningAmber,
+                              ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                              : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
                           size: 26,
                         ),
                         const SizedBox(width: 12),
@@ -389,14 +412,18 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                   color: flag.severity == FlagSeverity.critical
-                                      ? AppTheme.dangerRed
-                                      : const Color(0xFF8D6E63),
+                                      ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                                      : (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309)),
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 flag.message,
-                                style: const TextStyle(fontSize: 12, height: 1.3),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.3,
+                                  color: AppTheme.textPrimary(context),
+                                ),
                               ),
                             ],
                           ),
@@ -409,23 +436,31 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ],
 
             // Section 1: Medicine Name & Database Autocomplete
-            const Text(
+            Text(
               '1. Medication Identification',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary(context),
+              ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Search medical database to auto-populate conditions & verify allergy safety.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
             ),
             const SizedBox(height: 8),
 
             TextFormField(
               controller: _nameController,
+              style: TextStyle(color: AppTheme.textPrimary(context)),
               decoration: InputDecoration(
                 labelText: 'Medicine Name *',
                 hintText: 'Type to search (e.g. Panadol, Amoxicillin, Metformin)',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                ),
                 suffixIcon: _nameController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 18),
@@ -445,37 +480,52 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
               Container(
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.cardColor(context),
+                  borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: AppTheme.cardBorder(context)),
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _filteredDatabaseResults.length.clamp(0, 4),
-                  separatorBuilder: (_, index) => const Divider(height: 1),
+                  separatorBuilder: (_, index) => Divider(
+                    height: 1,
+                    color: AppTheme.cardBorder(context),
+                  ),
                   itemBuilder: (context, i) {
                     final item = _filteredDatabaseResults[i];
                     return ListTile(
                       dense: true,
-                      leading: const Icon(Icons.medical_services_outlined,
-                          color: AppTheme.primaryTeal),
+                      leading: Icon(
+                        Icons.medical_services_outlined,
+                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      ),
                       title: Text(
                         '${item.name} (${item.genericName})',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
                       ),
                       subtitle: Text(
                         '${item.drugClass} • Dosages: ${item.commonDosages.join(", ")}',
-                        style: const TextStyle(fontSize: 11),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary(context),
+                        ),
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 12),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 12,
+                        color: AppTheme.textMuted(context),
+                      ),
                       onTap: () => _selectMedicineTemplate(item),
                     );
                   },
@@ -489,20 +539,23 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2F1),
+                  color: isDark ? const Color(0xFF134E4A) : const Color(0xFFCCFBF1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle,
-                        color: AppTheme.primaryTeal, size: 16),
+                    Icon(
+                      Icons.check_circle,
+                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Matched: ${_matchedTemplate!.name} (${_matchedTemplate!.drugClass})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.primaryTeal,
+                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -518,6 +571,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                 Expanded(
                   child: TextFormField(
                     controller: _dosageController,
+                    style: TextStyle(color: AppTheme.textPrimary(context)),
                     decoration: const InputDecoration(
                       labelText: 'Dosage *',
                       hintText: 'e.g. 500 mg, 1 tablet',
@@ -536,11 +590,13 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                       labelText: 'Form',
                       prefixIcon: Icon(Icons.category),
                     ),
+                    dropdownColor: AppTheme.cardColor(context),
                     items: MedicationForm.values.map((f) {
                       return DropdownMenuItem(
                         value: f,
                         child: Text(
                           f.name[0].toUpperCase() + f.name.substring(1),
+                          style: TextStyle(color: AppTheme.textPrimary(context)),
                         ),
                       );
                     }).toList(),
@@ -554,15 +610,18 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             const SizedBox(height: 24),
 
             // Section 2: Conditions (Before & After Taking)
-            // User requested: "the condition and instructions should come before the Scheduled times"
-            const Text(
+            Text(
               '2. Pre & Post Conditions (Usage Instructions)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary(context),
+              ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Specify physical actions or states needed before or after taking this medicine.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+            Text(
+              'Specify physical actions or meal states needed before or after taking this medicine.',
+              style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
             ),
             const SizedBox(height: 8),
             Card(
@@ -571,12 +630,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Before Taking (Pre-conditions):',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: Color(0xFF0F172A),
+                        color: AppTheme.textPrimary(context),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -604,13 +663,13 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                         );
                       }).toList(),
                     ),
-                    const Divider(height: 24),
-                    const Text(
+                    Divider(height: 24, color: AppTheme.cardBorder(context)),
+                    Text(
                       'After Taking (Post-conditions & Immediate States):',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: Color(0xFF0F172A),
+                        color: AppTheme.textPrimary(context),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -646,14 +705,18 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             const SizedBox(height: 20),
 
             // Section 3: Side Effects
-            const Text(
+            Text(
               '3. Known Side Effects',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary(context),
+              ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Drowsiness maps dose to bedtime; stomach distress maps dose after meals.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
             ),
             const SizedBox(height: 8),
             Card(
@@ -673,8 +736,6 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     return FilterChip(
                       label: Text(_sideEffectLabel(s)),
                       selected: isSelected,
-                      selectedColor:
-                          AppTheme.accentCyan.withValues(alpha: 0.2),
                       onSelected: (selected) {
                         setState(() {
                           if (selected) {
@@ -692,7 +753,21 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ),
             const SizedBox(height: 24),
 
-            // Section 4: Studied Smart Scheduled Times
+            // Section 4: Weekly Timing & Days of Week
+            Text(
+              '4. Weekly Timing & Schedule Days',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary(context),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Choose the days of the week this medication should be taken.',
+              style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
+            ),
+            const SizedBox(height: 8),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -702,19 +777,79 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          '4. Schedule & Dose Timing',
+                        Text(
+                          _daysOfWeek.length == 7 ? 'Active: Every Day' : 'Active: ${_daysOfWeek.length} days/week',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              if (_daysOfWeek.length == 7) {
+                                _daysOfWeek = [DateTime.now().weekday];
+                              } else {
+                                _daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
+                              }
+                            });
+                          },
+                          child: Text(
+                            _daysOfWeek.length == 7 ? 'Custom Days' : 'Select All',
+                            style: TextStyle(
+                              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _DayChip(label: 'M', dayInt: 1, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                        _DayChip(label: 'T', dayInt: 2, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                        _DayChip(label: 'W', dayInt: 3, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                        _DayChip(label: 'T', dayInt: 4, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                        _DayChip(label: 'F', dayInt: 5, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                        _DayChip(label: 'S', dayInt: 6, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                        _DayChip(label: 'S', dayInt: 7, selectedDays: _daysOfWeek, onChanged: _toggleDay),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Section 5: Studied Smart Scheduled Times
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '5. Dose Times & Daily Frequency',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
                           ),
                         ),
                         DropdownButton<int>(
                           value: _timesPerDay,
+                          dropdownColor: AppTheme.cardColor(context),
                           items: [1, 2, 3, 4, 5].map((n) {
                             return DropdownMenuItem(
                               value: n,
-                              child: Text('$n time${n > 1 ? 's' : ''} / day'),
+                              child: Text(
+                                '$n time${n > 1 ? 's' : ''} / day',
+                                style: TextStyle(color: AppTheme.textPrimary(context)),
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -731,39 +866,95 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
                       onPressed: () => _generateStudiedSmartSchedule(),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.auto_awesome,
-                        color: AppTheme.primaryTeal,
+                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                       ),
-                      label: const Text(
-                        'Re-calculate Studied Timing',
-                        style: TextStyle(color: AppTheme.primaryTeal),
+                      label: Text(
+                        'Re-calculate Meal & Routine Timing',
+                        style: TextStyle(
+                          color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        ),
                       ),
                     ),
+
+                    // Meal Alignment Advice (if companion meal reminders exist)
+                    if (_companionMealReminders.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF064E3B) : const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF047857) : const Color(0xFFBBF7D0),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.restaurant_menu,
+                                  color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Meal Coordination Active:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isDark ? const Color(0xFFD1FAE5) : const Color(0xFF166534),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            for (final r in _companionMealReminders)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  '• ${r.advice}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF14532D),
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     if (_clinicalRationale.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFBBF7D0)),
+                          border: Border.all(color: AppTheme.cardBorder(context)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.science_outlined,
-                                    color: AppTheme.successGreen, size: 16),
-                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.science_outlined,
+                                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
                                 Text(
-                                  'Studied Clinical Rationale:',
+                                  'Clinical Scheduling Rationale:',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
-                                    color: Color(0xFF166534),
+                                    color: AppTheme.textPrimary(context),
                                   ),
                                 ),
                               ],
@@ -771,9 +962,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                             const SizedBox(height: 4),
                             Text(
                               _clinicalRationale,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF14532D),
+                                color: AppTheme.textSecondary(context),
                                 height: 1.3,
                               ),
                             ),
@@ -783,9 +974,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     ],
 
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Scheduled Times (tap to customize):',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary(context),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -793,11 +987,20 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                       runSpacing: 8,
                       children: List.generate(_scheduledTimes.length, (i) {
                         return ActionChip(
-                          avatar: const Icon(Icons.access_time, size: 16),
+                          avatar: Icon(
+                            Icons.access_time,
+                            size: 16,
+                            color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          ),
                           label: Text(
                             'Dose ${i + 1}: ${_scheduledTimes[i]}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(context),
+                            ),
                           ),
+                          backgroundColor: AppTheme.surfaceVariant(context),
+                          side: BorderSide(color: AppTheme.cardBorder(context)),
                           onPressed: () => _pickTimeForIndex(i),
                         );
                       }),
@@ -808,25 +1011,30 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ),
             const SizedBox(height: 20),
 
-            // Section 5: Duration & Refills
+            // Section 6: Duration & Refills
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '5. Duration & Refills',
+                    Text(
+                      '6. Duration & Refills',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(context),
                       ),
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Ongoing Medication (No fixed end date)'),
+                      title: Text(
+                        'Ongoing Medication (No fixed end date)',
+                        style: TextStyle(color: AppTheme.textPrimary(context)),
+                      ),
                       value: _isOngoing,
+                      activeThumbColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                       onChanged: (val) {
                         setState(() => _isOngoing = val);
                       },
@@ -836,6 +1044,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                       TextFormField(
                         controller: _durationDaysController,
                         keyboardType: TextInputType.number,
+                        style: TextStyle(color: AppTheme.textPrimary(context)),
                         decoration: const InputDecoration(
                           labelText: 'Course Duration in Days',
                           hintText: 'e.g. 5 for a 5-day antibiotic course',
@@ -847,6 +1056,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     TextFormField(
                       controller: _refillsController,
                       keyboardType: TextInputType.number,
+                      style: TextStyle(color: AppTheme.textPrimary(context)),
                       decoration: const InputDecoration(
                         labelText: 'Remaining Refills (optional)',
                         hintText: 'e.g. 2',
@@ -859,10 +1069,11 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ),
             const SizedBox(height: 20),
 
-            // Section 6: Doctor & Pharmacist Notes
+            // Section 7: Doctor & Pharmacist Notes
             TextFormField(
               controller: _notesController,
               maxLines: 3,
+              style: TextStyle(color: AppTheme.textPrimary(context)),
               decoration: const InputDecoration(
                 labelText: 'Special Doctor / Pharmacist Instructions',
                 hintText: 'e.g. Take with plenty of fluids, do not crush tablet.',
@@ -879,6 +1090,65 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             ),
             const SizedBox(height: 40),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleDay(int day) {
+    setState(() {
+      if (_daysOfWeek.contains(day)) {
+        if (_daysOfWeek.length > 1) {
+          _daysOfWeek.remove(day);
+        }
+      } else {
+        _daysOfWeek.add(day);
+        _daysOfWeek.sort();
+      }
+    });
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  final String label;
+  final int dayInt;
+  final List<int> selectedDays;
+  final Function(int) onChanged;
+
+  const _DayChip({
+    required this.label,
+    required this.dayInt,
+    required this.selectedDays,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = selectedDays.contains(dayInt);
+    final isDark = AppTheme.isDark(context);
+    final activeColor = isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal;
+
+    return GestureDetector(
+      onTap: () => onChanged(dayInt),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : AppTheme.surfaceVariant(context),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? activeColor : AppTheme.cardBorder(context),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isSelected
+                ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                : AppTheme.textSecondary(context),
+          ),
         ),
       ),
     );

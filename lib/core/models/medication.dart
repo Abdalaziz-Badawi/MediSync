@@ -31,6 +31,12 @@ class Medication {
   final String? doctorNotes;
   final bool isVerified;
   final List<SafetyFlag> safetyFlags;
+  // Days of week active: 1 = Monday, 2 = Tuesday, ..., 7 = Sunday. Defaults to all 7 days.
+  final List<int> daysOfWeek;
+  // Inactive excipients list (for food/additive cross-reference screening)
+  final List<String> inactiveExcipients;
+  // Meal sync info (e.g., 'after_breakfast', 'after_lunch', 'after_dinner', 'with_meal')
+  final String? mealCondition;
   // Tracks doses taken: key is "yyyy-MM-dd", value is list of times taken (e.g. ["08:00"])
   final Map<String, List<String>> doseLog;
 
@@ -51,6 +57,9 @@ class Medication {
     this.doctorNotes,
     this.isVerified = false,
     this.safetyFlags = const [],
+    this.daysOfWeek = const [1, 2, 3, 4, 5, 6, 7],
+    this.inactiveExcipients = const [],
+    this.mealCondition,
     this.doseLog = const {},
   });
 
@@ -62,10 +71,17 @@ class Medication {
   }
 
   bool isActiveOn(DateTime date) {
+    // 1. Day of week check
+    if (daysOfWeek.isNotEmpty && !daysOfWeek.contains(date.weekday)) {
+      return false;
+    }
+
+    // 2. Start date check
     final startOfCheck = DateTime(date.year, date.month, date.day);
     final startOfStart = DateTime(startDate.year, startDate.month, startDate.day);
     if (startOfCheck.isBefore(startOfStart)) return false;
 
+    // 3. Duration / end date check
     if (durationDays != null) {
       final end = endDate!;
       final startOfEnd = DateTime(end.year, end.month, end.day);
@@ -99,6 +115,9 @@ class Medication {
     String? doctorNotes,
     bool? isVerified,
     List<SafetyFlag>? safetyFlags,
+    List<int>? daysOfWeek,
+    List<String>? inactiveExcipients,
+    String? mealCondition,
     Map<String, List<String>>? doseLog,
   }) {
     return Medication(
@@ -118,6 +137,9 @@ class Medication {
       doctorNotes: doctorNotes ?? this.doctorNotes,
       isVerified: isVerified ?? this.isVerified,
       safetyFlags: safetyFlags ?? this.safetyFlags,
+      daysOfWeek: daysOfWeek ?? this.daysOfWeek,
+      inactiveExcipients: inactiveExcipients ?? this.inactiveExcipients,
+      mealCondition: mealCondition ?? this.mealCondition,
       doseLog: doseLog ?? this.doseLog,
     );
   }
@@ -140,6 +162,9 @@ class Medication {
       'doctorNotes': doctorNotes,
       'isVerified': isVerified,
       'safetyFlags': safetyFlags.map((f) => f.toJson()).toList(),
+      'daysOfWeek': daysOfWeek,
+      'inactiveExcipients': inactiveExcipients,
+      'mealCondition': mealCondition,
       'doseLog': doseLog,
     };
   }
@@ -182,6 +207,15 @@ class Medication {
               ?.map((e) => SafetyFlag.fromJson(e as Map<dynamic, dynamic>))
               .toList() ??
           [],
+      daysOfWeek: (json['daysOfWeek'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          const [1, 2, 3, 4, 5, 6, 7],
+      inactiveExcipients: (json['inactiveExcipients'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      mealCondition: json['mealCondition'] as String?,
       doseLog: (json['doseLog'] as Map<dynamic, dynamic>?)?.map(
             (k, v) => MapEntry(
               k.toString(),

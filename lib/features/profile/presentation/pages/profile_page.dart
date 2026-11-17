@@ -25,6 +25,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _useHealthApp;
   late List<String> _allergies;
 
+  static const List<String> _commonAllergySuggestions = [
+    'Penicillin',
+    'Sulfa',
+    'Aspirin',
+    'NSAIDs',
+    'Dairy / Lactose',
+    'Peanut Oil',
+    'Gelatin',
+    'Alpha-gal',
+    'Sesame',
+    'Egg',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -72,12 +85,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
-  void _addAllergy() {
-    final text = _newAllergyController.text.trim();
+  void _addAllergy([String? specific]) {
+    final text = specific ?? _newAllergyController.text.trim();
     if (text.isNotEmpty && !_allergies.contains(text)) {
       setState(() {
         _allergies.add(text);
-        _newAllergyController.clear();
+        if (specific == null) _newAllergyController.clear();
       });
     }
   }
@@ -99,9 +112,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     ref.read(profileNotifierProvider.notifier).updateProfile(updated);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile and routine saved locally!'),
-        backgroundColor: AppTheme.primaryTeal,
+      SnackBar(
+        content: const Text('Profile and daily routine saved locally!'),
+        backgroundColor: AppTheme.isDark(context) ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
       ),
     );
   }
@@ -109,18 +122,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final currentThemeMode = ref.watch(themeNotifierProvider);
+    final isDark = AppTheme.isDark(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile & Routine'),
+        title: Text(
+          'Profile & Routine',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: _saveProfile,
-            child: const Text(
+            child: Text(
               'Save',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryTeal,
+                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                 fontSize: 16,
               ),
             ),
@@ -132,20 +152,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         children: [
           // Privacy Guarantee Card
           Card(
-            color: const Color(0xFFE8F5E9),
-            child: const Padding(
-              padding: EdgeInsets.all(14),
+            color: isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: isDark ? const Color(0xFF047857) : const Color(0xFFA7F3D0),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
-                  Icon(Icons.shield_outlined,
-                      color: AppTheme.successGreen, size: 28),
-                  SizedBox(width: 12),
+                  Icon(
+                    Icons.shield_outlined,
+                    color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Privacy First: All data is stored strictly on your local device. No third-party data tracking.',
+                      'Privacy First: All data is stored strictly on your local device. Zero third-party cloud trackers.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF1B5E20),
+                        color: isDark ? const Color(0xFFD1FAE5) : const Color(0xFF1B5E20),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -159,9 +188,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           // User Name
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(
+            style: TextStyle(color: AppTheme.textPrimary(context)),
+            decoration: InputDecoration(
               labelText: 'Your Name',
-              prefixIcon: Icon(Icons.person_outline),
+              labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
+              prefixIcon: Icon(
+                Icons.person_outline,
+                color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -173,14 +207,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Appearance & Theme',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(context),
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Choose between Light mode and Night-friendly Dark mode.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    'Choose between Crisp Light mode and Eye-Care Night Dark mode.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary(context),
+                    ),
                   ),
                   const SizedBox(height: 14),
                   SegmentedButton<ThemeMode>(
@@ -198,7 +239,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ButtonSegment(
                         value: ThemeMode.system,
                         icon: Icon(Icons.brightness_auto_outlined),
-                        label: Text('Auto'),
+                        label: Text('System'),
                       ),
                     ],
                     selected: {currentThemeMode},
@@ -221,22 +262,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.notifications_active_outlined,
-                          color: AppTheme.primaryTeal, size: 22),
-                      SizedBox(width: 8),
+                      Icon(
+                        Icons.notifications_active_outlined,
+                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Reminders & Notifications',
+                        'Reminders, Sound & Vibration',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Test alarms and notifications on your device to ensure sound and vibrations are working.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    'Test alarms and notification vibration rhythm on this device.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary(context),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
@@ -246,16 +296,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           .showTestNotification();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                '🔔 Test notification triggered on phone! Check status bar.'),
-                            backgroundColor: AppTheme.primaryTeal,
+                          SnackBar(
+                            content: const Text(
+                              '🔔 Test reminder with audible chime & vibration triggered!',
+                            ),
+                            backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                           ),
                         );
                       }
                     },
-                    icon: const Icon(Icons.alarm, color: AppTheme.primaryTeal),
-                    label: const Text('Test Notification & Sound Now'),
+                    icon: Icon(
+                      Icons.alarm,
+                      color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                    ),
+                    label: Text(
+                      'Test Notification, Sound & Vibration',
+                      style: TextStyle(
+                        color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -270,14 +329,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Daily Routine Schedule',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(context),
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Used by the smart scheduler to arrange morning, mealtime, and bedtime medicines.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    'Used by the smart scheduler to arrange morning, mealtime, and bedtime medicines seamlessly.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary(context),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _RoutineTimeRow(
@@ -289,7 +355,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       onPicked: (t) => _wakeTime = t,
                     ),
                   ),
-                  const Divider(height: 20),
+                  Divider(height: 20, color: AppTheme.cardBorder(context)),
                   _RoutineTimeRow(
                     icon: Icons.breakfast_dining_outlined,
                     label: 'Breakfast Time',
@@ -299,7 +365,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       onPicked: (t) => _breakfastTime = t,
                     ),
                   ),
-                  const Divider(height: 20),
+                  Divider(height: 20, color: AppTheme.cardBorder(context)),
                   _RoutineTimeRow(
                     icon: Icons.lunch_dining_outlined,
                     label: 'Lunch Time',
@@ -309,7 +375,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       onPicked: (t) => _lunchTime = t,
                     ),
                   ),
-                  const Divider(height: 20),
+                  Divider(height: 20, color: AppTheme.cardBorder(context)),
                   _RoutineTimeRow(
                     icon: Icons.dinner_dining_outlined,
                     label: 'Dinner Time',
@@ -319,7 +385,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       onPicked: (t) => _dinnerTime = t,
                     ),
                   ),
-                  const Divider(height: 20),
+                  Divider(height: 20, color: AppTheme.cardBorder(context)),
                   _RoutineTimeRow(
                     icon: Icons.bedtime_outlined,
                     label: 'Sleep / Bedtime',
@@ -342,58 +408,114 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.shield, color: AppTheme.dangerRed, size: 20),
-                      SizedBox(width: 8),
+                      Icon(
+                        Icons.shield,
+                        color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Known Drug Allergies',
+                        'Allergies & Excipient Sensitivities',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'The app cross-checks all entered medicines against these to prevent adverse reactions.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    'Cross-checks both active drugs and inactive excipients (lactose, peanut/sesame oils, gelatin, gluten).',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary(context),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: _allergies.map((allergy) {
-                      return Chip(
-                        backgroundColor: const Color(0xFFFFEBEE),
-                        side: const BorderSide(color: AppTheme.dangerRed),
-                        label: Text(
-                          allergy,
-                          style: const TextStyle(
-                            color: AppTheme.dangerRed,
-                            fontWeight: FontWeight.w600,
+                  if (_allergies.isEmpty)
+                    Text(
+                      'No allergies entered yet.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: AppTheme.textMuted(context),
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: _allergies.map((allergy) {
+                        return Chip(
+                          backgroundColor: isDark
+                              ? const Color(0xFF450A0A)
+                              : const Color(0xFFFEE2E2),
+                          side: BorderSide(
+                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
                           ),
+                          label: Text(
+                            allergy,
+                            style: TextStyle(
+                              color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          deleteIcon: const Icon(Icons.close, size: 16),
+                          deleteIconColor: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                          onDeleted: () {
+                            setState(() {
+                              _allergies.remove(allergy);
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  const SizedBox(height: 14),
+
+                  // Quick suggestions from taxonomy
+                  Text(
+                    'Quick Add from Clinical Taxonomy:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: _commonAllergySuggestions
+                        .where((s) => !_allergies.contains(s))
+                        .map((suggestion) {
+                      return ActionChip(
+                        label: Text(suggestion),
+                        labelStyle: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textPrimary(context),
                         ),
-                        deleteIcon: const Icon(Icons.close, size: 16),
-                        deleteIconColor: AppTheme.dangerRed,
-                        onDeleted: () {
-                          setState(() {
-                            _allergies.remove(allergy);
-                          });
-                        },
+                        backgroundColor: AppTheme.surfaceVariant(context),
+                        side: BorderSide(color: AppTheme.cardBorder(context)),
+                        onPressed: () => _addAllergy(suggestion),
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _newAllergyController,
-                          decoration: const InputDecoration(
-                            labelText: 'Add Allergy',
-                            hintText: 'e.g. Penicillin, Sulfa, Aspirin',
+                          style: TextStyle(color: AppTheme.textPrimary(context)),
+                          decoration: InputDecoration(
+                            labelText: 'Add Custom Allergy / Excipient',
+                            hintText: 'e.g. Penicillin, Lactose, Gelatin',
                             isDense: true,
+                            labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
                           ),
                           onSubmitted: (_) => _addAllergy(),
                         ),
@@ -401,9 +523,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       const SizedBox(width: 8),
                       IconButton.filled(
                         icon: const Icon(Icons.add),
-                        onPressed: _addAllergy,
+                        onPressed: () => _addAllergy(),
                         style: IconButton.styleFrom(
-                          backgroundColor: AppTheme.primaryTeal,
+                          backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                          foregroundColor: isDark ? const Color(0xFF042F2E) : Colors.white,
                         ),
                       ),
                     ],
@@ -452,37 +575,52 @@ class _RoutineTimeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Icon(icon, color: AppTheme.primaryTeal, size: 22),
+            Icon(
+              icon,
+              color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              size: 22,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary(context),
+                ),
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE0F2F1),
+                color: isDark
+                    ? AppTheme.primaryTealLight.withValues(alpha: 0.18)
+                    : const Color(0xFFCCFBF1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 time,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryTeal,
+                  color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                 ),
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+            Icon(
+              Icons.chevron_right,
+              color: AppTheme.textMuted(context),
+              size: 20,
+            ),
           ],
         ),
       ),

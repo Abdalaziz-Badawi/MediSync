@@ -113,6 +113,15 @@ class FakeNotificationService implements NotificationService {
   }) async {}
 
   @override
+  Future<void> scheduleMealReminder({
+    required int id,
+    required String mealName,
+    required String advice,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
   Future<void> cancelNotification(int id) async {}
 
   @override
@@ -139,14 +148,16 @@ void main() {
     );
 
     expect(find.text('Hello, Sarah'), findsOneWidget);
-    expect(find.text('Dose Timeline'), findsOneWidget);
-    expect(find.text('Metformin'), findsWidgets);
-
     expect(find.byType(NextDoseCountdownCard), findsOneWidget);
     expect(find.text('NEXT MEDICATION'), findsOneWidget);
     expect(find.text('BEFORE'), findsOneWidget);
-    expect(find.text('Take with food to prevent upset stomach'), findsOneWidget);
     expect(find.text('Take'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dose Timeline'), findsOneWidget);
+    expect(find.text('Metformin'), findsWidgets);
   });
 
   testWidgets('Renders Medications List page with medication card',
@@ -195,7 +206,7 @@ void main() {
     await tester.drag(find.byType(ListView).first, const Offset(0, -700));
     await tester.pumpAndSettle();
 
-    expect(find.text('Known Drug Allergies'), findsOneWidget);
+    expect(find.text('Allergies & Excipient Sensitivities'), findsOneWidget);
     expect(find.text('Penicillin'), findsOneWidget);
   });
 
