@@ -14,7 +14,11 @@ enum AppPalette {
   royalIndigo('Royal Indigo', Color(0xFF6366F1), Color(0xFF8B5CF6)),
   amethystViolet('Amethyst & Lilac', Color(0xFF8B5CF6), Color(0xFF6366F1)),
   sunsetCoral('Sunset Coral', Color(0xFFEA580C), Color(0xFFF59E0B)),
-  roseRuby('Rose & Ruby', Color(0xFFE11D48), Color(0xFFFB7185));
+  roseRuby('Rose & Ruby', Color(0xFFE11D48), Color(0xFFFB7185)),
+  midnightSapphire('Midnight Sapphire', Color(0xFF1E3A8A), Color(0xFF3B82F6)),
+  forestSage('Forest & Sage', Color(0xFF15803D), Color(0xFF65A30D)),
+  crimsonAmber('Crimson & Amber', Color(0xFFB91C1C), Color(0xFFD97706)),
+  nordicTitanium('Nordic Titanium', Color(0xFF475569), Color(0xFF64748B));
 
   final String label;
   final Color primary;
@@ -35,6 +39,14 @@ enum AppPalette {
         return const Color(0xFFFB923C);
       case AppPalette.roseRuby:
         return const Color(0xFFFB7185);
+      case AppPalette.midnightSapphire:
+        return const Color(0xFF60A5FA);
+      case AppPalette.forestSage:
+        return const Color(0xFF4ADE80);
+      case AppPalette.crimsonAmber:
+        return const Color(0xFFF87171);
+      case AppPalette.nordicTitanium:
+        return const Color(0xFF94A3B8);
     }
   }
 
@@ -52,6 +64,14 @@ enum AppPalette {
         return const Color(0xFFFBBF24);
       case AppPalette.roseRuby:
         return const Color(0xFFFDA4AF);
+      case AppPalette.midnightSapphire:
+        return const Color(0xFF93C5FD);
+      case AppPalette.forestSage:
+        return const Color(0xFFA3E635);
+      case AppPalette.crimsonAmber:
+        return const Color(0xFFFBBF24);
+      case AppPalette.nordicTitanium:
+        return const Color(0xFFCBD5E1);
     }
   }
 }
@@ -157,6 +177,18 @@ class AppTheme {
         blurRadius: 18,
         offset: const Offset(0, 6),
       ),
+    ];
+  }
+
+  static List<BoxShadow> appBarGlowShadow(BuildContext context, {double opacity = 0.10}) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return [
+      BoxShadow(
+        color: primary.withValues(alpha: opacity),
+        blurRadius: 16,
+        offset: const Offset(0, 4),
+      ),
+      ...softShadow(context),
     ];
   }
 

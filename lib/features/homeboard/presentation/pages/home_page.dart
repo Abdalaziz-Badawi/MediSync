@@ -5,8 +5,11 @@ import 'package:medisync/core/data/medicines_database.dart';
 import 'package:medisync/core/models/condition.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
+import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/features/homeboard/presentation/widgets/adherence_streak_card.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
 
@@ -55,6 +58,27 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void _syncAllToCalendar(BuildContext context) async {
+    final meds = ref.read(medicationsNotifierProvider);
+    final res = await ref.read(deviceIntegrationServiceProvider).syncMedicationsToCalendar(meds);
+    if (!context.mounted) return;
+    if (res.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✓ Successfully synced ${res.eventsCreated} medication event(s) to phone calendar!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res.message),
+          backgroundColor: AppTheme.warningAmber,
+        ),
+      );
+    }
   }
 
   @override
@@ -114,12 +138,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(68),
+        preferredSize: const Size.fromHeight(74),
         child: Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-            boxShadow: AppTheme.softShadow(context),
+            boxShadow: [
+              ...AppTheme.glowShadow(Theme.of(context).colorScheme.primary, opacity: 0.10),
+              ...AppTheme.softShadow(context),
+            ],
             border: Border(
               bottom: BorderSide(
                 color: AppTheme.cardBorder(context),
@@ -157,21 +184,35 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ],
                   ),
-                  IconButton(
-                    tooltip: 'Add Medication',
-                    icon: Icon(
-                      Icons.add_circle,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 30,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AddEditMedicationPage(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Sync Schedule to Calendar',
+                        icon: Icon(
+                          Icons.calendar_month_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 26,
                         ),
-                      );
-                    },
+                        onPressed: () => _syncAllToCalendar(context),
+                      ),
+                      IconButton(
+                        tooltip: 'Add Medication',
+                        icon: Icon(
+                          Icons.add_circle,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 30,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AddEditMedicationPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -249,6 +290,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             const SizedBox(height: 16),
           ],
+
+          // 3.5 Duolingo-style Adherence Streak Card
+          AdherenceStreakCard(medications: medications),
+          const SizedBox(height: 16),
 
           // 4. Daily Adherence Progress Card (Layered Gradient & Glow)
           Container(
@@ -667,7 +712,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _DoseTimelineCard extends StatelessWidget {
+class _DoseTimelineCard extends ConsumerWidget {
   final DoseItem dose;
   final DateTime date;
   final bool isLocked;
@@ -686,13 +731,14 @@ class _DoseTimelineCard extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -786,6 +832,29 @@ class _DoseTimelineCard extends StatelessWidget {
     );
   }
 
+  void _showLockedToast(BuildContext context, bool isFuture) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isFuture
+                    ? 'Future dates are locked. Doses can only be logged on today\'s schedule.'
+                    : 'Past records are locked. Historical records are view-only.',
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppTheme.textPrimary(context),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Widget _buildStatusOption({
     required BuildContext ctx,
     required DoseStatus status,
@@ -849,10 +918,21 @@ class _DoseTimelineCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final med = dose.medication;
     final isDark = AppTheme.isDark(context);
     final status = dose.status;
+    final profile = ref.watch(profileNotifierProvider);
+    final allergyFlags = SchedulerService.getAllergyConflictsForMedication(
+      medication: med,
+      profile: profile,
+    );
+    final hasAllergyConflict = allergyFlags.isNotEmpty;
+
+    final now = DateTime.now();
+    final todayMidnight = DateTime(now.year, now.month, now.day);
+    final cardMidnight = DateTime(date.year, date.month, date.day);
+    final isFuture = cardMidnight.isAfter(todayMidnight);
 
     // Food restrictions (from med or template)
     final foodWarnings = med.foodRestrictions.isNotEmpty
@@ -976,196 +1056,245 @@ class _DoseTimelineCard extends StatelessWidget {
           ],
         ),
       ),
-      child: InkWell(
-        onTap: isLocked
-            ? () {
-                final now = DateTime.now();
-                final todayMidnight = DateTime(now.year, now.month, now.day);
-                final cardMidnight = DateTime(date.year, date.month, date.day);
-                final isFuture = cardMidnight.isAfter(todayMidnight);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
+      child: Opacity(
+        opacity: isLocked ? 0.62 : 1.0,
+        child: InkWell(
+          onTap: isLocked
+              ? () => _showLockedToast(context, isFuture)
+              : () => _showStatusPicker(context),
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: isResolved
+                  ? (isDark ? const Color(0xFF141D2B) : const Color(0xFFF1F5F9))
+                  : (status == DoseStatus.missed
+                      ? (isDark ? const Color(0xFF261014) : const Color(0xFFFFF1F2))
+                      : AppTheme.cardColor(context)),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: hasAllergyConflict
+                    ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                    : (status == DoseStatus.missed
+                        ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                        : AppTheme.cardBorder(context)),
+                width: hasAllergyConflict ? 1.6 : 1,
+              ),
+              boxShadow: isResolved
+                  ? null
+                  : (hasAllergyConflict
+                      ? AppTheme.glowShadow(AppTheme.dangerRed, opacity: 0.16)
+                      : AppTheme.softShadow(context)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  // Time & Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: status == DoseStatus.taken
+                          ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7))
+                          : (status == DoseStatus.delayed
+                              ? (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7))
+                              : (status == DoseStatus.missed
+                                  ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                                  : Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.22 : 0.12))),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.lock_outline_rounded,
-                            color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            isFuture
-                                ? 'Future dates are locked. Doses can only be logged on today\'s schedule.'
-                                : 'Past records are locked. Historical records are view-only.',
-                            style: const TextStyle(fontSize: 12.5),
+                        Text(
+                          dose.time,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: statusColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          statusLabel,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
                           ),
                         ),
                       ],
                     ),
-                    backgroundColor: AppTheme.textPrimary(context),
-                    duration: const Duration(seconds: 2),
                   ),
-                );
-              }
-            : () => _showStatusPicker(context),
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: isResolved
-                ? (isDark ? const Color(0xFF141D2B) : const Color(0xFFF1F5F9))
-                : (status == DoseStatus.missed
-                    ? (isDark ? const Color(0xFF261014) : const Color(0xFFFFF1F2))
-                    : AppTheme.cardColor(context)),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: status == DoseStatus.missed
-                  ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
-                  : AppTheme.cardBorder(context),
-            ),
-            boxShadow: isResolved ? null : AppTheme.softShadow(context),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                // Time & Status Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: status == DoseStatus.taken
-                        ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7))
-                        : (status == DoseStatus.delayed
-                            ? (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7))
-                            : (status == DoseStatus.missed
-                                ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
-                                : Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.22 : 0.12))),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        dose.time,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
+                  const SizedBox(width: 14),
 
-                // Med Info & Condition Badges
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        med.name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          decoration: isResolved ? TextDecoration.lineThrough : null,
-                          color: isResolved
-                              ? AppTheme.textMuted(context)
-                              : AppTheme.textPrimary(context),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${med.dosage} • ${med.form.name}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary(context),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Food Restriction Warnings (if any)
-                      if (foodWarnings.isNotEmpty) ...[
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF3B1D0B) : const Color(0xFFFFFBEB),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF92400E) : const Color(0xFFFDE68A),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.restaurant_menu_rounded,
-                                size: 12,
-                                color: isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309),
-                              ),
-                              const SizedBox(width: 5),
-                              Flexible(
-                                child: Text(
-                                  foodWarnings.first,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? AppTheme.warningAmberLight : const Color(0xFF92400E),
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                  // Med Info & Condition Badges
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                med.name,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: isResolved ? TextDecoration.lineThrough : null,
+                                  color: isResolved
+                                      ? AppTheme.textMuted(context)
+                                      : AppTheme.textPrimary(context),
                                 ),
                               ),
-                            ],
+                            ),
+                            if (isLocked)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceVariant(context),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.cardBorder(context)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.lock_rounded, size: 10, color: AppTheme.textMuted(context)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      isFuture ? 'Locked • Scheduled' : 'Locked • History',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textMuted(context),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${med.dosage} • ${med.form.name}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary(context),
                           ),
                         ),
-                      ],
 
-                      // Pre/Post Condition tags
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          for (final c in med.preConditions)
-                            _buildTag(
-                              context: context,
-                              icon: _conditionIcon(c.type),
-                              label: 'Before: ${c.description}',
-                              isTaken: isResolved,
+                        // Prominent Red Flag Allergy Warning
+                        if (hasAllergyConflict) ...[
+                          Container(
+                            margin: const EdgeInsets.only(top: 6, bottom: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                              ),
                             ),
-                          for (final c in med.postConditions)
-                            _buildTag(
-                              context: context,
-                              icon: _conditionIcon(c.type),
-                              label: 'After: ${c.description}',
-                              isTaken: isResolved,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.flag_rounded, size: 12, color: AppTheme.dangerRed),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'RED FLAG: ALLERGY TRIGGER (${allergyFlags.first.relatedAllergy ?? "Trigger"})',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
+                        const SizedBox(height: 6),
 
-                // Interactive Status Button
-                IconButton(
-                  tooltip: 'Tap to change intake status',
-                  icon: Icon(
-                    statusIcon,
-                    color: statusColor,
-                    size: 28,
+                        // Food Restriction Warnings (if any)
+                        if (foodWarnings.isNotEmpty) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF3B1D0B) : const Color(0xFFFFFBEB),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF92400E) : const Color(0xFFFDE68A),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.restaurant_menu_rounded,
+                                  size: 12,
+                                  color: isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    foodWarnings.first,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppTheme.warningAmberLight : const Color(0xFF92400E),
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Pre/Post Condition tags
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            for (final c in med.preConditions)
+                              _buildTag(
+                                context: context,
+                                icon: _conditionIcon(c.type),
+                                label: 'Before: ${c.description}',
+                                isTaken: isResolved,
+                              ),
+                            for (final c in med.postConditions)
+                              _buildTag(
+                                context: context,
+                                icon: _conditionIcon(c.type),
+                                label: 'After: ${c.description}',
+                                isTaken: isResolved,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  onPressed: () => _showStatusPicker(context),
-                ),
-              ],
+
+                  // Interactive Status Button
+                  IconButton(
+                    tooltip: isLocked ? 'Locked for this date' : 'Tap to change intake status',
+                    icon: Icon(
+                      isLocked ? Icons.lock_outline_rounded : statusIcon,
+                      color: isLocked ? AppTheme.textMuted(context) : statusColor,
+                      size: isLocked ? 22 : 28,
+                    ),
+                    onPressed: isLocked
+                        ? () => _showLockedToast(context, isFuture)
+                        : () => _showStatusPicker(context),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

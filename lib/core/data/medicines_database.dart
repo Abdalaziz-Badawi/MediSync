@@ -803,6 +803,8 @@ class MedicinesDatabase {
     }).toList();
   }
 
+  static MedicineTemplate? findTemplate(String name) => findByName(name);
+
   static MedicineTemplate? findByName(String name) {
     final clean = name.trim().toLowerCase();
     for (final template in repository) {

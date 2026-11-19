@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/models/condition.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/side_effect.dart';
+import 'package:medisync/core/services/scheduler_service.dart';
+import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 
 class UpcomingDose {
@@ -21,7 +24,7 @@ class UpcomingDose {
   Duration get remainingDuration => scheduledDateTime.difference(DateTime.now());
 }
 
-class NextDoseCountdownCard extends StatefulWidget {
+class NextDoseCountdownCard extends ConsumerStatefulWidget {
   final List<Medication> medications;
   final Function(String medId, DateTime date, String time) onMarkTaken;
 
@@ -32,10 +35,10 @@ class NextDoseCountdownCard extends StatefulWidget {
   });
 
   @override
-  State<NextDoseCountdownCard> createState() => _NextDoseCountdownCardState();
+  ConsumerState<NextDoseCountdownCard> createState() => _NextDoseCountdownCardState();
 }
 
-class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
+class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
   Timer? _timer;
 
   @override
@@ -165,6 +168,13 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
     }
 
     final med = nextDose.medication;
+    final profile = ref.watch(profileNotifierProvider);
+    final allergyFlags = SchedulerService.getAllergyConflictsForMedication(
+      medication: med,
+      profile: profile,
+    );
+    final hasAllergyConflict = allergyFlags.isNotEmpty;
+
     final diff = nextDose.remainingDuration;
     final countdownText = _formatCountdown(diff);
     final isOverdue = diff.isNegative && diff.abs().inMinutes >= 15;
@@ -342,6 +352,38 @@ class _NextDoseCountdownCardState extends State<NextDoseCountdownCard> {
               const SizedBox(height: 14),
               Divider(height: 1, color: AppTheme.cardBorder(context)),
               const SizedBox(height: 12),
+
+              // Allergy Red Flag Alert on Countdown Card
+              if (hasAllergyConflict) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                      width: 1.4,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flag_rounded, color: AppTheme.dangerRed, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'RED FLAG: ALLERGY TRIGGER (${allergyFlags.first.relatedAllergy ?? "Conflict"})',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               // Conditions Surrounding This Medication
               Text(

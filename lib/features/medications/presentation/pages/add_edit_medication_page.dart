@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/data/medicines_database.dart';
@@ -51,6 +52,8 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   List<SafetyFlag> _activeSafetyFlags = [];
   MedicineTemplate? _matchedTemplate;
   List<MedicineTemplate> _filteredDatabaseResults = [];
+  Timer? _nameDebounceTimer;
+  final FocusNode _nameFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -90,6 +93,8 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
 
   @override
   void dispose() {
+    _nameDebounceTimer?.cancel();
+    _nameFocusNode.dispose();
     _nameController.dispose();
     _dosageController.dispose();
     _durationDaysController.dispose();
@@ -99,18 +104,39 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   }
 
   void _onNameChanged() {
+    _nameDebounceTimer?.cancel();
     final query = _nameController.text.trim();
-    if (query.isNotEmpty) {
-      setState(() {
-        _filteredDatabaseResults = MedicinesDatabase.search(query);
-      });
-    } else {
-      setState(() {
-        _filteredDatabaseResults = [];
-        _matchedTemplate = null;
-      });
+
+    // If query is short (< 2 chars), clear search results and flags quietly without popping warnings
+    if (query.length < 2) {
+      if (_filteredDatabaseResults.isNotEmpty || _matchedTemplate != null || _activeSafetyFlags.isNotEmpty) {
+        setState(() {
+          _filteredDatabaseResults = [];
+          _matchedTemplate = null;
+          _activeSafetyFlags = [];
+        });
+      }
+      return;
     }
-    _checkSafetyAndRecompute();
+
+    // 350ms Debounce to prevent keyboard focus interruption while typing
+    _nameDebounceTimer = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final currentQuery = _nameController.text.trim();
+      if (currentQuery.length < 2) {
+        setState(() {
+          _filteredDatabaseResults = [];
+          _matchedTemplate = null;
+          _activeSafetyFlags = [];
+        });
+        return;
+      }
+
+      setState(() {
+        _filteredDatabaseResults = MedicinesDatabase.search(currentQuery);
+      });
+      _checkSafetyAndRecompute();
+    });
   }
 
   void _selectMedicineTemplate(MedicineTemplate template) {
@@ -771,68 +797,6 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Critical Allergy Alert Banner
-            if (_activeSafetyFlags.isNotEmpty) ...[
-              for (final flag in _activeSafetyFlags)
-                Card(
-                  color: flag.severity == FlagSeverity.critical
-                      ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
-                      : (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(
-                      color: flag.severity == FlagSeverity.critical
-                          ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
-                          : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: flag.severity == FlagSeverity.critical
-                              ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
-                              : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
-                          size: 26,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                flag.title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: flag.severity == FlagSeverity.critical
-                                      ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
-                                      : (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309)),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                flag.message,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  height: 1.3,
-                                  color: AppTheme.textPrimary(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-            ],
-
             // Section 1: Medicine Name & Database Autocomplete
             Text(
               '1. Medication Identification',
@@ -851,6 +815,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
 
             TextFormField(
               controller: _nameController,
+              focusNode: _nameFocusNode,
               style: TextStyle(color: AppTheme.textPrimary(context)),
               decoration: InputDecoration(
                 labelText: 'Medicine Name *',
@@ -1014,6 +979,69 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                   ),
                 ),
               ],
+            ],
+
+            // Verified Safety & Allergy Conflict Alerts (Non-disruptive placement below input)
+            if (_activeSafetyFlags.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              for (final flag in _activeSafetyFlags)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: flag.severity == FlagSeverity.critical
+                      ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                      : (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                      color: flag.severity == FlagSeverity.critical
+                          ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                          : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: flag.severity == FlagSeverity.critical
+                              ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                              : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                flag.title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                  color: flag.severity == FlagSeverity.critical
+                                      ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
+                                      : (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309)),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                flag.message,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  height: 1.3,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
 
             const SizedBox(height: 12),

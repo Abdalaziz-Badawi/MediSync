@@ -35,6 +35,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _isProfileCardExpanded;
   late bool _isSettingsCardExpanded;
   bool _isAllergiesExpanded = false;
+  bool _isAboutCardExpanded = false;
 
   static const List<Map<String, dynamic>> _availableAvatars = [
     {'id': 'avatar_wellness', 'icon': Icons.spa_rounded, 'label': 'Wellness'},
@@ -381,11 +382,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     // Auto-collapse when user leaves or changes page
     ref.listen<int>(mainNavIndexProvider, (prev, next) {
       if (next != 3) {
-        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded) {
+        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded || _isAboutCardExpanded) {
           setState(() {
             _isProfileCardExpanded = false;
             _isSettingsCardExpanded = false;
             _isAllergiesExpanded = false;
+            _isAboutCardExpanded = false;
           });
         }
       }
@@ -1202,6 +1204,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ],
           ),
         ),
+          const SizedBox(height: 16),
+
+          // About MediSync & Developer Card (Collapsible)
+          _buildAboutDeveloperCard(context),
           const SizedBox(height: 20),
 
           // Bottom Save Button (Only shown when changes are pending)
@@ -1214,6 +1220,355 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ],
 
           const SizedBox(height: 90),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutDeveloperCard(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.cardBorder(context)),
+        boxShadow: AppTheme.softShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header (Tap to expand/collapse)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isAboutCardExpanded = !_isAboutCardExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(22),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: isDark ? 0.22 : 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.info_outline_rounded, color: primary, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'About MediSync & Developer',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'v1.6.0',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _isAboutCardExpanded
+                              ? 'Abdalaziz Adil Badawi • Tap to collapse'
+                              : 'Abdalaziz Adil Badawi • Tap to expand',
+                          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _isAboutCardExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppTheme.textSecondary(context),
+                    size: 24,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (_isAboutCardExpanded) ...[
+            Divider(height: 1, color: AppTheme.cardBorder(context)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Developer Bio Card
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant(context),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.cardBorder(context)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: primary.withValues(alpha: 0.2),
+                          child: Icon(Icons.code_rounded, color: primary, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Abdalaziz Adil Badawi Mohamed',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Lead Software & Mobile Engineer',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Dedicated to building clinical-grade, privacy-first mobile health utilities that respect personal autonomy and data ownership.',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppTheme.textSecondary(context),
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // GitHub Repository Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        ref.read(deviceIntegrationServiceProvider).openBrowserUrl(
+                          'https://github.com/Abdalaziz-Badawi/MediSync',
+                        );
+                      },
+                      icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                      label: const Text('GitHub: @Abdalaziz-Badawi / MediSync'),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Project Architecture & File Management Viewer
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppTheme.cardBorder(context)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _showArchitectureDialog(context),
+                    icon: Icon(Icons.folder_special_rounded, color: primary, size: 18),
+                    label: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Project Architecture & Clean Organization',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppTheme.textPrimary(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded, size: 18, color: AppTheme.textMuted(context)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Legal Links: Terms of Use & Privacy Policy
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: AppTheme.cardBorder(context)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => _showTermsDialog(context),
+                          icon: Icon(Icons.gavel_rounded, size: 16, color: primary),
+                          label: Text(
+                            'Terms of Use',
+                            style: TextStyle(fontSize: 11.5, color: AppTheme.textPrimary(context)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: AppTheme.cardBorder(context)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => _showPrivacyPolicyDialog(context),
+                          icon: Icon(Icons.verified_user_rounded, size: 16, color: primary),
+                          label: Text(
+                            'Privacy Policy',
+                            style: TextStyle(fontSize: 11.5, color: AppTheme.textPrimary(context)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showArchitectureDialog(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.account_tree_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            const Text('Architecture & Structure', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MediSync Modular Feature Architecture:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary(ctx)),
+              ),
+              const SizedBox(height: 10),
+              _buildArchItem(ctx, '📁 lib/core/models', 'Medication, Condition, SideEffect, UserProfile, SafetyFlag'),
+              _buildArchItem(ctx, '📁 lib/core/services', 'StorageService (Hive), SchedulerService, RoutineInferenceService, StreakService, DeviceIntegrationService'),
+              _buildArchItem(ctx, '📁 lib/core/theme', 'AppTheme with 10 clinical palettes, soft & elevated shadow hierarchy'),
+              _buildArchItem(ctx, '📁 lib/features/homeboard', 'Today schedule, NextDoseCountdownCard, Duolingo AdherenceStreakCard'),
+              _buildArchItem(ctx, '📁 lib/features/medications', 'CRUD, discontinuation lifecycle, debounced allergy checks'),
+              _buildArchItem(ctx, '📁 lib/features/records', 'Multi-format export (TXT, MD, HTML, XML, DOC, PDF), adherence analytics'),
+              _buildArchItem(ctx, '📁 lib/features/profile', 'Daily routine setup, phone calendar sync, developer about'),
+              _buildArchItem(ctx, '📁 lib/features/splash', 'Pulse cross logo animation, smooth start experience'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArchItem(BuildContext ctx, String folder, String details) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(folder, style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 12, color: Theme.of(ctx).colorScheme.primary)),
+          Text(details, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(ctx))),
+        ],
+      ),
+    );
+  }
+
+  void _showTermsDialog(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Terms of Use', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Text(
+            '1. Informational Health Tool: MediSync is designed solely as an assistive scheduling and adherence tracking companion.\n\n'
+            '2. Not Medical Advice: MediSync does not provide clinical diagnosis, medical treatment prescriptions, or definitive pharmacology consultations. Always consult your licensed physician or pharmacist for medical decisions.\n\n'
+            '3. User Responsibility: You are responsible for verifying your prescription dosages and taking medications in accordance with your healthcare provider\'s orders.\n\n'
+            '4. On-Device Autonomy: All data remains stored solely on your physical device hardware under your exclusive control.',
+            style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary(ctx), height: 1.4),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('I Understand')),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyPolicyDialog(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Privacy Policy', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Text(
+            '1. 100% On-Device Storage: All prescription records, dosages, timings, intake histories, and allergy profiles are stored strictly within local Hive encrypted storage on this device.\n\n'
+            '2. Zero Remote Telemetry: MediSync makes zero network requests to any remote cloud servers. No personal identifiable health information (PHI) is ever transmitted.\n\n'
+            '3. External Lookups: Public drug monograph lookups query official medical databases (e.g. Drugs.com / FDA) using ONLY the generic medicine name, with zero patient identifiers attached.\n\n'
+            '4. Complete Erasure: Deleting a medication or clearing app data permanently removes all associated records from memory.',
+            style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary(ctx), height: 1.4),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Accept & Close')),
         ],
       ),
     );

@@ -407,6 +407,37 @@ class SchedulerService {
     return options;
   }
 
+  /// Evaluates whether a given medication triggers any allergy from the user's profile.
+  /// Checks active ingredients, matched templates, inactive excipients, and class cross-reactivity.
+  static List<SafetyFlag> getAllergyConflictsForMedication({
+    required Medication medication,
+    required UserProfile profile,
+  }) {
+    final template = MedicinesDatabase.findTemplate(medication.name);
+    final dynamicFlags = checkSafety(
+      medicationName: medication.name,
+      profile: profile,
+      matchedTemplate: template,
+    );
+    final all = [...medication.safetyFlags, ...dynamicFlags];
+    final seen = <String>{};
+    final allergyFlags = <SafetyFlag>[];
+
+    for (final f in all) {
+      final isAllergy = f.relatedAllergy != null ||
+          f.title.toLowerCase().contains('allergy') ||
+          f.message.toLowerCase().contains('allergy');
+      if (isAllergy) {
+        final key = '${f.title}_${f.message}';
+        if (!seen.contains(key)) {
+          seen.add(key);
+          allergyFlags.add(f);
+        }
+      }
+    }
+    return allergyFlags;
+  }
+
   /// Verifies safety against user's allergies and existing medications
   /// checking active ingredients, drug classes, and inactive excipients.
   static List<SafetyFlag> checkSafety({
@@ -417,16 +448,20 @@ class SchedulerService {
   }) {
     final flags = <SafetyFlag>[];
     final cleanName = medicationName.trim().toLowerCase();
-    if (cleanName.isEmpty) return flags;
+    // Enforce minimum 3 characters before performing active safety checks to prevent
+    // premature false-positive warnings while typing (e.g. typing "P" for Panadol).
+    if (cleanName.length < 3) return flags;
 
     // 1. Direct and Class Allergy Checks from matched template
     if (matchedTemplate != null) {
       for (final trigger in matchedTemplate.allergenTriggers) {
+        final cleanTrigger = trigger.trim().toLowerCase();
         for (final userAllergy in profile.allergies) {
           final cleanUserAllergy = userAllergy.trim().toLowerCase();
           if (cleanUserAllergy.isNotEmpty &&
-              (trigger.contains(cleanUserAllergy) ||
-                  cleanUserAllergy.contains(trigger))) {
+              (cleanTrigger == cleanUserAllergy ||
+                  cleanTrigger.contains(cleanUserAllergy) ||
+                  cleanUserAllergy.contains(cleanTrigger))) {
             flags.add(SafetyFlag(
               severity: FlagSeverity.critical,
               tier: AlertTier.tier1HardStop,
@@ -450,12 +485,18 @@ class SchedulerService {
       );
     }
 
-    // 3. Fallback direct string match & cross-reactivity matrix
+    // 3. Fallback direct match & cross-reactivity matrix
     for (final allergy in profile.allergies) {
       final cleanAllergy = allergy.trim().toLowerCase();
       if (cleanAllergy.isEmpty) continue;
 
-      if (cleanName.contains(cleanAllergy) || cleanAllergy.contains(cleanName)) {
+      // Strict matching: only trigger if the full allergy name is matched, contained,
+      // or if the user has typed at least 4 characters that directly match the allergy's start.
+      final isDirectMatch = cleanName == cleanAllergy ||
+          cleanName.contains(cleanAllergy) ||
+          (cleanName.length >= 4 && cleanAllergy.startsWith(cleanName));
+
+      if (isDirectMatch) {
         if (!flags.any((f) => f.relatedAllergy == allergy)) {
           flags.add(SafetyFlag(
             severity: FlagSeverity.critical,

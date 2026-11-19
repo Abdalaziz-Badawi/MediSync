@@ -69,6 +69,17 @@ class StorageService {
     return list;
   }
 
+  Medication? getMedication(String id) {
+    final raw = _medicationsBox.get(id);
+    if (raw == null) return null;
+    try {
+      final map = jsonDecode(raw as String);
+      return Medication.fromJson(map as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> saveMedication(Medication medication) async {
     await _medicationsBox.put(medication.id, jsonEncode(medication.toJson()));
   }
@@ -77,28 +88,59 @@ class StorageService {
     await _medicationsBox.delete(id);
   }
 
-  // Pre-seed sample medication if first launch
-  Future<void> seedInitialDataIfEmpty() async {
-    if (_medicationsBox.isEmpty) {
-      final sample = Medication(
-        id: 'sample-1',
-        name: 'Metformin',
-        dosage: '500 mg',
-        form: MedicationForm.pill,
-        timesPerDay: 2,
-        scheduledTimes: ['08:50', '20:20'],
-        durationDays: null, // ongoing
-        startDate: DateTime.now().subtract(const Duration(days: 3)),
-        preConditions: const [],
-        postConditions: const [],
-        sideEffects: const [],
-        refillsRemaining: 2,
-        refillAlertThreshold: 1,
-        doctorNotes: 'Take after meals with a glass of water.',
-        isVerified: true,
+  Future<void> discontinueMedication(
+    String id, {
+    DateTime? date,
+    String? reason,
+  }) async {
+    final med = getMedication(id);
+    if (med != null) {
+      final updated = med.copyWith(
+        discontinuedDate: date ?? DateTime.now(),
+        discontinuationReason: reason ?? 'Discontinued by patient',
       );
-      await saveMedication(sample);
+      await saveMedication(updated);
     }
+  }
+
+  Future<void> resumeMedication(String id) async {
+    final med = getMedication(id);
+    if (med != null) {
+      final updated = Medication(
+        id: med.id,
+        name: med.name,
+        dosage: med.dosage,
+        form: med.form,
+        timesPerDay: med.timesPerDay,
+        scheduledTimes: med.scheduledTimes,
+        durationDays: med.durationDays,
+        startDate: med.startDate,
+        preConditions: med.preConditions,
+        postConditions: med.postConditions,
+        sideEffects: med.sideEffects,
+        refillsRemaining: med.refillsRemaining,
+        refillAlertThreshold: med.refillAlertThreshold,
+        doctorNotes: med.doctorNotes,
+        isVerified: med.isVerified,
+        safetyFlags: med.safetyFlags,
+        daysOfWeek: med.daysOfWeek,
+        scheduleFrequency: med.scheduleFrequency,
+        intervalDays: med.intervalDays,
+        monthlyDays: med.monthlyDays,
+        foodRestrictions: med.foodRestrictions,
+        inactiveExcipients: med.inactiveExcipients,
+        mealCondition: med.mealCondition,
+        discontinuedDate: null,
+        discontinuationReason: null,
+        doseLog: med.doseLog,
+      );
+      await saveMedication(updated);
+    }
+  }
+
+  // Does not auto-inject phantom medications. Remains clean on fresh startup.
+  Future<void> seedInitialDataIfEmpty() async {
+    // Left clean to prevent unwanted sample medications from appearing out of nowhere
   }
 }
 
@@ -138,6 +180,16 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
 
   Future<void> remove(String id) async {
     await _storage.deleteMedication(id);
+    state = _storage.getMedications();
+  }
+
+  Future<void> discontinue(String id, {DateTime? date, String? reason}) async {
+    await _storage.discontinueMedication(id, date: date, reason: reason);
+    state = _storage.getMedications();
+  }
+
+  Future<void> resume(String id) async {
+    await _storage.resumeMedication(id);
     state = _storage.getMedications();
   }
 

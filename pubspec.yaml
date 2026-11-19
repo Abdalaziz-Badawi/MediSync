@@ -2,7 +2,7 @@ name: medisync
 description: "A medication management and smart reminder app."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.6.0+16
 
 environment:
   sdk: ^3.12.2

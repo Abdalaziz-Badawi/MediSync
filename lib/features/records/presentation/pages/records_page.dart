@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:medisync/core/models/medication.dart';
@@ -1388,12 +1389,9 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
 
   void _generateAndDisplayReport(List<Medication> medications, dynamic profile) {
     final integrationService = ref.read(deviceIntegrationServiceProvider);
-    final reportContent = integrationService.generateContinuityReport(
-      medications: medications,
-      profile: profile,
-    );
-
     final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    var currentFormat = ReportExportFormat.text;
 
     showModalBottomSheet(
       context: context,
@@ -1403,83 +1401,164 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.85,
-          maxChildSize: 0.95,
-          minChildSize: 0.5,
-          builder: (dCtx, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (bottomSheetContext, setModalState) {
+            final reportContent = integrationService.generateContinuityReportFormatted(
+              medications: medications,
+              profile: profile,
+              format: currentFormat,
+            );
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.88,
+              maxChildSize: 0.95,
+              minChildSize: 0.5,
+              builder: (dCtx, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Continuity Clinical Record',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary(ctx),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Continuity Clinical Record',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary(ctx),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '100% On-Device • Multi-Format Export',
+                                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Format Selector Chips (Text, Markdown, HTML, XML, Doc, PDF)
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: ReportExportFormat.values.map((fmt) {
+                            final isSelected = currentFormat == fmt;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(fmt.label),
+                                selected: isSelected,
+                                selectedColor: primary.withValues(alpha: isDark ? 0.35 : 0.20),
+                                side: BorderSide(
+                                  color: isSelected ? primary : AppTheme.cardBorder(ctx),
+                                ),
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? primary : AppTheme.textSecondary(ctx),
+                                ),
+                                onSelected: (val) {
+                                  if (val) {
+                                    setModalState(() {
+                                      currentFormat = fmt;
+                                    });
+                                  }
+                                },
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Generated on-device with verified patient consent.',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx)),
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.cardBorder(ctx)),
-                      ),
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        child: SelectableText(
-                          reportContent,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            color: AppTheme.textPrimary(ctx),
-                            height: 1.4,
+                      const SizedBox(height: 12),
+
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.cardBorder(ctx)),
+                          ),
+                          child: SingleChildScrollView(
+                            controller: scrollController,
+                            child: SelectableText(
+                              reportContent,
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                color: AppTheme.textPrimary(ctx),
+                                height: 1.4,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Continuity report generated successfully on device.'),
+                      const SizedBox(height: 14),
+
+                      // Action Buttons: Share & Copy
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                          label: const Text('Done'),
-                        ),
+                              onPressed: () async {
+                                await Clipboard.setData(ClipboardData(text: reportContent));
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('✓ Copied ${currentFormat.label} report to clipboard!'),
+                                    backgroundColor: primary,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.copy_rounded, size: 16),
+                              label: const Text('Copy Text'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () async {
+                                final title = 'MediSync_Continuity_Report_${profile.name}${currentFormat.fileExtension}';
+                                await integrationService.shareReport(
+                                  text: reportContent,
+                                  title: title,
+                                  mimeType: currentFormat.mimeType,
+                                );
+                              },
+                              icon: const Icon(Icons.share_rounded, size: 16),
+                              label: Text('Share ${currentFormat.fileExtension}'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );

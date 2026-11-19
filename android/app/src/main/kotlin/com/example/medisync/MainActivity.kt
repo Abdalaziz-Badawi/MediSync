@@ -1,11 +1,14 @@
 package com.example.medisync
 
+import android.content.ContentValues
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.medisync/device_integration"
@@ -48,6 +51,79 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("INSERT_ERROR", e.message, null)
+                    }
+                }
+                "syncCalendarEvents" -> {
+                    try {
+                        val eventsList = call.argument<List<Map<String, Any>>>("events") ?: emptyList()
+                        if (checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(arrayOf(android.Manifest.permission.WRITE_CALENDAR), 101)
+                            result.success(mapOf("success" to false, "reason" to "PERMISSION_REQUESTED", "count" to 0))
+                            return@setMethodCallHandler
+                        }
+
+                        var calId: Long = 1
+                        val calCursor = contentResolver.query(
+                            CalendarContract.Calendars.CONTENT_URI,
+                            arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.IS_PRIMARY),
+                            null,
+                            null,
+                            null
+                        )
+                        calCursor?.use {
+                            val idIdx = it.getColumnIndex(CalendarContract.Calendars._ID)
+                            val primIdx = it.getColumnIndex(CalendarContract.Calendars.IS_PRIMARY)
+                            while (it.moveToNext()) {
+                                if (idIdx >= 0) {
+                                    calId = it.getLong(idIdx)
+                                    if (primIdx >= 0 && it.getInt(primIdx) == 1) {
+                                        break
+                                    }
+                                }
+                            }
+                        }
+
+                        var insertedCount = 0
+                        val tz = TimeZone.getDefault().id
+                        for (event in eventsList) {
+                            val title = (event["title"] as? String) ?: "Medication Reminder"
+                            val desc = (event["description"] as? String) ?: "MediSync Dose"
+                            val beginTime = (event["beginTime"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                            val endTime = (event["endTime"] as? Number)?.toLong() ?: (beginTime + 15 * 60 * 1000L)
+                            val rrule = event["rrule"] as? String
+
+                            val values = ContentValues().apply {
+                                put(CalendarContract.Events.CALENDAR_ID, calId)
+                                put(CalendarContract.Events.TITLE, title)
+                                put(CalendarContract.Events.DESCRIPTION, desc)
+                                put(CalendarContract.Events.DTSTART, beginTime)
+                                put(CalendarContract.Events.DTEND, endTime)
+                                put(CalendarContract.Events.EVENT_TIMEZONE, tz)
+                                put(CalendarContract.Events.EVENT_LOCATION, "MediSync Local")
+                                put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CONFIRMED)
+                                if (!rrule.isNullOrEmpty()) {
+                                    put(CalendarContract.Events.RRULE, rrule)
+                                }
+                            }
+
+                            val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+                            if (uri != null) {
+                                insertedCount++
+                                val eventId = uri.lastPathSegment?.toLongOrNull()
+                                if (eventId != null) {
+                                    val remValues = ContentValues().apply {
+                                        put(CalendarContract.Reminders.EVENT_ID, eventId)
+                                        put(CalendarContract.Reminders.MINUTES, 10)
+                                        put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+                                    }
+                                    contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, remValues)
+                                }
+                            }
+                        }
+
+                        result.success(mapOf("success" to true, "count" to insertedCount))
+                    } catch (e: Exception) {
+                        result.error("SYNC_ERROR", e.message, null)
                     }
                 }
                 "openHealthApp" -> {
@@ -112,6 +188,24 @@ class MainActivity : FlutterActivity() {
                         }
                     } catch (e: Exception) {
                         result.error("BROWSER_ERROR", e.message, null)
+                    }
+                }
+                "shareReport" -> {
+                    try {
+                        val text = call.argument<String>("text") ?: ""
+                        val title = call.argument<String>("title") ?: "MediSync Continuity Report"
+                        val mimeType = call.argument<String>("mimeType") ?: "text/plain"
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = mimeType
+                            putExtra(Intent.EXTRA_SUBJECT, title)
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        val chooser = Intent.createChooser(intent, "Share Continuity Report")
+                        chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(chooser)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SHARE_ERROR", e.message, null)
                     }
                 }
                 "getCalendarEvents" -> {

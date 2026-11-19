@@ -76,6 +76,32 @@ class FakeMedicationsNotifier extends StateNotifier<List<Medication>>
   }
 
   @override
+  Future<void> discontinue(String id, {DateTime? date, String? reason}) async {
+    state = state.map((m) {
+      if (m.id == id) {
+        return m.copyWith(
+          discontinuedDate: date ?? DateTime.now(),
+          discontinuationReason: reason ?? 'Discontinued',
+        );
+      }
+      return m;
+    }).toList();
+  }
+
+  @override
+  Future<void> resume(String id) async {
+    state = state.map((m) {
+      if (m.id == id) {
+        return m.copyWith(
+          discontinuedDate: null,
+          discontinuationReason: null,
+        );
+      }
+      return m;
+    }).toList();
+  }
+
+  @override
   Future<void> toggleDoseTaken(String medId, DateTime date, String time) async {}
 
   @override
@@ -183,7 +209,11 @@ void main() {
     expect(find.text('BEFORE'), findsOneWidget);
     expect(find.text('Take'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+    await tester.scrollUntilVisible(
+      find.text('Dose Timeline'),
+      600,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Dose Timeline'), findsOneWidget);
@@ -195,6 +225,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          profileNotifierProvider
+              .overrideWith((ref) => FakeProfileNotifier()),
           medicationsNotifierProvider
               .overrideWith((ref) => FakeMedicationsNotifier()),
         ],
@@ -276,6 +308,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          profileNotifierProvider
+              .overrideWith((ref) => FakeProfileNotifier()),
           medicationsNotifierProvider
               .overrideWith((ref) => FakeMedicationsNotifier()),
         ],
@@ -380,8 +414,13 @@ void main() {
         await tester.pumpAndSettle();
 
         // Lock icon and notice should now be visible
+        await tester.scrollUntilVisible(
+          find.byIcon(Icons.lock_clock_rounded),
+          500,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(find.byIcon(Icons.lock_clock_rounded), findsOneWidget);
-        expect(find.textContaining('Doses are locked and cannot be logged ahead of time.'), findsOneWidget);
+        expect(find.textContaining('locked and cannot be logged ahead of time.'), findsOneWidget);
       }
     }
   });

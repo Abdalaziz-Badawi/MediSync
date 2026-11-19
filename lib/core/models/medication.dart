@@ -62,6 +62,9 @@ class Medication {
   final List<String> inactiveExcipients;
   // Meal sync info (e.g., 'after_breakfast', 'after_lunch', 'after_dinner', 'with_meal')
   final String? mealCondition;
+  // Discontinuation: if stopped from a certain date forward, past logs are preserved but future schedules are inactive
+  final DateTime? discontinuedDate;
+  final String? discontinuationReason;
   // Tracks doses taken/delayed/missed: key is "yyyy-MM-dd", value is list of times (e.g. ["08:00", "20:00:delayed", "14:00:missed"])
   final Map<String, List<String>> doseLog;
 
@@ -89,10 +92,14 @@ class Medication {
     this.foodRestrictions = const [],
     this.inactiveExcipients = const [],
     this.mealCondition,
+    this.discontinuedDate,
+    this.discontinuationReason,
     this.doseLog = const {},
   });
 
   bool get isOngoing => durationDays == null;
+
+  bool get isDiscontinued => discontinuedDate != null;
 
   DateTime? get endDate {
     if (durationDays == null) return null;
@@ -100,8 +107,18 @@ class Medication {
   }
 
   bool isActiveOn(DateTime date) {
-    // 1. Start date check
+    // 0. Discontinuation check: if discontinued on a date, it is inactive for any day after that date
     final startOfCheck = DateTime(date.year, date.month, date.day);
+    if (discontinuedDate != null) {
+      final endOfDiscontinueDay = DateTime(
+        discontinuedDate!.year,
+        discontinuedDate!.month,
+        discontinuedDate!.day,
+      );
+      if (startOfCheck.isAfter(endOfDiscontinueDay)) return false;
+    }
+
+    // 1. Start date check
     final startOfStart = DateTime(startDate.year, startDate.month, startDate.day);
     if (startOfCheck.isBefore(startOfStart)) return false;
 
@@ -277,6 +294,8 @@ class Medication {
     List<String>? foodRestrictions,
     List<String>? inactiveExcipients,
     String? mealCondition,
+    DateTime? discontinuedDate,
+    String? discontinuationReason,
     Map<String, List<String>>? doseLog,
   }) {
     return Medication(
@@ -303,6 +322,8 @@ class Medication {
       foodRestrictions: foodRestrictions ?? this.foodRestrictions,
       inactiveExcipients: inactiveExcipients ?? this.inactiveExcipients,
       mealCondition: mealCondition ?? this.mealCondition,
+      discontinuedDate: discontinuedDate ?? this.discontinuedDate,
+      discontinuationReason: discontinuationReason ?? this.discontinuationReason,
       doseLog: doseLog ?? this.doseLog,
     );
   }
@@ -332,6 +353,8 @@ class Medication {
       'foodRestrictions': foodRestrictions,
       'inactiveExcipients': inactiveExcipients,
       'mealCondition': mealCondition,
+      'discontinuedDate': discontinuedDate?.toIso8601String(),
+      'discontinuationReason': discontinuationReason,
       'doseLog': doseLog,
     };
   }
@@ -396,6 +419,10 @@ class Medication {
               .toList() ??
           const [],
       mealCondition: json['mealCondition'] as String?,
+      discontinuedDate: json['discontinuedDate'] != null
+          ? DateTime.parse(json['discontinuedDate'] as String)
+          : null,
+      discontinuationReason: json['discontinuationReason'] as String?,
       doseLog: (json['doseLog'] as Map<dynamic, dynamic>?)?.map(
             (k, v) => MapEntry(
               k.toString(),

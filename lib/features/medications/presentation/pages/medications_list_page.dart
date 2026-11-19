@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
+import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
@@ -672,9 +674,14 @@ class _MedicationCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = AppTheme.isDark(context);
     final primary = Theme.of(context).colorScheme.primary;
-    final hasCriticalFlag = medication.safetyFlags.any(
-      (f) => f.severity == FlagSeverity.critical,
+    final profile = ref.watch(profileNotifierProvider);
+    final allergyFlags = SchedulerService.getAllergyConflictsForMedication(
+      medication: medication,
+      profile: profile,
     );
+    final hasAllergyConflict = allergyFlags.isNotEmpty;
+    final hasCriticalFlag = hasAllergyConflict ||
+        medication.safetyFlags.any((f) => f.severity == FlagSeverity.critical);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -788,15 +795,44 @@ class _MedicationCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          medication.scheduleFrequency ==
-                                  ScheduleFrequency.asNeeded
-                              ? '${medication.dosage} • As Needed (PRN)'
-                              : '${medication.dosage} • ${medication.timesPerDay}x daily',
+                          medication.isDiscontinued
+                              ? '${medication.dosage} • Discontinued (Records Saved)'
+                              : (medication.scheduleFrequency ==
+                                      ScheduleFrequency.asNeeded
+                                  ? '${medication.dosage} • As Needed (PRN)'
+                                  : '${medication.dosage} • ${medication.timesPerDay}x daily'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppTheme.textSecondary(context),
+                            color: medication.isDiscontinued
+                                ? AppTheme.warningAmber
+                                : AppTheme.textSecondary(context),
                           ),
                         ),
+                        if (medication.isDiscontinued) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warningAmber.withValues(alpha: isDark ? 0.22 : 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.pause_circle_filled_rounded, size: 12, color: AppTheme.warningAmber),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Discontinued on ${DateFormat('d MMM yyyy').format(medication.discontinuedDate!)}',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.warningAmber,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -813,23 +849,61 @@ class _MedicationCard extends ConsumerWidget {
                               ),
                             ),
                           );
+                        } else if (val == 'resume') {
+                          ref.read(medicationsNotifierProvider.notifier).resume(medication.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✓ Resumed "${medication.name}" active schedule!'),
+                              backgroundColor: primary,
+                            ),
+                          );
+                        } else if (val == 'discontinue') {
+                          _showDiscontinueOrDeleteDialog(context, ref);
                         } else if (val == 'delete') {
-                          _showDeleteConfirm(context, ref);
+                          _showDiscontinueOrDeleteDialog(context, ref);
                         }
                       },
                       itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit_rounded, size: 18),
-                              const SizedBox(width: 8),
-                              Text('Edit',
-                                  style: TextStyle(
-                                      color: AppTheme.textPrimary(context))),
-                            ],
+                        if (medication.isDiscontinued)
+                          PopupMenuItem(
+                            value: 'resume',
+                            child: Row(
+                              children: [
+                                Icon(Icons.play_circle_filled_rounded, size: 18, color: primary),
+                                const SizedBox(width: 8),
+                                Text('Resume Schedule',
+                                    style: TextStyle(
+                                        color: primary,
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          )
+                        else ...[
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.edit_rounded, size: 18),
+                                const SizedBox(width: 8),
+                                Text('Edit',
+                                    style: TextStyle(
+                                        color: AppTheme.textPrimary(context))),
+                              ],
+                            ),
                           ),
-                        ),
+                          PopupMenuItem(
+                            value: 'discontinue',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.pause_circle_outline_rounded,
+                                    size: 18, color: AppTheme.warningAmber),
+                                const SizedBox(width: 8),
+                                const Text('Discontinue from Today',
+                                    style: TextStyle(color: AppTheme.warningAmber)),
+                              ],
+                            ),
+                          ),
+                        ],
                         const PopupMenuItem(
                           value: 'delete',
                           child: Row(
@@ -837,7 +911,7 @@ class _MedicationCard extends ConsumerWidget {
                               Icon(Icons.delete_outline_rounded,
                                   color: AppTheme.dangerRed, size: 18),
                               SizedBox(width: 8),
-                              Text('Delete',
+                              Text('Delete / Manage',
                                   style: TextStyle(color: AppTheme.dangerRed)),
                             ],
                           ),
@@ -847,39 +921,66 @@ class _MedicationCard extends ConsumerWidget {
                 ],
               ),
 
-              // Allergy / Conflict notice
-              if (hasCriticalFlag) ...[
+              // Allergy Red Flag / Safety Conflict notice
+              if (hasAllergyConflict || hasCriticalFlag) ...[
                 const SizedBox(height: 10),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
                     color: isDark
                         ? const Color(0xFF450A0A)
                         : const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                      width: 1.3,
+                    ),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        color:
-                            isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                        size: 16,
+                      const Icon(
+                        Icons.flag_rounded,
+                        color: AppTheme.dangerRed,
+                        size: 18,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          medication.safetyFlags.first.message,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark
-                                ? AppTheme.dangerRedLight
-                                : AppTheme.dangerRed,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              hasAllergyConflict
+                                  ? 'RED FLAG: ALLERGY TRIGGER DETECTED'
+                                  : 'CRITICAL SAFETY ALERT',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isDark
+                                    ? AppTheme.dangerRedLight
+                                    : AppTheme.dangerRed,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              hasAllergyConflict
+                                  ? allergyFlags.first.message
+                                  : (medication.safetyFlags.isNotEmpty
+                                      ? medication.safetyFlags.first.message
+                                      : 'Severe safety conflict detected.'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? const Color(0xFFFECACA)
+                                    : const Color(0xFF7F1D1D),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -952,31 +1053,189 @@ class _MedicationCard extends ConsumerWidget {
     );
   }
 
-  void _showDeleteConfirm(BuildContext context, WidgetRef ref) {
-    showDialog(
+  void _showDiscontinueOrDeleteDialog(BuildContext context, WidgetRef ref) {
+    final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Medication?'),
-        content: Text(
-            'Are you sure you want to delete ${medication.name}? This will cancel all its scheduled notifications.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerRed),
-            onPressed: () {
-              ref
-                  .read(medicationsNotifierProvider.notifier)
-                  .remove(medication.id);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Manage "${medication.name}"',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(ctx),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Similar to calendar events, decide whether to stop this medication going forward while keeping your historical log, or purge it entirely:',
+                  style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary(ctx), height: 1.3),
+                ),
+                const SizedBox(height: 18),
+
+                // Option 1: Discontinue from Today Forward
+                InkWell(
+                  onTap: () {
+                    ref.read(medicationsNotifierProvider.notifier).discontinue(medication.id);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✓ Discontinued "${medication.name}". Past records are preserved in history.'),
+                        backgroundColor: AppTheme.warningAmber,
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningAmber.withValues(alpha: isDark ? 0.16 : 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppTheme.warningAmber.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warningAmber.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.pause_circle_filled_rounded, color: AppTheme.warningAmber, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Discontinue from Today Forward',
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textPrimary(ctx),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: primary.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Recommended',
+                                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: primary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Stops future scheduled doses & alarms. All past intake logs, taken doses, and adherence continuity records are safely preserved.',
+                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx), height: 1.3),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Option 2: Delete Entire Medication & All Records
+                InkWell(
+                  onTap: () {
+                    ref.read(medicationsNotifierProvider.notifier).remove(medication.id);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✓ Permanently deleted "${medication.name}".'),
+                        backgroundColor: AppTheme.dangerRed,
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.dangerRed.withValues(alpha: isDark ? 0.14 : 0.06),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppTheme.dangerRed.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.dangerRed.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.delete_forever_rounded, color: AppTheme.dangerRed, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Delete Completely & Purge Records',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.dangerRed,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Permanently deletes this medication and all historical dose records from memory. This action cannot be reversed.',
+                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx), height: 1.3),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -4,6 +4,45 @@ All notable developments, architectural transitions, clinical safety features, a
 
 ---
 
+## [1.6.0] - 2026-11-19
+
+### Added
+- **Calendar-Style Medication Discontinuation vs. Deletion Lifecycle**:
+  - Implemented calendar-like discontinuation: when removing or stopping a medication, users are presented with two distinct choices:
+    - *Discontinue from Today Forward (Recommended)*: Stops future scheduled doses and alarms starting today while preserving 100% of historical intake logs, taken dose entries, and adherence continuity records. Displays a `[Discontinued on DD MMM YYYY]` badge with an immediate "Resume Schedule" button.
+    - *Delete Entire Medication & History*: Permanently purges the medication and all historical dose records from on-device storage.
+  - Implemented across both `MedicationsListPage` and `MedicationDetailsPage`.
+- **Duolingo-Inspired Adherence Streak Gamification**:
+  - Added `StreakService` and `AdherenceStreakCard` on the home dashboard.
+  - Features an active flaming fire counter 🔥, 7-day flame trail (Monday through Sunday), automatic PRN / rest-day shields, and 5 milestone trophies (🥉 3-Day Spark, 🥈 7-Day Habit Builder, 🥇 14-Day Routine Master, 🏆 30-Day Health Champion, 👑 100-Day Centurion Legend).
+- **Native Phone Calendar Synchronization**:
+  - Native Kotlin method channel in `MainActivity.kt` inserting recurring reminder events (`CalendarContract.Events` and `Reminders`) into Google Calendar or Samsung Calendar at exact scheduled dose times.
+  - Added one-tap "Sync Schedule to Calendar" buttons in both the Home AppBar and Medication Details page.
+- **Strict Date Locking & Visual Greying on Dose Timeline**:
+  - Doses on future and past dates are visually dimmed (`Opacity: 0.62`), display `[🔒 Locked • Scheduled]` / `[🔒 Locked • History]` badges, and disable take actions with an informative lock toast.
+- **Prominent Red Flagging for Allergy Triggers**:
+  - Real-time cross-checking against `UserProfile.allergies` with high-visibility `🚩 RED FLAG: ALLERGY TRIGGER DETECTED` banners and glowing red borders across Medication Cards, Dose Timeline cards, Countdown Card, and Details Page.
+- **Multi-Format Clinical Continuity Report Export**:
+  - Export comprehensive patient intake and adherence records in 6 distinct formats: Plain Text (.txt), Markdown (.md), Web HTML (.html), Standard XML (.xml), Microsoft Word (.doc), and Printable PDF Layout (`@page { size: A4 }`).
+  - Added interactive format picker bottom sheet in `RecordsPage` with instant preview, one-tap clipboard copy, and native Android share sheet (`ACTION_SEND`).
+- **10 Curated Clinical Theme Palettes & Ambient Glow**:
+  - Expanded `AppPalette` to 10 clinical palettes (+Midnight Sapphire, +Forest & Sage, +Crimson & Amber, +Nordic Titanium).
+  - Added faint ambient glow shadow to AppBars (`Size.fromHeight(74)`).
+- **Animated Splash Screen & Healthcare Logo**:
+  - Redesigned `SplashScreen` with concentric ripple rings and an animated medical pulse cross logo.
+- **Developer & About Section on Profile Page**:
+  - Added collapsible card on `ProfilePage` introducing lead developer **Abdalaziz Adil Badawi Mohamed**, GitHub link (`https://github.com/Abdalaziz-Badawi/MediSync`), Terms of Use, Privacy Policy, and Architecture folder structure viewer.
+
+### Fixed
+- **Premature Single-Letter Allergy Warnings & Keyboard Dismissal**:
+  - Enforced a minimum 3-character threshold and 350ms input debouncing in `AddEditMedicationPage`, preventing 1-letter keystrokes (e.g. "P" for Panadol) from triggering false positives and dismissing the soft keyboard.
+- **Phantom Metformin Seeding**:
+  - Removed auto-seeding of sample Metformin in `StorageService.seedInitialDataIfEmpty()`, ensuring fresh or cleared databases remain completely clean.
+- **Modal Overflow at Scale 90%**:
+  - Wrapped `_showStatusPicker` and report export modals in `SingleChildScrollView` with `isScrollControlled: true` to prevent bottom overflows on compact displays and large font scales.
+
+---
+
 ## [1.5.0] - 2026-11-17
 
 ### Added

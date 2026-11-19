@@ -16,7 +16,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _pulseAnimation;
-  late Animation<Color?> _colorAnimation;
   late Animation<double> _expandAnimation;
 
   @override
@@ -26,8 +25,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
-
-    final palette = ref.read(paletteNotifierProvider);
 
     // Phase 1: Subtle breathing pulse (0.0 to 0.6 of duration)
     _pulseAnimation = TweenSequence<double>([
@@ -46,27 +43,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         weight: 40,
       ),
     ]).animate(_controller);
-
-    // Theme Palette Color Shift matching Today page & active palette
-    _colorAnimation = TweenSequence<Color?>([
-      TweenSequenceItem(
-        tween: ColorTween(
-          begin: palette.primary,
-          end: palette.secondary,
-        ),
-        weight: 60,
-      ),
-      TweenSequenceItem(
-        tween: ColorTween(
-          begin: palette.secondary,
-          end: palette.primary,
-        ),
-        weight: 40,
-      ),
-    ]).animate(CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.65, curve: Curves.easeInOut),
-    ));
 
     // Phase 2: Expanding circle to cover the screen (0.65 to 1.0)
     _expandAnimation = Tween<double>(begin: 1.0, end: 32.0).animate(
@@ -106,34 +82,67 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDark(context);
+    final palette = ref.watch(paletteNotifierProvider);
+    final primary = isDark ? palette.darkPrimary : palette.primary;
+    final secondary = isDark ? palette.darkSecondary : palette.secondary;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F7F6),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          final circleColor = _colorAnimation.value ?? AppTheme.primaryTeal;
           final pulse = _pulseAnimation.value;
           final expand = _expandAnimation.value;
-          final totalScale = pulse * expand;
+          final isExpanding = _controller.value >= 0.65;
+          final fadeOut = (1.0 - (_controller.value / 0.65)).clamp(0.0, 1.0);
 
           return Stack(
             alignment: Alignment.center,
             children: [
-              // Minimal expanding circle
-              Center(
-                child: Transform.scale(
-                  scale: totalScale,
+              // Concentric ripple rings
+              if (!isExpanding) ...[
+                Transform.scale(
+                  scale: pulse * 1.35,
                   child: Container(
-                    width: 90,
-                    height: 90,
+                    width: 140,
+                    height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: circleColor,
+                      color: primary.withValues(alpha: 0.08 * fadeOut),
+                    ),
+                  ),
+                ),
+                Transform.scale(
+                  scale: pulse * 1.18,
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: primary.withValues(alpha: 0.14 * fadeOut),
+                    ),
+                  ),
+                ),
+              ],
+
+              // Expanding transition circle
+              Center(
+                child: Transform.scale(
+                  scale: pulse * expand,
+                  child: Container(
+                    width: 86,
+                    height: 86,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [primary, secondary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: circleColor.withValues(alpha: 0.35),
-                          blurRadius: 28,
+                          color: primary.withValues(alpha: 0.38),
+                          blurRadius: 30,
                           offset: const Offset(0, 8),
                         ),
                       ],
@@ -142,43 +151,63 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 ),
               ),
 
-              // Foreground App Icon & Title (visible before expansion)
-              if (_controller.value < 0.7) ...[
+              // Foreground Emblem & Brand Typography (visible before expansion)
+              if (!isExpanding)
                 Center(
                   child: Opacity(
-                    opacity: (1.0 - (_controller.value / 0.7)).clamp(0.0, 1.0),
+                    opacity: fadeOut,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.medication_liquid_rounded,
-                          color: Colors.white,
-                          size: 42,
+                        // Healthcare Cross & Pulse Badge
+                        Container(
+                          width: 86,
+                          height: 86,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.health_and_safety_rounded,
+                              color: Colors.white,
+                              size: 46,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 22),
                         Text(
                           'MediSync',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 26,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                            letterSpacing: 1.4,
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Clinical Safety & Smart Routine',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textSecondary(context),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'CLINICAL SAFETY & ROUTINE INTELLIGENCE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                              color: primary,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ],
             ],
           );
         },
