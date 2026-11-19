@@ -18,21 +18,71 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
 
-  // Form state
+  // Personal Information
   final TextEditingController _nameController =
       TextEditingController(text: 'Abdalaziz');
+  final TextEditingController _ageController =
+      TextEditingController(text: '');
+  String _selectedGender = 'Male';
 
+  // Allergies & Health Triggers
   final List<String> _selectedAllergies = ['Penicillin'];
+  final List<String> _selectedTriggers = [];
+  final TextEditingController _customTriggerController = TextEditingController();
+
+  // Daily Routine Hours
   String _wakeTime = '07:30';
   String _breakfastTime = '08:30';
   String _lunchTime = '13:30';
   String _dinnerTime = '20:00';
   String _sleepTime = '23:00';
 
+  // Pre-configured chronic condition triggers
+  static const List<Map<String, dynamic>> _commonTriggers = [
+    {'title': 'Asthma / Reactive Airway', 'icon': Icons.air_rounded, 'tag': 'Asthma'},
+    {'title': 'High Blood Pressure', 'icon': Icons.favorite_border_rounded, 'tag': 'Hypertension'},
+    {'title': 'Type 1 or 2 Diabetes', 'icon': Icons.bloodtype_outlined, 'tag': 'Diabetes'},
+    {'title': 'Stomach Ulcer / GERD', 'icon': Icons.lunch_dining_outlined, 'tag': 'Peptic Ulcer'},
+    {'title': 'Kidney Impairment', 'icon': Icons.water_drop_outlined, 'tag': 'Kidney Disease'},
+    {'title': 'Liver Impairment', 'icon': Icons.health_and_safety_outlined, 'tag': 'Liver Disease'},
+    {'title': 'Heart Condition / Arrhythmia', 'icon': Icons.monitor_heart_outlined, 'tag': 'Heart Disease'},
+    {'title': 'Pregnancy / Breastfeeding', 'icon': Icons.child_care_rounded, 'tag': 'Pregnancy'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final profile = ref.read(profileNotifierProvider);
+    if (profile.name.isNotEmpty && profile.name != 'User') {
+      _nameController.text = profile.name;
+    }
+    if (profile.age != null) {
+      _ageController.text = profile.age.toString();
+    }
+    if (profile.gender != null) {
+      _selectedGender = profile.gender!;
+    }
+    if (profile.allergies.isNotEmpty) {
+      _selectedAllergies.clear();
+      _selectedAllergies.addAll(profile.allergies);
+    }
+    if (profile.chronicConditions.isNotEmpty) {
+      _selectedTriggers.clear();
+      _selectedTriggers.addAll(profile.chronicConditions);
+    }
+    _wakeTime = profile.wakeTime;
+    _breakfastTime = profile.breakfastTime;
+    _lunchTime = profile.lunchTime;
+    _dinnerTime = profile.dinnerTime;
+    _sleepTime = profile.sleepTime;
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
+    _ageController.dispose();
+    _customTriggerController.dispose();
     super.dispose();
   }
 
@@ -61,11 +111,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   void _finishSetup() async {
+    final ageInt = int.tryParse(_ageController.text.trim());
     final profile = UserProfile(
       name: _nameController.text.trim().isEmpty
           ? 'User'
           : _nameController.text.trim(),
+      age: ageInt,
+      gender: _selectedGender,
       allergies: _selectedAllergies,
+      chronicConditions: _selectedTriggers,
       wakeTime: _wakeTime,
       breakfastTime: _breakfastTime,
       lunchTime: _lunchTime,
@@ -84,7 +138,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   void _nextStep() {
-    if (_currentStep < 3) {
+    if (_currentStep < 4) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -113,6 +167,26 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     }
   }
 
+  void _toggleTrigger(String trigger) {
+    setState(() {
+      if (_selectedTriggers.contains(trigger)) {
+        _selectedTriggers.remove(trigger);
+      } else {
+        _selectedTriggers.add(trigger);
+      }
+    });
+  }
+
+  void _addCustomTrigger() {
+    final text = _customTriggerController.text.trim();
+    if (text.isNotEmpty && !_selectedTriggers.contains(text)) {
+      setState(() {
+        _selectedTriggers.add(text);
+        _customTriggerController.clear();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDark(context);
@@ -121,11 +195,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Progress Indicator
+            // Top Progress Bar (5 Steps)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Row(
-                children: List.generate(4, (index) {
+                children: List.generate(5, (index) {
                   return Expanded(
                     child: Container(
                       height: 5,
@@ -149,8 +223,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (i) => setState(() => _currentStep = i),
                 children: [
-                  _buildWelcomeStep(),
+                  _buildDemographicsStep(),
                   _buildAllergiesStep(),
+                  _buildHealthTriggersStep(),
                   _buildRoutineStep(),
                   _buildNotificationsStep(),
                 ],
@@ -185,7 +260,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     child: ElevatedButton(
                       onPressed: _nextStep,
                       child: Text(
-                        _currentStep == 3
+                        _currentStep == 4
                             ? 'Complete Setup & Open App'
                             : 'Continue',
                       ),
@@ -200,60 +275,64 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
-  Widget _buildWelcomeStep() {
+  // Step 1: Personal Demographics (Name, Age, Gender)
+  Widget _buildDemographicsStep() {
     final isDark = AppTheme.isDark(context);
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         Center(
           child: Container(
-            width: 80,
-            height: 80,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF134E4A) : const Color(0xFFE0F2F1),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(22),
             ),
             child: Icon(
-              Icons.medication_rounded,
+              Icons.person_rounded,
               color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-              size: 48,
+              size: 44,
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         Text(
           'Welcome to MediSync',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 26,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary(context),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
-          'Your smart, privacy-first medication organizer. Let’s configure your profile so the app can study your routine and schedule your doses safely.',
+          'Set up your personal profile and clinical safety profile. All data remains 100% on your device.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppTheme.textSecondary(context), height: 1.4),
+          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary(context), height: 1.4),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
+
+        // Privacy Guarantee Card
         Card(
           color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
                 Icon(
-                  Icons.shield_outlined,
+                  Icons.lock_outline_rounded,
                   color: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                  size: 28,
+                  size: 24,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '100% Offline & Private: No accounts required. All health data is encrypted and saved strictly on your local device.',
+                    '100% Offline & Private: Zero telemetry or accounts. Encrypted strictly in your device secure storage.',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -265,38 +344,84 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
+
+        // Name Field
         TextField(
           controller: _nameController,
           decoration: const InputDecoration(
             labelText: 'Your Name *',
-            hintText: 'Enter your name or preferred nickname',
-            prefixIcon: Icon(Icons.person_outline),
+            hintText: 'Enter your preferred name',
+            prefixIcon: Icon(Icons.badge_outlined),
           ),
+        ),
+        const SizedBox(height: 16),
+
+        // Age Field
+        TextField(
+          controller: _ageController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Age (Years)',
+            hintText: 'e.g. 28',
+            prefixIcon: Icon(Icons.cake_outlined),
+            helperText: 'Used for pediatric (<18) or geriatric (≥65) safe dosing thresholds',
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Biological Gender Selector
+        Text(
+          'Biological Gender',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          children: ['Male', 'Female', 'Other', 'Prefer not to say'].map((g) {
+            final isSelected = _selectedGender == g;
+            return ChoiceChip(
+              label: Text(g),
+              selected: isSelected,
+              selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+              labelStyle: TextStyle(
+                color: isSelected
+                    ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                    : AppTheme.textPrimary(context),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              onSelected: (_) => setState(() => _selectedGender = g),
+            );
+          }).toList(),
         ),
       ],
     );
   }
 
+  // Step 2: Allergies & Excipient Triggers
   Widget _buildAllergiesStep() {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       children: [
         const SizedBox(height: 10),
         Text(
-          'Known Drug & Excipient Allergies',
+          'Drug & Excipient Allergies',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary(context),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
-          'Cross-reference your profile against active pharmaceuticals, food excipients (lactose, peanut/sesame oil), inactive additives (gelatin, sulfites), and materials (latex).',
+          'Select substances you react to. MediSync will flag conflicting medications with bold red flags and audible alerts.',
           style: TextStyle(fontSize: 13, color: AppTheme.textSecondary(context), height: 1.4),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
         AllergySelectorWidget(
           selectedAllergies: _selectedAllergies,
           onToggleAllergy: _toggleAllergy,
@@ -306,6 +431,108 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
+  // Step 3: Chronic Health Conditions & Risk Triggers
+  Widget _buildHealthTriggersStep() {
+    final isDark = AppTheme.isDark(context);
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      children: [
+        const SizedBox(height: 10),
+        Text(
+          'Health Conditions & Triggers',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Indicate any underlying health conditions so MediSync can screen for dangerous drug-disease contraindications (e.g., NSAIDs with Ulcers, Beta-blockers with Asthma):',
+          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary(context), height: 1.4),
+        ),
+        const SizedBox(height: 18),
+
+        // Grid / List of Common Health Triggers
+        ..._commonTriggers.map((trig) {
+          final tag = trig['tag'] as String;
+          final title = trig['title'] as String;
+          final icon = trig['icon'] as IconData;
+          final isSelected = _selectedTriggers.contains(tag);
+
+          return Card(
+            elevation: isSelected ? 2 : 0,
+            color: isSelected
+                ? (isDark ? const Color(0xFF134E4A) : const Color(0xFFE0F2F1))
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(
+                color: isSelected
+                    ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                    : AppTheme.cardBorder(context),
+                width: isSelected ? 1.5 : 1,
+              ),
+            ),
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              leading: Icon(
+                icon,
+                color: isSelected
+                    ? (isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal)
+                    : AppTheme.textSecondary(context),
+              ),
+              title: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: AppTheme.textPrimary(context),
+                ),
+              ),
+              trailing: Checkbox(
+                value: isSelected,
+                activeColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                checkColor: isDark ? const Color(0xFF042F2E) : Colors.white,
+                onChanged: (_) => _toggleTrigger(tag),
+              ),
+              onTap: () => _toggleTrigger(tag),
+            ),
+          );
+        }),
+
+        const SizedBox(height: 14),
+        // Add Custom Trigger Field
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _customTriggerController,
+                decoration: const InputDecoration(
+                  labelText: 'Add Other Health Condition',
+                  hintText: 'e.g. Glaucoma, Gout',
+                  prefixIcon: Icon(Icons.add_circle_outline),
+                ),
+                onSubmitted: (_) => _addCustomTrigger(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _addCustomTrigger,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Step 4: Daily Routine Times
   Widget _buildRoutineStep() {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -432,6 +659,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
+  // Step 5: Notifications & Device Test
   Widget _buildNotificationsStep() {
     final isDark = AppTheme.isDark(context);
 
@@ -449,7 +677,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          'MediSync sends high-priority alerts with sound and vibration right on schedule, including pre-medication conditions (e.g. "Eat food first").',
+          'MediSync sends high-priority alerts with sound and vibration right on schedule, including mealtime directives (e.g. "Take after meal").',
           style: TextStyle(fontSize: 13, color: AppTheme.textSecondary(context), height: 1.4),
         ),
         const SizedBox(height: 30),
@@ -476,7 +704,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tap the button below to trigger an immediate test notification with sound on your phone.',
+                  'Tap the button below to test a high-priority alarm notification with sound on your phone.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: AppTheme.textSecondary(context)),
                 ),
@@ -490,7 +718,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Text(
-                              '🔔 Notification sent! Check your phone status bar.'),
+                              '🔔 Test alarm sent! Check your phone notification tray.'),
                           backgroundColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
                         ),
                       );

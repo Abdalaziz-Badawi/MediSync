@@ -18,6 +18,7 @@ class StreakMilestone {
     required this.accentColor,
   });
 
+  static const List<StreakMilestone> all = allMilestones;
   static const List<StreakMilestone> allMilestones = [
     StreakMilestone(
       id: 'rookie_3',
@@ -52,12 +53,28 @@ class StreakMilestone {
       accentColor: Color(0xFF06B6D4), // Cyan
     ),
     StreakMilestone(
+      id: 'persistence_60',
+      requiredDays: 60,
+      title: '60-Day Diamond Persistence',
+      badgeEmoji: '💎',
+      description: 'Two full months of unbreakable commitment to your well-being.',
+      accentColor: Color(0xFF6366F1), // Indigo
+    ),
+    StreakMilestone(
       id: 'legend_100',
       requiredDays: 100,
       title: '100-Day Centurion Legend',
       badgeEmoji: '👑',
       description: 'Centurion status. Medication adherence is now second nature.',
       accentColor: Color(0xFF8B5CF6), // Royal Violet
+    ),
+    StreakMilestone(
+      id: 'titan_365',
+      requiredDays: 365,
+      title: '365-Day Immortal Titan',
+      badgeEmoji: '🌟',
+      description: 'A full consecutive year of uncompromising health dedication!',
+      accentColor: Color(0xFFF59E0B), // Golden Amber
     ),
   ];
 }

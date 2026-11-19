@@ -6,6 +6,7 @@ import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/features/homeboard/presentation/widgets/adherence_streak_card.dart';
 
 class RecordsPage extends ConsumerStatefulWidget {
   const RecordsPage({super.key});
@@ -141,6 +142,10 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
+          // 0. Duolingo-style Adherence Streak Card (Main Streak Widget)
+          AdherenceStreakCard(medications: medications),
+          const SizedBox(height: 18),
+
           // 1. Overall Continuity Dashboard (Top Hero Card)
           _buildOverallContinuityDashboard(medications, isDark, primary, secondary),
           const SizedBox(height: 18),

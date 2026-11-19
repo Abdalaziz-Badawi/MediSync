@@ -8,6 +8,7 @@ import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
 import 'package:medisync/features/medications/presentation/pages/medication_details_page.dart';
+import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 
 class MedicationsListPage extends ConsumerStatefulWidget {
   const MedicationsListPage({super.key});
@@ -836,11 +837,30 @@ class _MedicationCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (!isSelectionMode)
+                  if (!isSelectionMode) ...[
+                    IconButton(
+                      icon: Icon(
+                        Icons.info_outline_rounded,
+                        size: 20,
+                        color: primary,
+                      ),
+                      tooltip: 'Clinical Guide & Cautions',
+                      onPressed: () => showMedicationClinicalGuide(
+                        context,
+                        medicationName: medication.name,
+                        medication: medication,
+                      ),
+                    ),
                     PopupMenuButton<String>(
                       color: AppTheme.cardColor(context),
                       onSelected: (val) {
-                        if (val == 'edit') {
+                        if (val == 'clinical_guide') {
+                          showMedicationClinicalGuide(
+                            context,
+                            medicationName: medication.name,
+                            medication: medication,
+                          );
+                        } else if (val == 'edit') {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -864,6 +884,18 @@ class _MedicationCard extends ConsumerWidget {
                         }
                       },
                       itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'clinical_guide',
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline_rounded, size: 18, color: primary),
+                              const SizedBox(width: 8),
+                              Text('Clinical Guide & Cautions',
+                                  style: TextStyle(
+                                      color: AppTheme.textPrimary(context))),
+                            ],
+                          ),
+                        ),
                         if (medication.isDiscontinued)
                           PopupMenuItem(
                             value: 'resume',
@@ -918,6 +950,7 @@ class _MedicationCard extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ],
                 ],
               ),
 

@@ -6,6 +6,7 @@ import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
+import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/allergy_selector_widget.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
@@ -18,8 +19,10 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late TextEditingController _nameController;
+  late TextEditingController _ageController;
 
   late String _avatarId;
+  late String _gender;
   late String _wakeTime;
   late String _sleepTime;
   late String _breakfastTime;
@@ -27,6 +30,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late String _dinnerTime;
   late bool _useHealthApp;
   late List<String> _allergies;
+  late List<String> _chronicConditions;
 
   // Privacy Shield / Sneak Peek Prevention
   bool _isPrivacyMaskActive = false;
@@ -54,7 +58,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
+    _ageController = TextEditingController(text: profile.age?.toString() ?? '');
     _avatarId = profile.avatarId;
+    _gender = profile.gender ?? 'Male';
 
     _wakeTime = profile.wakeTime;
     _sleepTime = profile.sleepTime;
@@ -63,17 +69,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _dinnerTime = profile.dinnerTime;
     _useHealthApp = profile.useHealthApp;
     _allergies = List.from(profile.allergies);
+    _chronicConditions = List.from(profile.chronicConditions);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
   bool get _hasChanges {
     final profile = ref.read(profileNotifierProvider);
     if (_nameController.text.trim() != profile.name) return true;
+    if (_ageController.text.trim() != (profile.age?.toString() ?? '')) return true;
+    if (_gender != (profile.gender ?? 'Male')) return true;
     if (_avatarId != profile.avatarId) return true;
     if (_wakeTime != profile.wakeTime) return true;
     if (_sleepTime != profile.sleepTime) return true;
@@ -84,6 +94,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (_allergies.length != profile.allergies.length) return true;
     for (final a in _allergies) {
       if (!profile.allergies.contains(a)) return true;
+    }
+    if (_chronicConditions.length != profile.chronicConditions.length) return true;
+    for (final c in _chronicConditions) {
+      if (!profile.chronicConditions.contains(c)) return true;
     }
     return false;
   }
@@ -150,12 +164,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   void _saveProfile() {
+    final ageInt = int.tryParse(_ageController.text.trim());
     final updated = UserProfile(
       name: _nameController.text.trim().isEmpty
           ? 'User'
           : _nameController.text.trim(),
       avatarId: _avatarId,
+      age: ageInt,
+      gender: _gender,
       allergies: _allergies,
+      chronicConditions: _chronicConditions,
       wakeTime: _wakeTime,
       sleepTime: _sleepTime,
       breakfastTime: _breakfastTime,
@@ -336,7 +354,50 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _ageController,
+                keyboardType: TextInputType.number,
+                style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                decoration: InputDecoration(
+                  labelText: 'Age (Years)',
+                  prefixIcon: Icon(
+                    Icons.cake_outlined,
+                    color: Theme.of(ctx).colorScheme.primary,
+                  ),
+                  helperText: 'Used for pediatric (<18) or geriatric (≥65) safe dosing thresholds',
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Biological Gender',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary(ctx),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: ['Male', 'Female', 'Other', 'Prefer not to say'].map((g) {
+                  final isSel = _gender == g;
+                  return ChoiceChip(
+                    label: Text(g),
+                    selected: isSel,
+                    selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                    labelStyle: TextStyle(
+                      color: isSel
+                          ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                          : AppTheme.textPrimary(ctx),
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (_) => setState(() => _gender = g),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
@@ -353,7 +414,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _openAvatarPicker();
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                  );
+                },
+                icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
+                label: const Text('Relaunch Full Setup Wizard'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -512,12 +589,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               const SizedBox(height: 3),
                               Row(
                                 children: [
-                                  Icon(
-                                    Icons.security_rounded,
-                                    size: 13,
-                                    color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
-                                  ),
-                                  const SizedBox(width: 4),
+                                  if (_ageController.text.isNotEmpty) ...[
+                                    Text(
+                                      '${_ageController.text} yrs • $_gender',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    const Text('•', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                    const SizedBox(width: 5),
+                                  ],
                                   Expanded(
                                     child: Text(
                                       _isProfileCardExpanded
@@ -595,6 +679,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ],
 
                 if (_isProfileCardExpanded) ...[
+                  Divider(height: 1, color: AppTheme.cardBorder(context)),
+
+                  // Demographics Bar & Relaunch Setup Wizard Action
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(Icons.cake_outlined, size: 14),
+                              label: Text(_ageController.text.isNotEmpty ? '${_ageController.text} yrs' : 'Age: Not set',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              backgroundColor: AppTheme.surfaceVariant(context),
+                            ),
+                            Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(Icons.person_outline_rounded, size: 14),
+                              label: Text(_gender, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              backgroundColor: AppTheme.surfaceVariant(context),
+                            ),
+                          ],
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                            );
+                          },
+                          icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
+                          label: const Text('Setup Wizard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
                   Divider(height: 1, color: AppTheme.cardBorder(context)),
 
                   // --- INTEGRATED DAILY ROUTINE & MEAL SCHEDULE ---

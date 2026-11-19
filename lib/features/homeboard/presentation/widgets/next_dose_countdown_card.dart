@@ -7,6 +7,7 @@ import 'package:medisync/core/models/side_effect.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 
 class UpcomingDose {
   final Medication medication;
@@ -311,13 +312,32 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          med.name,
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary(context),
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                med.name,
+                                style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () => showMedicationClinicalGuide(
+                                context,
+                                medicationName: med.name,
+                                medication: med,
+                              ),
+                              child: Icon(
+                                Icons.info_outline_rounded,
+                                size: 18,
+                                color: primary,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(

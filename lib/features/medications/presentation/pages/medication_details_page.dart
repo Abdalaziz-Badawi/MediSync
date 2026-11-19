@@ -8,6 +8,7 @@ import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
+import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 
 class MedicationDetailsPage extends ConsumerWidget {
   final Medication medication;
@@ -40,6 +41,19 @@ class MedicationDetailsPage extends ConsumerWidget {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Clinical Information & Cautions',
+            icon: Icon(
+              Icons.info_outline_rounded,
+              color: primary,
+              size: 22,
+            ),
+            onPressed: () => showMedicationClinicalGuide(
+              context,
+              medicationName: currentMed.name,
+              medication: currentMed,
+            ),
+          ),
           IconButton(
             tooltip: 'Sync to Phone Calendar',
             icon: Icon(
@@ -301,6 +315,70 @@ class MedicationDetailsPage extends ConsumerWidget {
               ),
             const SizedBox(height: 16),
           ],
+
+          // Clinical Drug Guide & Safety Cautions Card
+          InkWell(
+            onTap: () => showMedicationClinicalGuide(
+              context,
+              medicationName: currentMed.name,
+              medication: currentMed,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF10B981) : const Color(0xFF86EFAC),
+                  width: 1.2,
+                ),
+                boxShadow: AppTheme.softShadow(context),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.menu_book_rounded,
+                      color: Color(0xFF059669),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Clinical Drug Guide & Cautions',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'View safety level, crushing warnings, ingredients & emergency signs',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
           // Weekly Active Days
           Card(

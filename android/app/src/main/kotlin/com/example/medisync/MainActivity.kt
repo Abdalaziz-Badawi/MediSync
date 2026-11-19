@@ -56,33 +56,70 @@ class MainActivity : FlutterActivity() {
                 "syncCalendarEvents" -> {
                     try {
                         val eventsList = call.argument<List<Map<String, Any>>>("events") ?: emptyList()
-                        if (checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
-                            requestPermissions(arrayOf(android.Manifest.permission.WRITE_CALENDAR), 101)
+                        val hasWrite = checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                        val hasRead = checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                        if (!hasWrite || !hasRead) {
+                            requestPermissions(arrayOf(
+                                android.Manifest.permission.WRITE_CALENDAR,
+                                android.Manifest.permission.READ_CALENDAR
+                            ), 101)
                             result.success(mapOf("success" to false, "reason" to "PERMISSION_REQUESTED", "count" to 0))
                             return@setMethodCallHandler
                         }
 
-                        var calId: Long = 1
-                        val calCursor = contentResolver.query(
-                            CalendarContract.Calendars.CONTENT_URI,
-                            arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.IS_PRIMARY),
-                            null,
-                            null,
-                            null
-                        )
-                        calCursor?.use {
-                            val idIdx = it.getColumnIndex(CalendarContract.Calendars._ID)
-                            val primIdx = it.getColumnIndex(CalendarContract.Calendars.IS_PRIMARY)
-                            while (it.moveToNext()) {
-                                if (idIdx >= 0) {
-                                    calId = it.getLong(idIdx)
-                                    if (primIdx >= 0 && it.getInt(primIdx) == 1) {
-                                        break
+                        var calId: Long? = null
+                        try {
+                            val calCursor = contentResolver.query(
+                                CalendarContract.Calendars.CONTENT_URI,
+                                arrayOf(
+                                    CalendarContract.Calendars._ID,
+                                    CalendarContract.Calendars.IS_PRIMARY,
+                                    CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL
+                                ),
+                                null,
+                                null,
+                                null
+                            )
+                            calCursor?.use {
+                                val idIdx = it.getColumnIndex(CalendarContract.Calendars._ID)
+                                val primIdx = it.getColumnIndex(CalendarContract.Calendars.IS_PRIMARY)
+                                val accessIdx = it.getColumnIndex(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL)
+                                while (it.moveToNext()) {
+                                    if (idIdx >= 0) {
+                                        val id = it.getLong(idIdx)
+                                        val isPrimary = primIdx >= 0 && it.getInt(primIdx) == 1
+                                        val access = if (accessIdx >= 0) it.getInt(accessIdx) else 0
+                                        if (access >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR || access == 0) {
+                                            if (calId == null || isPrimary) {
+                                                calId = id
+                                                if (isPrimary) break
+                                            }
+                                        }
                                     }
                                 }
                             }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MediSync", "Error querying calendars: ${e.message}")
                         }
 
+                        if (calId == null) {
+                            try {
+                                val fallbackCursor = contentResolver.query(
+                                    CalendarContract.Calendars.CONTENT_URI,
+                                    arrayOf(CalendarContract.Calendars._ID),
+                                    null, null, null
+                                )
+                                fallbackCursor?.use {
+                                    if (it.moveToFirst()) {
+                                        calId = it.getLong(0)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MediSync", "Error in fallback calendar query: ${e.message}")
+                            }
+                        }
+
+                        val targetCalId = calId ?: 1L
                         var insertedCount = 0
                         val tz = TimeZone.getDefault().id
                         for (event in eventsList) {
@@ -93,7 +130,7 @@ class MainActivity : FlutterActivity() {
                             val rrule = event["rrule"] as? String
 
                             val values = ContentValues().apply {
-                                put(CalendarContract.Events.CALENDAR_ID, calId)
+                                put(CalendarContract.Events.CALENDAR_ID, targetCalId)
                                 put(CalendarContract.Events.TITLE, title)
                                 put(CalendarContract.Events.DESCRIPTION, desc)
                                 put(CalendarContract.Events.DTSTART, beginTime)
@@ -101,23 +138,28 @@ class MainActivity : FlutterActivity() {
                                 put(CalendarContract.Events.EVENT_TIMEZONE, tz)
                                 put(CalendarContract.Events.EVENT_LOCATION, "MediSync Local")
                                 put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CONFIRMED)
+                                put(CalendarContract.Events.HAS_ALARM, 1)
                                 if (!rrule.isNullOrEmpty()) {
                                     put(CalendarContract.Events.RRULE, rrule)
                                 }
                             }
 
-                            val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
-                            if (uri != null) {
-                                insertedCount++
-                                val eventId = uri.lastPathSegment?.toLongOrNull()
-                                if (eventId != null) {
-                                    val remValues = ContentValues().apply {
-                                        put(CalendarContract.Reminders.EVENT_ID, eventId)
-                                        put(CalendarContract.Reminders.MINUTES, 10)
-                                        put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+                            try {
+                                val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+                                if (uri != null) {
+                                    insertedCount++
+                                    val eventId = uri.lastPathSegment?.toLongOrNull()
+                                    if (eventId != null) {
+                                        val remValues = ContentValues().apply {
+                                            put(CalendarContract.Reminders.EVENT_ID, eventId)
+                                            put(CalendarContract.Reminders.MINUTES, 10)
+                                            put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+                                        }
+                                        contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, remValues)
                                     }
-                                    contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, remValues)
                                 }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MediSync", "Failed inserting event $title: ${e.message}")
                             }
                         }
 

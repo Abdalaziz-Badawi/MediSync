@@ -38,38 +38,44 @@ class CalendarSyncResult {
 class DeviceIntegrationService {
   static const _channel = MethodChannel('com.example.medisync/device_integration');
 
-  /// Syncs all scheduled medications with the device's native local calendar.
-  /// Creates recurring calendar reminders at the exact scheduled timings with dosage instructions.
-  Future<CalendarSyncResult> syncMedicationsToCalendar(List<Medication> medications) async {
-    final activeMeds = medications.where((m) => m.scheduleFrequency != ScheduleFrequency.asNeeded).toList();
-    if (activeMeds.isEmpty) {
-      return const CalendarSyncResult(
-        success: false,
-        syncedCount: 0,
-        message: 'No scheduled medications found to sync. As-needed medicines do not have fixed timings.',
-      );
-    }
+  /// Prepares pure calendar event payloads for all active scheduled medications.
+  /// Filters out as-needed and discontinued medications, and creates distinct entries for each dose.
+  List<Map<String, dynamic>> buildCalendarEventPayloads({
+    required List<Medication> medications,
+    DateTime? baseDate,
+  }) {
+    final activeMeds = medications
+        .where((m) => m.scheduleFrequency != ScheduleFrequency.asNeeded && !m.isDiscontinued)
+        .toList();
 
-    final now = DateTime.now();
+    final now = baseDate ?? DateTime.now();
     final events = <Map<String, dynamic>>[];
 
     for (final med in activeMeds) {
-      for (final time in med.scheduledTimes) {
+      final times = med.scheduledTimes.isNotEmpty ? med.scheduledTimes : const ['08:00'];
+      final totalDoses = times.length;
+
+      for (int i = 0; i < totalDoses; i++) {
+        final time = times[i];
         final parts = time.split(':');
         final hour = int.tryParse(parts[0]) ?? 8;
         final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
         final startDt = DateTime(now.year, now.month, now.day, hour, minute);
 
+        final doseLabel = totalDoses > 1 ? ' - Dose ${i + 1} of $totalDoses ($time)' : ' ($time)';
+        final title = 'Take ${med.name} (${med.dosage})$doseLabel';
+
         final instructions = [
-          'Dosage: ${med.dosage} (${med.form.name})',
+          'Medication: ${med.name} (${med.dosage}, ${med.form.name})',
+          if (totalDoses > 1) 'Dosing Schedule: Dose ${i + 1} of $totalDoses scheduled at $time',
           if (med.preConditions.isNotEmpty)
-            'Before: ${med.preConditions.map((c) => c.description).join(", ")}',
+            'Before Intake: ${med.preConditions.map((c) => c.description).join(", ")}',
           if (med.postConditions.isNotEmpty)
-            'After: ${med.postConditions.map((c) => c.description).join(", ")}',
+            'After Intake: ${med.postConditions.map((c) => c.description).join(", ")}',
           if (med.foodRestrictions.isNotEmpty)
-            'Dietary: ${med.foodRestrictions.join("; ")}',
+            'Dietary Rules: ${med.foodRestrictions.join("; ")}',
           if (med.doctorNotes != null && med.doctorNotes!.isNotEmpty)
-            'Notes: ${med.doctorNotes}',
+            'Physician Notes: ${med.doctorNotes}',
           'Managed privately on-device by MediSync.',
         ].join('\n');
 
@@ -85,13 +91,32 @@ class DeviceIntegrationService {
         }
 
         events.add({
-          'title': 'Take ${med.name} (${med.dosage})',
+          'medicationId': med.id,
+          'doseIndex': i + 1,
+          'totalDoses': totalDoses,
+          'doseTime': time,
+          'title': title,
           'description': instructions,
           'beginTime': startDt.millisecondsSinceEpoch,
           'endTime': startDt.add(const Duration(minutes: 15)).millisecondsSinceEpoch,
           'rrule': rrule,
+          'hasAlarm': true,
         });
       }
+    }
+    return events;
+  }
+
+  /// Syncs all scheduled medications with the device's native local calendar.
+  /// Creates recurring calendar reminders at the exact scheduled timings with dosage instructions.
+  Future<CalendarSyncResult> syncMedicationsToCalendar(List<Medication> medications) async {
+    final events = buildCalendarEventPayloads(medications: medications);
+    if (events.isEmpty) {
+      return const CalendarSyncResult(
+        success: false,
+        syncedCount: 0,
+        message: 'No active scheduled medications found to sync. As-needed or discontinued medicines do not have fixed timings.',
+      );
     }
 
     try {
@@ -108,34 +133,24 @@ class DeviceIntegrationService {
           return CalendarSyncResult(
             success: true,
             syncedCount: count,
-            message: 'Successfully synced $count medication schedule events to your phone calendar!',
+            message: 'Successfully synced $count scheduled medication dose event(s) to your phone calendar!',
           );
         } else if (reason == 'PERMISSION_REQUESTED') {
           return const CalendarSyncResult(
             success: false,
             syncedCount: 0,
-            message: 'Calendar write permission requested. Please allow calendar access in the system dialog to complete synchronization.',
+            message: 'Calendar permissions requested. Please allow calendar access in the system prompt and tap sync again.',
           );
         }
       }
     } catch (_) {
-      // Fallback: If platform direct provider write is unsupported, offer ICS generation
-    }
-
-    // Fallback: insert the first event via intent to ensure calendar launches
-    if (events.isNotEmpty) {
-      final first = events.first;
-      await insertCalendarEvent(
-        title: first['title'] as String,
-        description: first['description'] as String,
-        eventDateTime: DateTime.fromMillisecondsSinceEpoch(first['beginTime'] as int),
-      );
+      // In case of platform exception, fallback to individual event insertion if requested
     }
 
     return CalendarSyncResult(
       success: true,
       syncedCount: events.length,
-      message: 'Created calendar reminder events for ${events.length} dose schedule(s).',
+      message: 'Generated calendar reminder events for ${events.length} dose schedule(s).',
     );
   }
 

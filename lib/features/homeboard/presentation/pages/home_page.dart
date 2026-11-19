@@ -8,10 +8,11 @@ import 'package:medisync/core/models/safety_flag.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
+import 'package:medisync/core/services/streak_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/adherence_streak_card.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
+import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 
 class DoseItem {
   final Medication medication;
@@ -107,10 +108,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     selectedDayDoses.sort((a, b) => a.time.compareTo(b.time));
 
     final totalDoses = selectedDayDoses.length;
-    final takenCount = selectedDayDoses.where((d) => d.isTaken).length;
+    final takenCount = selectedDayDoses.where((d) => d.status == DoseStatus.taken || d.status == DoseStatus.takenEarly).length;
+    final delayedCount = selectedDayDoses.where((d) => d.status == DoseStatus.delayed).length;
+    final missedCount = selectedDayDoses.where((d) => d.status == DoseStatus.missed).length;
     final notNeededCount = selectedDayDoses.where((d) => d.status == DoseStatus.notNeeded).length;
     final pendingCount = selectedDayDoses.where((d) => d.status == DoseStatus.pending).length;
-    final progress = totalDoses == 0 ? 0.0 : ((takenCount + notNeededCount) / totalDoses).clamp(0.0, 1.0);
+    final progress = totalDoses == 0 ? 0.0 : ((takenCount + delayedCount + notNeededCount) / totalDoses).clamp(0.0, 1.0);
+    final nextPendingDose = selectedDayDoses.where((d) => d.status == DoseStatus.pending).firstOrNull;
 
     // Check for critical safety flags
     final criticalFlags = <SafetyFlag>[];
@@ -291,19 +295,17 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 16),
           ],
 
-          // 3.5 Duolingo-style Adherence Streak Card
-          AdherenceStreakCard(medications: medications),
-          const SizedBox(height: 16),
-
-          // 4. Daily Adherence Progress Card (Layered Gradient & Glow)
-          Container(
+          // 4. Daily Adherence Progress Card (Dynamic Enhanced Height & Breakdown)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(22),
               gradient: LinearGradient(
                 colors: isDark
                     ? [
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
-                        Theme.of(context).colorScheme.secondary.withValues(alpha: 0.75),
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.90),
+                        Theme.of(context).colorScheme.secondary.withValues(alpha: 0.80),
                       ]
                     : [
                         Theme.of(context).colorScheme.primary,
@@ -317,20 +319,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                 opacity: 0.28,
               ),
             ),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      formattedScheduleTitle,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        const Icon(Icons.event_note_rounded, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          formattedScheduleTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -339,13 +347,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        notNeededCount > 0
-                            ? '$takenCount Taken • $notNeededCount Not Needed'
-                            : '$takenCount / $totalDoses Taken',
+                        '${(progress * 100).toInt()}% Done',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -363,17 +369,60 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+
+                // Dynamic Status Breakdown Chips
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _buildAdherencePill('✓ $takenCount Taken', Colors.white.withValues(alpha: 0.22)),
+                    if (pendingCount > 0)
+                      _buildAdherencePill('⏳ $pendingCount Due', Colors.white.withValues(alpha: 0.22)),
+                    if (delayedCount > 0)
+                      _buildAdherencePill('⏱ $delayedCount Delayed', const Color(0xFFFDE68A).withValues(alpha: 0.35)),
+                    if (missedCount > 0)
+                      _buildAdherencePill('⚠ $missedCount Missed', const Color(0xFFFCA5A5).withValues(alpha: 0.35)),
+                    if (notNeededCount > 0)
+                      _buildAdherencePill('🛡 $notNeededCount As-Needed', Colors.white.withValues(alpha: 0.22)),
+                  ],
+                ),
                 const SizedBox(height: 12),
-                Text(
-                  totalDoses == 0
-                      ? 'No medications scheduled for this day.'
-                      : pendingCount == 0
-                          ? 'Outstanding! All scheduled doses completed.'
-                          : '$pendingCount dose(s) remaining for this day.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.94),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+
+                // Next Due Preview or Completion Message
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        totalDoses == 0
+                            ? Icons.bedtime_rounded
+                            : (pendingCount == 0
+                                ? Icons.stars_rounded
+                                : Icons.alarm_rounded),
+                        color: Colors.white.withValues(alpha: 0.95),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          totalDoses == 0
+                              ? 'No medications scheduled for this day.'
+                              : (pendingCount == 0
+                                  ? 'Outstanding! All scheduled doses completed.'
+                                  : 'Next Due: ${nextPendingDose!.medication.name} (${nextPendingDose.medication.dosage}) at ${nextPendingDose.time}'),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -528,101 +577,392 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  // 7-Day Weekly Schedule Selector with Active Day Dot Indicators
+  Widget _buildAdherencePill(String label, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // 7-Day Weekly Schedule Selector with Active Day Dot Indicators & Merged Streak Badge
   Widget _buildWeeklyDaySelector(
     List<DateTime> weekDates,
     DateTime now,
     List<Medication> medications,
   ) {
     final isDark = AppTheme.isDark(context);
+    final activeColor = Theme.of(context).colorScheme.primary;
+    final streakData = StreakService.computeStreakData(medications);
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       decoration: BoxDecoration(
         color: AppTheme.cardColor(context),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppTheme.cardBorder(context)),
-        boxShadow: AppTheme.softShadow(context),
+        boxShadow: [
+          ...AppTheme.softShadow(context),
+          if (streakData.currentStreak > 0)
+            ...AppTheme.glowShadow(const Color(0xFFFF9100), opacity: 0.14),
+        ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: weekDates.map((date) {
-          final isSelected = _isSameDay(date, _selectedDate);
-          final isTodayDate = _isSameDay(date, now);
-          final dayAbbr = DateFormat('E').format(date).substring(0, 3);
-          final dayNum = date.day.toString();
-
-          // Check if any medication is active on this day
-          final hasMeds = medications.any((m) => m.isActiveOn(date));
-          final activeColor = Theme.of(context).colorScheme.primary;
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDate = date;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 240),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? activeColor
-                    : (isTodayDate
-                        ? activeColor.withValues(alpha: isDark ? 0.25 : 0.15)
-                        : Colors.transparent),
-                borderRadius: BorderRadius.circular(16),
-                border: isTodayDate && !isSelected
-                    ? Border.all(color: activeColor, width: 1.5)
-                    : null,
-                boxShadow: isSelected
-                    ? AppTheme.glowShadow(activeColor, opacity: 0.3)
-                    : null,
-              ),
-              child: Column(
+      child: Column(
+        children: [
+          // Top Row: Month / Quick Jump + Merged Glowing Streak Pill
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    dayAbbr,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? Colors.white
-                          : AppTheme.textSecondary(context),
-                    ),
+                  Icon(
+                    Icons.calendar_month_rounded,
+                    size: 16,
+                    color: activeColor,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 6),
                   Text(
-                    dayNum,
+                    DateFormat('MMMM yyyy').format(_selectedDate),
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? Colors.white
-                          : AppTheme.textPrimary(context),
+                      color: AppTheme.textPrimary(context),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  // Dose Indicator Dot
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: hasMeds
-                          ? (isSelected
+                  if (!_isSameDay(_selectedDate, now)) ...[
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => setState(() => _selectedDate = now),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: activeColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Today',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: activeColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+
+              // Glowing Animated Flame Streak Chip
+              GestureDetector(
+                onTap: () => _showStreakMilestonesSheet(context, streakData),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF5722), Color(0xFFFF9800)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF5722).withValues(alpha: isDark ? 0.45 : 0.35),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 5),
+                      Text(
+                        streakData.currentStreak > 0
+                            ? '${streakData.currentStreak} Day${streakData.currentStreak == 1 ? '' : 's'}'
+                            : '0 Days',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: AppTheme.cardBorder(context).withValues(alpha: 0.7)),
+          const SizedBox(height: 10),
+
+          // 7-Day Day Selector
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: weekDates.map((date) {
+              final isSelected = _isSameDay(date, _selectedDate);
+              final isTodayDate = _isSameDay(date, now);
+              final dayAbbr = DateFormat('E').format(date).substring(0, 3);
+              final dayNum = date.day.toString();
+
+              // Check if any medication is active on this day
+              final hasMeds = medications.any((m) => m.isActiveOn(date));
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDate = date;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? activeColor
+                        : (isTodayDate
+                            ? activeColor.withValues(alpha: isDark ? 0.25 : 0.15)
+                            : Colors.transparent),
+                    borderRadius: BorderRadius.circular(16),
+                    border: isTodayDate && !isSelected
+                        ? Border.all(color: activeColor, width: 1.5)
+                        : null,
+                    boxShadow: isSelected
+                        ? AppTheme.glowShadow(activeColor, opacity: 0.3)
+                        : null,
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        dayAbbr,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
                               ? Colors.white
-                              : Theme.of(context).colorScheme.secondary)
-                          : Colors.transparent,
+                              : AppTheme.textSecondary(context),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dayNum,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? Colors.white
+                              : AppTheme.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Dose Indicator Dot
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: hasMeds
+                              ? (isSelected
+                                  ? Colors.white
+                                  : Theme.of(context).colorScheme.secondary)
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStreakMilestonesSheet(BuildContext context, StreakData streakData) {
+    final isDark = AppTheme.isDark(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 24,
+                offset: const Offset(0, -6),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF5722), Color(0xFFFF9800)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Text('🔥', style: TextStyle(fontSize: 26)),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${streakData.currentStreak} Day Adherence Streak!',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(ctx),
+                              ),
+                            ),
+                            Text(
+                              streakData.currentStreak > 0
+                                  ? 'Consistency protects your health. Keep going!'
+                                  : 'Take your doses on time today to ignite your streak.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppTheme.textSecondary(ctx),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (streakData.nextMilestone != null) ...[
+                    Builder(builder: (ctx) {
+                      final daysAway = (streakData.nextMilestone!.requiredDays - streakData.currentStreak).clamp(0, 999);
+                      return Text(
+                        'Next Milestone: ${streakData.nextMilestone!.title} ($daysAway days away)',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(ctx),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: streakData.progressToNext,
+                        minHeight: 8,
+                        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF9800)),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+                  Text(
+                    'Milestone Trophies',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(ctx),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: StreakMilestone.all.map((m) {
+                      final isUnlocked = streakData.unlockedMilestones.any((u) => u.id == m.id);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isUnlocked
+                              ? const Color(0xFFFFF7ED)
+                              : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isUnlocked ? const Color(0xFFFF9800) : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(m.badgeEmoji, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${m.title} (${m.requiredDays}d)',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: isUnlocked ? FontWeight.bold : FontWeight.normal,
+                                color: isUnlocked
+                                    ? const Color(0xFFC2410C)
+                                    : AppTheme.textMuted(ctx),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Back to Today Schedule', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
               ),
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1281,6 +1621,21 @@ class _DoseTimelineCard extends ConsumerWidget {
                     ),
                   ),
 
+                  // Clinical Information & Cautions Button
+                  IconButton(
+                    tooltip: 'Clinical Information & Cautions',
+                    icon: Icon(
+                      Icons.info_outline_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                    onPressed: () => showMedicationClinicalGuide(
+                      context,
+                      medicationName: med.name,
+                      medication: med,
+                    ),
+                  ),
+
                   // Interactive Status Button
                   IconButton(
                     tooltip: isLocked ? 'Locked for this date' : 'Tap to change intake status',
@@ -1327,12 +1682,16 @@ class _DoseTimelineCard extends ConsumerWidget {
         children: [
           Icon(icon, size: 12, color: tagColor),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: tagColor,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: tagColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
