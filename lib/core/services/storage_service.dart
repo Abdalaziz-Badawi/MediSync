@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/medication.dart';
 import '../models/user_profile.dart';
+import 'notification_service.dart';
 
 const String kSettingsBoxName = 'settings_box';
 const String kMedicationsBoxName = 'medications_box';
@@ -170,27 +171,61 @@ final profileNotifierProvider =
 // Medications Notifier
 class MedicationsNotifier extends StateNotifier<List<Medication>> {
   final StorageService _storage;
+  final NotificationService? _notifications;
 
-  MedicationsNotifier(this._storage) : super(_storage.getMedications());
+  MedicationsNotifier(this._storage, [this._notifications])
+      : super(_storage.getMedications());
 
   Future<void> addOrUpdate(Medication med) async {
     await _storage.saveMedication(med);
     state = _storage.getMedications();
+    final notifs = _notifications;
+    if (notifs != null) {
+      if (med.isDiscontinued) {
+        await notifs.cancelMedicationReminders(med);
+      } else {
+        await notifs.scheduleMedicationReminders(med);
+      }
+    }
   }
 
   Future<void> remove(String id) async {
+    final med = state.cast<Medication?>().firstWhere(
+          (m) => m?.id == id,
+          orElse: () => null,
+        );
     await _storage.deleteMedication(id);
     state = _storage.getMedications();
+    final notifs = _notifications;
+    if (notifs != null && med != null) {
+      await notifs.cancelMedicationReminders(med);
+    }
   }
 
   Future<void> discontinue(String id, {DateTime? date, String? reason}) async {
+    final med = state.cast<Medication?>().firstWhere(
+          (m) => m?.id == id,
+          orElse: () => null,
+        );
     await _storage.discontinueMedication(id, date: date, reason: reason);
     state = _storage.getMedications();
+    final notifs = _notifications;
+    if (notifs != null && med != null) {
+      await notifs.cancelMedicationReminders(med);
+    }
   }
 
   Future<void> resume(String id) async {
     await _storage.resumeMedication(id);
     state = _storage.getMedications();
+    final resumedMed = state.cast<Medication?>().firstWhere(
+          (m) => m?.id == id,
+          orElse: () => null,
+        );
+    final notifs = _notifications;
+    if (notifs != null && resumedMed != null) {
+      await notifs.scheduleMedicationReminders(resumedMed);
+    }
   }
 
   Future<void> setDoseStatus(
@@ -237,7 +272,8 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
     }
 
     final updatedMed = med.copyWith(doseLog: updatedMap);
-    await addOrUpdate(updatedMed);
+    await _storage.saveMedication(updatedMed);
+    state = _storage.getMedications();
   }
 
   Future<void> toggleDoseTaken(String medId, DateTime date, String time) async {
@@ -255,5 +291,9 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
 final medicationsNotifierProvider =
     StateNotifierProvider<MedicationsNotifier, List<Medication>>((ref) {
   final storage = ref.watch(storageServiceProvider);
-  return MedicationsNotifier(storage);
+  NotificationService? notifications;
+  try {
+    notifications = ref.watch(notificationServiceProvider);
+  } catch (_) {}
+  return MedicationsNotifier(storage, notifications);
 });

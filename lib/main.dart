@@ -15,6 +15,10 @@ Future<void> main() async {
   final notificationService = NotificationService();
   await notificationService.init();
 
+  // Synchronize all existing active medication alarms with AlarmManager
+  final existingMedications = storageService.getMedications();
+  await notificationService.syncAllMedicationReminders(existingMedications);
+
   runApp(
     ProviderScope(
       overrides: [

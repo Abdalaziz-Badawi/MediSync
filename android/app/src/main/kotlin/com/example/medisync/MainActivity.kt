@@ -389,6 +389,13 @@ class MainActivity : FlutterActivity() {
                         result.success(emptyList<Map<String, Any?>>())
                     }
                 }
+                "getTimeZone" -> {
+                    try {
+                        result.success(TimeZone.getDefault().id)
+                    } catch (e: Exception) {
+                        result.success("UTC")
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

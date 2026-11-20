@@ -125,11 +125,103 @@ class FakeNotificationService implements NotificationService {
 
   @override
   Future<void> cancelAll() async {}
+
+  @override
+  Future<void> scheduleWeeklyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfWeek,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
+  Future<void> scheduleMedicationReminders(Medication med) async {}
+
+  @override
+  Future<void> cancelMedicationReminders(Medication med) async {}
+
+  @override
+  Future<void> syncAllMedicationReminders(List<Medication> medications) async {}
 }
 
 class FakeStorageService implements StorageService {
+  final List<Medication> _meds = [];
+
   @override
   bool isSetupCompleted() => true;
+
+  @override
+  List<Medication> getMedications() => List.unmodifiable(_meds);
+
+  @override
+  Medication? getMedication(String id) {
+    try {
+      return _meds.firstWhere((m) => m.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> saveMedication(Medication medication) async {
+    _meds.removeWhere((m) => m.id == medication.id);
+    _meds.add(medication);
+  }
+
+  @override
+  Future<void> deleteMedication(String id) async {
+    _meds.removeWhere((m) => m.id == id);
+  }
+
+  @override
+  Future<void> discontinueMedication(String id, {DateTime? date, String? reason}) async {
+    final med = getMedication(id);
+    if (med != null) {
+      final updated = med.copyWith(
+        discontinuedDate: date ?? DateTime.now(),
+        discontinuationReason: reason ?? 'Discontinued',
+      );
+      await saveMedication(updated);
+    }
+  }
+
+  @override
+  Future<void> resumeMedication(String id) async {
+    final med = getMedication(id);
+    if (med != null) {
+      final updated = Medication(
+        id: med.id,
+        name: med.name,
+        dosage: med.dosage,
+        form: med.form,
+        timesPerDay: med.timesPerDay,
+        scheduledTimes: med.scheduledTimes,
+        durationDays: med.durationDays,
+        startDate: med.startDate,
+        preConditions: med.preConditions,
+        postConditions: med.postConditions,
+        sideEffects: med.sideEffects,
+        refillsRemaining: med.refillsRemaining,
+        refillAlertThreshold: med.refillAlertThreshold,
+        doctorNotes: med.doctorNotes,
+        isVerified: med.isVerified,
+        safetyFlags: med.safetyFlags,
+        daysOfWeek: med.daysOfWeek,
+        scheduleFrequency: med.scheduleFrequency,
+        intervalDays: med.intervalDays,
+        monthlyDays: med.monthlyDays,
+        foodRestrictions: med.foodRestrictions,
+        inactiveExcipients: med.inactiveExcipients,
+        mealCondition: med.mealCondition,
+        discontinuedDate: null,
+        discontinuationReason: null,
+        doseLog: med.doseLog,
+      );
+      await saveMedication(updated);
+    }
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -634,5 +726,108 @@ void main() {
       expect(decoration.boxShadow, isNotEmpty);
       expect(decoration.boxShadow!.length, greaterThanOrEqualTo(2));
     });
+
+    test('Notification ID generation is deterministic and valid 31-bit positive int', () {
+      final id1 = NotificationService.getNotificationId('med_123', '08:00');
+      final id2 = NotificationService.getNotificationId('med_123', '08:00');
+      final id3 = NotificationService.getNotificationId('med_123', '20:00');
+      final idOtherMed = NotificationService.getNotificationId('med_999', '08:00');
+
+      expect(id1, equals(id2));
+      expect(id1, isNot(equals(id3)));
+      expect(id1, isNot(equals(idOtherMed)));
+      expect(id1, greaterThanOrEqualTo(0));
+      expect(id1, lessThanOrEqualTo(0x7FFFFFFF));
+
+      // Weekday IDs
+      final idMonday = NotificationService.getNotificationIdWithDay('med_123', '08:00', 1);
+      final idFriday = NotificationService.getNotificationIdWithDay('med_123', '08:00', 5);
+      expect(idMonday, isNot(equals(idFriday)));
+      expect(idMonday, greaterThanOrEqualTo(0));
+    });
+
+    test('MedicationsNotifier automatically triggers NotificationService on add, discontinue, resume, and remove', () async {
+      final fakeStorage = FakeStorageService();
+      final recordingNotifications = RecordingNotificationService();
+      final notifier = MedicationsNotifier(fakeStorage, recordingNotifications);
+
+      final med = Medication(
+        id: 'test_med_auto',
+        name: 'Amoxicillin',
+        dosage: '500mg',
+        form: MedicationForm.capsule,
+        timesPerDay: 2,
+        scheduledTimes: ['08:00', '20:00'],
+        startDate: DateTime.now(),
+      );
+
+      // Add
+      await notifier.addOrUpdate(med);
+      expect(recordingNotifications.scheduledMedIds, contains('test_med_auto'));
+
+      // Discontinue
+      await notifier.discontinue('test_med_auto');
+      expect(recordingNotifications.cancelledMedIds, contains('test_med_auto'));
+
+      // Resume
+      await notifier.resume('test_med_auto');
+      expect(recordingNotifications.scheduledMedIds.where((id) => id == 'test_med_auto').length, equals(2));
+
+      // Remove
+      await notifier.remove('test_med_auto');
+      expect(recordingNotifications.cancelledMedIds.where((id) => id == 'test_med_auto').length, equals(2));
+    });
+
+    test('syncAllMedicationReminders schedules only active medications', () async {
+      final recordingNotifications = RecordingNotificationService();
+      final activeMed = Medication(
+        id: 'active_1',
+        name: 'Panadol',
+        dosage: '500mg',
+        timesPerDay: 1,
+        scheduledTimes: ['08:00'],
+        startDate: DateTime.now(),
+      );
+      final discontinuedMed = Medication(
+        id: 'discontinued_2',
+        name: 'Old Med',
+        dosage: '10mg',
+        timesPerDay: 1,
+        scheduledTimes: ['09:00'],
+        startDate: DateTime.now(),
+        discontinuedDate: DateTime.now().subtract(const Duration(days: 2)),
+      );
+
+      await recordingNotifications.syncAllMedicationReminders([activeMed, discontinuedMed]);
+      expect(recordingNotifications.syncCalled, isTrue);
+      expect(recordingNotifications.scheduledMedIds, contains('active_1'));
+      expect(recordingNotifications.scheduledMedIds, isNot(contains('discontinued_2')));
+    });
   });
+}
+
+class RecordingNotificationService extends FakeNotificationService {
+  final List<String> scheduledMedIds = [];
+  final List<String> cancelledMedIds = [];
+  bool syncCalled = false;
+
+  @override
+  Future<void> scheduleMedicationReminders(Medication med) async {
+    scheduledMedIds.add(med.id);
+  }
+
+  @override
+  Future<void> cancelMedicationReminders(Medication med) async {
+    cancelledMedIds.add(med.id);
+  }
+
+  @override
+  Future<void> syncAllMedicationReminders(List<Medication> medications) async {
+    syncCalled = true;
+    for (final med in medications) {
+      if (!med.isDiscontinued) {
+        scheduledMedIds.add(med.id);
+      }
+    }
+  }
 }

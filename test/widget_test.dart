@@ -182,6 +182,25 @@ class FakeNotificationService implements NotificationService {
 
   @override
   Future<void> cancelAll() async {}
+
+  @override
+  Future<void> scheduleWeeklyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfWeek,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
+  Future<void> scheduleMedicationReminders(Medication med) async {}
+
+  @override
+  Future<void> cancelMedicationReminders(Medication med) async {}
+
+  @override
+  Future<void> syncAllMedicationReminders(List<Medication> medications) async {}
 }
 
 void main() {
