@@ -13,6 +13,7 @@ import 'package:medisync/features/homeboard/presentation/widgets/next_dose_count
 import 'package:medisync/features/profile/presentation/pages/profile_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
 import 'package:medisync/features/records/presentation/pages/records_page.dart';
+import 'package:medisync/features/splash/presentation/pages/splash_screen.dart';
 
 class FakeProfileNotifier extends StateNotifier<UserProfile>
     implements ProfileNotifier {
@@ -124,6 +125,14 @@ class FakeNotificationService implements NotificationService {
 
   @override
   Future<void> cancelAll() async {}
+}
+
+class FakeStorageService implements StorageService {
+  @override
+  bool isSetupCompleted() => true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 // Test mock notifier for medications
@@ -586,6 +595,44 @@ void main() {
         debugPrint('RECORDSPAGE OVERFLOW ERROR: $err3');
       }
       expect(err3, isNull);
+    });
+
+    testWidgets('SplashScreen renders only the logo in the center of the glowing circle with zero text', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            storageServiceProvider.overrideWithValue(FakeStorageService()),
+          ],
+          child: const MaterialApp(
+            home: SplashScreen(),
+          ),
+        ),
+      );
+
+      // Verify that the healthcare logo icon is rendered
+      expect(find.byIcon(Icons.health_and_safety_rounded), findsOneWidget);
+
+      // Verify that NO text widgets ("MediSync" or subtitle) are rendered on the splash screen
+      expect(find.text('MediSync'), findsNothing);
+      expect(find.text('CLINICAL SAFETY & ROUTINE INTELLIGENCE'), findsNothing);
+
+      // Verify the logo icon is inside a circular Container with BoxShadow glow
+      final iconFinder = find.byIcon(Icons.health_and_safety_rounded);
+      expect(iconFinder, findsOneWidget);
+
+      final containerFinder = find.ancestor(
+        of: iconFinder,
+        matching: find.byType(Container),
+      );
+      expect(containerFinder, findsWidgets);
+
+      final container = tester.widget<Container>(containerFinder.first);
+      final decoration = container.decoration as BoxDecoration?;
+      expect(decoration, isNotNull);
+      expect(decoration!.shape, equals(BoxShape.circle));
+      expect(decoration.boxShadow, isNotEmpty);
+      expect(decoration.boxShadow!.length, greaterThanOrEqualTo(2));
     });
   });
 }

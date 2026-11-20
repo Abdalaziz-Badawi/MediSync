@@ -99,39 +99,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           return Stack(
             alignment: Alignment.center,
             children: [
-              // Concentric ripple rings
+              // Concentric ripple glow rings
               if (!isExpanding) ...[
                 Transform.scale(
-                  scale: pulse * 1.35,
+                  scale: pulse * 1.40,
                   child: Container(
                     width: 140,
                     height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: primary.withValues(alpha: 0.08 * fadeOut),
+                      color: primary.withValues(alpha: 0.10 * fadeOut),
                     ),
                   ),
                 ),
                 Transform.scale(
-                  scale: pulse * 1.18,
+                  scale: pulse * 1.20,
                   child: Container(
-                    width: 110,
-                    height: 110,
+                    width: 115,
+                    height: 115,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: primary.withValues(alpha: 0.14 * fadeOut),
+                      color: primary.withValues(alpha: 0.18 * fadeOut),
                     ),
                   ),
                 ),
               ],
 
-              // Expanding transition circle
+              // Glowing Circle with Centered Logo Icon
               Center(
                 child: Transform.scale(
                   scale: pulse * expand,
                   child: Container(
-                    width: 86,
-                    height: 86,
+                    width: 96,
+                    height: 96,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
@@ -140,74 +140,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
+                        // Intense inner core glow
                         BoxShadow(
-                          color: primary.withValues(alpha: 0.38),
-                          blurRadius: 30,
-                          offset: const Offset(0, 8),
+                          color: primary.withValues(alpha: isDark ? 0.65 : 0.45),
+                          blurRadius: 36,
+                          spreadRadius: 4,
+                        ),
+                        // Outer soft ambient glow aura
+                        BoxShadow(
+                          color: secondary.withValues(alpha: isDark ? 0.40 : 0.28),
+                          blurRadius: 64,
+                          spreadRadius: 10,
                         ),
                       ],
+                    ),
+                    child: Center(
+                      child: Opacity(
+                        opacity: isExpanding ? fadeOut : 1.0,
+                        child: const Icon(
+                          Icons.health_and_safety_rounded,
+                          color: Colors.white,
+                          size: 50,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-
-              // Foreground Emblem & Brand Typography (visible before expansion)
-              if (!isExpanding)
-                Center(
-                  child: Opacity(
-                    opacity: fadeOut,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Healthcare Cross & Pulse Badge
-                        Container(
-                          width: 86,
-                          height: 86,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.health_and_safety_rounded,
-                              color: Colors.white,
-                              size: 46,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 22),
-                        Text(
-                          'MediSync',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.4,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: primary.withValues(alpha: isDark ? 0.20 : 0.10),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: primary.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            'CLINICAL SAFETY & ROUTINE INTELLIGENCE',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                              color: primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           );
         },
