@@ -1,0 +1,297 @@
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:medisync/core/models/medication.dart';
+import 'package:medisync/core/models/user_profile.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
+import 'package:medisync/core/services/storage_service.dart';
+import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
+import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
+
+class FakeProfileNotifier extends StateNotifier<UserProfile>
+    implements ProfileNotifier {
+  FakeProfileNotifier()
+      : super(
+          const UserProfile(
+            name: 'Sarah Connor',
+            allergies: ['Penicillin'],
+            wakeTime: '07:00',
+            sleepTime: '23:00',
+          ),
+        );
+
+  @override
+  Future<void> updateProfile(UserProfile newProfile) async {
+    state = newProfile;
+  }
+}
+
+// Test mock notifier for medications
+class MockMedicationsNotifier extends StateNotifier<List<Medication>>
+    implements MedicationsNotifier {
+  DoseStatus? lastRecordedStatus;
+  String? lastRecordedTime;
+
+  MockMedicationsNotifier(super.state);
+
+  @override
+  Future<void> addOrUpdate(Medication med) async {}
+
+  @override
+  Future<void> remove(String id) async {}
+
+  @override
+  Future<void> discontinue(String id, {DateTime? date, String? reason}) async {}
+
+  @override
+  Future<void> resume(String id) async {}
+
+  @override
+  Future<void> toggleDoseTaken(String medId, DateTime date, String time) async {}
+
+  @override
+  Future<void> setDoseStatus(
+    String medId,
+    DateTime date,
+    String time,
+    DoseStatus status,
+  ) async {
+    lastRecordedStatus = status;
+    lastRecordedTime = time;
+  }
+}
+
+void main() {
+  group('v1.6.2 Demographics, Emergency Card & Dose Intake Options Tests', () {
+    test('Dynamic Age Calculation from Date of Birth (DoB)', () {
+      final now = DateTime.now();
+
+      // Case 1: Birthday already occurred earlier this year
+      // Born on January 1, 30 years ago
+      final pastBirthday = DateTime(now.year - 30, 1, 1);
+      final profilePast = UserProfile(
+        name: 'Alex Mercer',
+        dateOfBirth: pastBirthday,
+      );
+      expect(profilePast.age, equals(30));
+
+      // Case 2: Birthday has not yet occurred this year
+      // Born on December 31, 30 years ago
+      final futureBirthday = DateTime(now.year - 30, 12, 31);
+      final profileFuture = UserProfile(
+        name: 'Dana Mercer',
+        dateOfBirth: futureBirthday,
+      );
+      if (now.month == 12 && now.day == 31) {
+        expect(profileFuture.age, equals(30));
+      } else {
+        expect(profileFuture.age, equals(29));
+      }
+
+      // Case 3: Leap Year birthday (Feb 29)
+      final leapYearBirthday = DateTime(2000, 2, 29);
+      final profileLeap = UserProfile(
+        name: 'Leap Year Child',
+        dateOfBirth: leapYearBirthday,
+      );
+      expect(profileLeap.age, isNotNull);
+      expect(profileLeap.age, greaterThanOrEqualTo(24));
+
+      // Case 4: Future date of birth clamped to 0
+      final unbornProfile = UserProfile(
+        name: 'Future Person',
+        dateOfBirth: now.add(const Duration(days: 30)),
+      );
+      expect(unbornProfile.age, equals(0));
+
+      // Case 5: Legacy explicit age fallback when dateOfBirth is null
+      final legacyProfile = UserProfile.fromJson({
+        'name': 'Legacy User',
+        'age': 45,
+        'gender': 'Male',
+      });
+      expect(legacyProfile.dateOfBirth, isNull);
+      expect(legacyProfile.age, equals(45));
+    });
+
+    test('Health ID and Blood Type Demographics serialization & copyWith', () {
+      expect(UserProfile.standardBloodTypes, containsAll([
+        'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
+      ]));
+
+      final dob = DateTime(1988, 7, 24);
+      final profile = UserProfile(
+        name: 'Dr. John Watson',
+        dateOfBirth: dob,
+        healthId: 'MRN-784-2026-X',
+        bloodType: 'O-',
+        gender: 'Male',
+        allergies: ['Penicillin', 'Sulfa'],
+        chronicConditions: ['Hypertension'],
+      );
+
+      final json = profile.toJson();
+      expect(json['healthId'], equals('MRN-784-2026-X'));
+      expect(json['bloodType'], equals('O-'));
+      expect(json['dateOfBirth'], equals(dob.toIso8601String()));
+
+      // Restoration from JSON
+      final restored = UserProfile.fromJson(json);
+      expect(restored.name, equals('Dr. John Watson'));
+      expect(restored.healthId, equals('MRN-784-2026-X'));
+      expect(restored.bloodType, equals('O-'));
+      expect(restored.dateOfBirth, equals(dob));
+      expect(restored.allergies, contains('Penicillin'));
+
+      // copyWith updates
+      final updated = restored.copyWith(
+        healthId: 'NHS-992182',
+        bloodType: 'AB+',
+      );
+      expect(updated.healthId, equals('NHS-992182'));
+      expect(updated.bloodType, equals('AB+'));
+      expect(updated.dateOfBirth, equals(dob));
+    });
+
+    test('DeviceIntegrationService headless Emergency Card Byte Renderer', () async {
+      final profile = UserProfile(
+        name: 'Sarah Connor',
+        dateOfBirth: DateTime(1985, 4, 12),
+        healthId: 'ID-TERMINATOR-800',
+        bloodType: 'O-',
+        gender: 'Female',
+        allergies: ['Amoxicillin', 'Latex'],
+      );
+
+      final med = Medication(
+        id: 'med-card-1',
+        name: 'Metformin',
+        dosage: '850 mg',
+        timesPerDay: 2,
+        scheduledTimes: ['08:00', '20:00'],
+        startDate: DateTime.now(),
+      );
+
+      final service = DeviceIntegrationService();
+      final Uint8List bytes = await service.renderEmergencyCardBytes(
+        profile: profile,
+        medications: [med],
+      );
+
+      expect(bytes.isNotEmpty, isTrue);
+      // Verify PNG magic header signature [137, 80, 78, 71, 13, 10, 26, 10]
+      expect(bytes[0], equals(0x89));
+      expect(bytes[1], equals(0x50)); // 'P'
+      expect(bytes[2], equals(0x4E)); // 'N'
+      expect(bytes[3], equals(0x47)); // 'G'
+
+      // Check ReportExportFormat.jpg
+      expect(ReportExportFormat.jpg.mimeType, equals('image/jpeg'));
+      expect(ReportExportFormat.jpg.fileExtension, equals('.jpg'));
+      expect(ReportExportFormat.jpg.label, contains('Emergency ID Card'));
+    });
+
+    testWidgets('EmergencyHealthCardWidget renders demographic badges, allergies alert and medications', (tester) async {
+      final profile = UserProfile(
+        name: 'Bruce Wayne',
+        dateOfBirth: DateTime(1980, 5, 27),
+        healthId: 'GOTHAM-001',
+        bloodType: 'O+',
+        gender: 'Male',
+        allergies: ['Penicillin', 'Peanuts'],
+      );
+
+      final meds = [
+        Medication(
+          id: 'b-1',
+          name: 'Aspirin Cardio',
+          dosage: '81 mg',
+          timesPerDay: 1,
+          scheduledTimes: ['08:00'],
+          startDate: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: EmergencyHealthCardWidget(
+                profile: profile,
+                medications: meds,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('BRUCE WAYNE'), findsOneWidget);
+      expect(find.text('EMERGENCY MEDICAL ID'), findsOneWidget);
+      expect(find.text('ID: GOTHAM-001'), findsOneWidget);
+      expect(find.text('BLOOD: O+'), findsOneWidget);
+      expect(find.text('CRITICAL ALLERGIES & CONTRAINDICATIONS:'), findsOneWidget);
+      expect(find.textContaining('Penicillin'), findsOneWidget);
+      expect(find.textContaining('Peanuts'), findsOneWidget);
+      expect(find.text('ACTIVE MEDICATIONS'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) => w is RichText && w.text.toPlainText().contains('Aspirin Cardio')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('NextDoseCountdownCard Take button opens interactive clinical intake options bottom sheet', (tester) async {
+      final med = Medication(
+        id: 'med-take-opt',
+        name: 'Panadol Extra',
+        dosage: '500 mg',
+        timesPerDay: 1,
+        scheduledTimes: ['23:59'],
+        startDate: DateTime.now(),
+      );
+
+      final mockNotifier = MockMedicationsNotifier([med]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => mockNotifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: NextDoseCountdownCard(
+                medications: [med],
+                onMarkTaken: (id, date, time) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify Next Dose Countdown Card is present
+      expect(find.text('Panadol Extra'), findsOneWidget);
+      expect(find.text('Take'), findsOneWidget);
+
+      // Tap "Take" button to open intake options sheet
+      await tester.tap(find.text('Take'));
+      await tester.pumpAndSettle();
+
+      // Verify that all clinical options are present in the bottom sheet
+      expect(find.text('Record Intake: Panadol Extra'), findsOneWidget);
+      expect(find.text('Taken On Time'), findsOneWidget);
+      expect(find.text('Taken Early'), findsOneWidget);
+      expect(find.text('Taken Delayed / Late'), findsOneWidget);
+      expect(find.text('Mark as Missed'), findsOneWidget);
+      expect(find.text('Not Needed Today (Skip)'), findsOneWidget);
+
+      // Tap "Taken Early" option
+      await tester.tap(find.text('Taken Early'));
+      await tester.pumpAndSettle();
+
+      // Verify mock recorded status
+      expect(mockNotifier.lastRecordedStatus, equals(DoseStatus.takenEarly));
+      expect(mockNotifier.lastRecordedTime, equals('23:59'));
+    });
+  });
+}

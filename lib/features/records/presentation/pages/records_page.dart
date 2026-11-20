@@ -7,6 +7,7 @@ import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/adherence_streak_card.dart';
+import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
 
 class RecordsPage extends ConsumerStatefulWidget {
   const RecordsPage({super.key});
@@ -1547,6 +1548,15 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               onPressed: () async {
+                                if (currentFormat == ReportExportFormat.jpg) {
+                                  Navigator.pop(ctx);
+                                  showEmergencyCardDialog(
+                                    context,
+                                    profile: profile,
+                                    medications: medications,
+                                  );
+                                  return;
+                                }
                                 final title = 'MediSync_Continuity_Report_${profile.name}${currentFormat.fileExtension}';
                                 await integrationService.shareReport(
                                   text: reportContent,

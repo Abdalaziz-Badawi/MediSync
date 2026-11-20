@@ -1,0 +1,572 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:intl/intl.dart';
+import 'package:medisync/core/models/medication.dart';
+import 'package:medisync/core/models/user_profile.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
+import 'package:medisync/core/theme/app_theme.dart';
+
+class EmergencyHealthCardWidget extends StatelessWidget {
+  final UserProfile profile;
+  final List<Medication> medications;
+  final bool isPrintOrExportMode;
+
+  const EmergencyHealthCardWidget({
+    super.key,
+    required this.profile,
+    required this.medications,
+    this.isPrintOrExportMode = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    final dobStr = profile.dateOfBirth != null
+        ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
+        : (profile.age != null ? 'Age ${profile.age}' : 'Not specified');
+    final ageStr = profile.age != null ? ' (${profile.age} yrs)' : '';
+    final bloodType = profile.bloodType ?? 'Unknown';
+    final healthId = profile.healthId ?? 'Not Registered';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+        boxShadow: isPrintOrExportMode
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Emergency Header Banner (Red)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.20),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.emergency_rounded, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'EMERGENCY MEDICAL ID',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'OFFLINE VERIFIED • LIFESAVING CLINICAL PROFILE',
+                        style: TextStyle(
+                          color: Color(0xFFFEE2E2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'OFFLINE',
+                    style: TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Patient Demographics & Health Badges
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Patient Name
+                Text(
+                  profile.name.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'BORN: $dobStr$ageStr   •   GENDER: ${profile.gender ?? 'Not Specified'}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF475569),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Blood Type & Health ID Badges
+                Row(
+                  children: [
+                    // Blood Type Badge (High Alert Red)
+                    Expanded(
+                      flex: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFDC2626), width: 1.5),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bloodtype_rounded, color: Color(0xFFDC2626), size: 18),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'BLOOD: $bloodType',
+                                style: const TextStyle(
+                                  color: Color(0xFFDC2626),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Health ID Badge
+                    Expanded(
+                      flex: 5,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF94A3B8), width: 1.2),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.badge_outlined, color: Color(0xFF334155), size: 18),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'ID: $healthId',
+                                style: const TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // 3. High-Alert Red Flag Box (Allergies & Triggers)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE11D48), width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Color(0xFFBE123C), size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'CRITICAL ALLERGIES & CONTRAINDICATIONS:',
+                            style: TextStyle(
+                              color: Color(0xFFBE123C),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        profile.allergies.isNotEmpty
+                            ? profile.allergies.join('  •  ')
+                            : 'NO KNOWN DRUG ALLERGIES (NKDA)',
+                        style: TextStyle(
+                          color: const Color(0xFF881337),
+                          fontSize: 13.5,
+                          fontWeight: profile.allergies.isNotEmpty ? FontWeight.bold : FontWeight.w600,
+                        ),
+                      ),
+                      if (profile.chronicConditions.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'CHRONIC CONDITIONS & ORGAN RISKS:',
+                          style: TextStyle(
+                            color: Color(0xFF475569),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          profile.chronicConditions.join('  •  '),
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 4. Active Medications Table
+                Row(
+                  children: [
+                    const Icon(Icons.medication_rounded, size: 18, color: Color(0xFF0F172A)),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'ACTIVE MEDICATIONS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${activeMeds.length} Active',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                if (activeMeds.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    alignment: Alignment.centerLeft,
+                    child: const Text(
+                      'No regularly scheduled active medications recorded.',
+                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+                    ),
+                  )
+                else
+                  ...activeMeds.take(6).map((med) {
+                    final timesStr = med.scheduledTimes.isNotEmpty
+                        ? med.scheduledTimes.join(', ')
+                        : 'As needed';
+                    final freqStr = med.scheduleFrequency == ScheduleFrequency.asNeeded
+                        ? 'PRN'
+                        : '${med.timesPerDay}x daily ($timesStr)';
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                text: '${med.name} ',
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: '(${med.dosage}, ${med.form.name}) — $freqStr',
+                                    style: const TextStyle(
+                                      color: Color(0xFF475569),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const SizedBox(height: 10),
+
+                // 5. Card Footer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '⚕️ MediSync Offline Medical ID',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0D9488),
+                      ),
+                    ),
+                    Text(
+                      DateFormat('d MMM yyyy').format(DateTime.now()),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows the interactive Emergency Medical Card modal with live preview and 1-tap JPG sharing.
+void showEmergencyCardDialog(
+  BuildContext context, {
+  required UserProfile profile,
+  required List<Medication> medications,
+}) {
+  final cardKey = GlobalKey();
+  final isDark = AppTheme.isDark(context);
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.88,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return SafeArea(
+            child: Column(
+              children: [
+                // Modal Handle & Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.credit_card_rounded, color: Color(0xFFDC2626)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Emergency Medical ID Card',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(ctx),
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+
+                // Card Preview Content
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(18),
+                    children: [
+                      Text(
+                        'This emergency card contains your vital clinical data (Blood Type, Health ID, Allergies, Active Medications). It can be shared as a high-resolution JPG image or saved to your gallery.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppTheme.textSecondary(ctx),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // RepaintBoundary wrapping the visual card for pixel-perfect JPG capture
+                      RepaintBoundary(
+                        key: cardKey,
+                        child: EmergencyHealthCardWidget(
+                          profile: profile,
+                          medications: medications,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+
+                // Bottom Action Buttons
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    border: Border(top: BorderSide(color: AppTheme.cardBorder(ctx))),
+                  ),
+                  child: Row(
+                    children: [
+                      // Save JPG Button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final bytes = await _captureCardBytes(cardKey, profile, medications);
+                            if (bytes != null) {
+                              final path = await DeviceIntegrationService().saveEmergencyCardJpg(
+                                imageBytes: bytes,
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(path != null
+                                        ? '✓ Saved Emergency Card JPG to Gallery!'
+                                        : '✓ Saved Emergency Card JPG to Device Storage'),
+                                    backgroundColor: const Color(0xFF0D9488),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.download_rounded, size: 18),
+                          label: const Text('Save JPG'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Share JPG Button
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final bytes = await _captureCardBytes(cardKey, profile, medications);
+                            if (bytes != null) {
+                              await DeviceIntegrationService().shareEmergencyCardJpg(
+                                imageBytes: bytes,
+                                title: 'Emergency Medical ID - ${profile.name}',
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.share_rounded, size: 18),
+                          label: const Text('Share Card (JPG)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<Uint8List?> _captureCardBytes(
+  GlobalKey key,
+  UserProfile profile,
+  List<Medication> medications,
+) async {
+  try {
+    final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary != null) {
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        return byteData.buffer.asUint8List();
+      }
+    }
+  } catch (_) {
+    // Fallback to programmatic Canvas renderer if boundary is not ready or in headless test
+  }
+  return DeviceIntegrationService().renderEmergencyCardBytes(
+    profile: profile,
+    medications: medications,
+  );
+}

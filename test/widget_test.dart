@@ -248,6 +248,8 @@ void main() {
         overrides: [
           profileNotifierProvider
               .overrideWith((ref) => FakeProfileNotifier()),
+          medicationsNotifierProvider
+              .overrideWith((ref) => FakeMedicationsNotifier()),
           themeNotifierProvider
               .overrideWith((ref) => FakeThemeNotifier()),
           fontScaleNotifierProvider

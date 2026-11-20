@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -14,7 +16,8 @@ enum ReportExportFormat {
   html('Web HTML (.html)', 'text/html', '.html'),
   xml('Standard XML (.xml)', 'application/xml', '.xml'),
   doc('Microsoft Word (.doc)', 'application/msword', '.doc'),
-  pdf('Printable PDF Layout', 'text/html', '.pdf');
+  pdf('Printable PDF Layout', 'text/html', '.pdf'),
+  jpg('Emergency ID Card (.jpg)', 'image/jpeg', '.jpg');
 
   final String label;
   final String mimeType;
@@ -295,6 +298,371 @@ class DeviceIntegrationService {
     }
   }
 
+  /// Shares the Emergency Medical ID Card in JPG format using native Android share sheet.
+  Future<bool> shareEmergencyCardJpg({
+    required Uint8List imageBytes,
+    required String title,
+    String filename = 'medisync_emergency_card.jpg',
+  }) async {
+    try {
+      final res = await _channel.invokeMethod<bool>('shareEmergencyCardJpg', {
+        'bytes': imageBytes,
+        'title': title,
+        'filename': filename,
+      });
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Saves the Emergency Medical ID Card in JPG format directly to device gallery / storage.
+  Future<String?> saveEmergencyCardJpg({
+    required Uint8List imageBytes,
+    String? filename,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod<String>('saveEmergencyCardJpg', {
+        'bytes': imageBytes,
+        'filename': filename ?? 'medisync_emergency_card_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      });
+      return res;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Programmatically renders a high-resolution (800x1100, 300 DPI) Emergency Health Card
+  /// using Flutter Canvas & TextPainter, returning raw PNG/image bytes.
+  Future<Uint8List> renderEmergencyCardBytes({
+    required UserProfile profile,
+    required List<Medication> medications,
+    double width = 800,
+    double height = 1100,
+  }) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
+
+    // 1. Background (White Card)
+    final bgPaint = Paint()..color = const Color(0xFFFFFFFF);
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), bgPaint);
+
+    // Outer subtle border
+    final borderPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(12, 12, width - 24, height - 24), const Radius.circular(20)),
+      borderPaint,
+    );
+
+    // 2. Emergency Header Banner (Red)
+    final headerPaint = Paint()..color = const Color(0xFFDC2626);
+    final headerRRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(12, 12, width - 24, 110),
+      topLeft: const Radius.circular(20),
+      topRight: const Radius.circular(20),
+    );
+    canvas.drawRRect(headerRRect, headerPaint);
+
+    // Header Text
+    _drawCanvasText(
+      canvas: canvas,
+      text: '🚨 EMERGENCY MEDICAL ID & HEALTH PROFILE',
+      x: 36,
+      y: 32,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: 'OFFLINE VERIFIED • LIFESAVING CLINICAL DATA',
+      x: 36,
+      y: 68,
+      style: const TextStyle(
+        color: Color(0xFFFEE2E2),
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.0,
+      ),
+    );
+
+    // 3. Patient Name & Primary Identity Grid
+    double curY = 145;
+    _drawCanvasText(
+      canvas: canvas,
+      text: profile.name.toUpperCase(),
+      x: 40,
+      y: curY,
+      style: const TextStyle(
+        color: Color(0xFF0F172A),
+        fontSize: 28,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+
+    curY += 46;
+    final dobStr = profile.dateOfBirth != null
+        ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
+        : 'Not Specified';
+    final ageStr = profile.age != null ? ' (${profile.age} Years Old)' : '';
+    final genderStr = profile.gender ?? 'Not Specified';
+
+    _drawCanvasText(
+      canvas: canvas,
+      text: 'DATE OF BIRTH: $dobStr$ageStr   •   GENDER: $genderStr',
+      x: 40,
+      y: curY,
+      style: const TextStyle(
+        color: Color(0xFF475569),
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+
+    curY += 34;
+
+    // Badges Row: Blood Type (Red Box) & Health ID
+    final bloodType = profile.bloodType ?? 'Unknown';
+    final healthId = profile.healthId ?? 'None';
+
+    // Blood Type Badge
+    final bloodBgPaint = Paint()..color = const Color(0xFFFEF2F2);
+    final bloodBorderPaint = Paint()
+      ..color = const Color(0xFFDC2626)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 260, 48), const Radius.circular(10)),
+      bloodBgPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 260, 48), const Radius.circular(10)),
+      bloodBorderPaint,
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: '🩸 BLOOD TYPE: $bloodType',
+      x: 54,
+      y: curY + 12,
+      style: const TextStyle(
+        color: Color(0xFFDC2626),
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+
+    // Health ID Badge
+    final idBgPaint = Paint()..color = const Color(0xFFF1F5F9);
+    final idBorderPaint = Paint()
+      ..color = const Color(0xFF94A3B8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(318, curY, 442, 48), const Radius.circular(10)),
+      idBgPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(318, curY, 442, 48), const Radius.circular(10)),
+      idBorderPaint,
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: '🆔 HEALTH ID: $healthId',
+      x: 332,
+      y: curY + 14,
+      style: const TextStyle(
+        color: Color(0xFF1E293B),
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+
+    curY += 72;
+
+    // 4. Critical Red Flag Box (Allergies & Triggers)
+    final alertBg = Paint()..color = const Color(0xFFFFF1F2);
+    final alertBorder = Paint()
+      ..color = const Color(0xFFE11D48)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 140), const Radius.circular(14)),
+      alertBg,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 140), const Radius.circular(14)),
+      alertBorder,
+    );
+
+    _drawCanvasText(
+      canvas: canvas,
+      text: '⚠️ CRITICAL DRUG ALLERGIES & CONTRAINDICATIONS:',
+      x: 58,
+      y: curY + 16,
+      style: const TextStyle(
+        color: Color(0xFFBE123C),
+        fontSize: 14,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+
+    final allergiesStr = profile.allergies.isNotEmpty
+        ? profile.allergies.join('  •  ')
+        : 'NO KNOWN DRUG ALLERGIES (NKDA)';
+    _drawCanvasText(
+      canvas: canvas,
+      text: allergiesStr,
+      x: 58,
+      y: curY + 44,
+      style: const TextStyle(
+        color: Color(0xFF881337),
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+
+    _drawCanvasText(
+      canvas: canvas,
+      text: 'CHRONIC CONDITIONS & ORGAN RISKS:',
+      x: 58,
+      y: curY + 80,
+      style: const TextStyle(
+        color: Color(0xFF475569),
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+
+    final conditionsStr = profile.chronicConditions.isNotEmpty
+        ? profile.chronicConditions.join('  •  ')
+        : 'None Reported';
+    _drawCanvasText(
+      canvas: canvas,
+      text: conditionsStr,
+      x: 58,
+      y: curY + 104,
+      style: const TextStyle(
+        color: Color(0xFF0F172A),
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+
+    curY += 165;
+
+    // 5. Active Medication Regimen Table
+    _drawCanvasText(
+      canvas: canvas,
+      text: '📋 ACTIVE MEDICATION REGIMEN',
+      x: 40,
+      y: curY,
+      style: const TextStyle(
+        color: Color(0xFF0F172A),
+        fontSize: 17,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+
+    curY += 32;
+
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    if (activeMeds.isEmpty) {
+      _drawCanvasText(
+        canvas: canvas,
+        text: 'No active regularly scheduled medications recorded.',
+        x: 40,
+        y: curY,
+        style: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+        ),
+      );
+      curY += 40;
+    } else {
+      for (int i = 0; i < activeMeds.length && i < 8; i++) {
+        final med = activeMeds[i];
+        final timesStr = med.scheduledTimes.isNotEmpty
+            ? med.scheduledTimes.join(', ')
+            : 'As needed';
+        final freqStr = med.scheduleFrequency == ScheduleFrequency.asNeeded
+            ? 'PRN'
+            : '${med.timesPerDay}x daily ($timesStr)';
+
+        final medLine = '${i + 1}. ${med.name} (${med.dosage}, ${med.form.name})  —  $freqStr';
+        _drawCanvasText(
+          canvas: canvas,
+          text: medLine,
+          x: 48,
+          y: curY,
+          style: const TextStyle(
+            color: Color(0xFF1E293B),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        );
+        curY += 28;
+      }
+    }
+
+    // 6. Emergency Instructions & Footer
+    final footerY = height - 100;
+    final dividerPaint = Paint()..color = const Color(0xFFCBD5E1)..strokeWidth = 1.5;
+    canvas.drawLine(Offset(40, footerY), Offset(width - 40, footerY), dividerPaint);
+
+    final nowStr = DateFormat('d MMM yyyy, HH:mm').format(DateTime.now());
+    _drawCanvasText(
+      canvas: canvas,
+      text: '⚕️ MediSync 100% Offline Medical Emergency Card  •  Verified on Device',
+      x: 40,
+      y: footerY + 16,
+      style: const TextStyle(
+        color: Color(0xFF0D9488),
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: 'Generated: $nowStr  •  Confidential Medical Record. In emergency, cross-reference allergies.',
+      x: 40,
+      y: footerY + 40,
+      style: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 11.5,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(width.toInt(), height.toInt());
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  void _drawCanvasText({
+    required Canvas canvas,
+    required String text,
+    required double x,
+    required double y,
+    required TextStyle style,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: ui.TextDirection.ltr,
+    );
+    tp.layout();
+    tp.paint(canvas, Offset(x, y));
+  }
+
   /// Generates a formatted continuity report in any of the supported formats.
   String generateContinuityReportFormatted({
     required List<Medication> medications,
@@ -303,6 +671,7 @@ class DeviceIntegrationService {
   }) {
     switch (format) {
       case ReportExportFormat.text:
+      case ReportExportFormat.jpg:
         return generateContinuityReport(medications: medications, profile: profile);
       case ReportExportFormat.markdown:
         return generateContinuityReportMarkdown(medications: medications, profile: profile);

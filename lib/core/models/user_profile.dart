@@ -1,8 +1,11 @@
 class UserProfile {
   final String name;
   final String avatarId;
-  final int? age;
+  final DateTime? dateOfBirth;
+  final int? _explicitAge;
   final String? gender;
+  final String? healthId;
+  final String? bloodType;
   final List<String> allergies;
   final List<String> chronicConditions;
   final String wakeTime;      // "HH:mm" e.g. "07:00"
@@ -12,11 +15,25 @@ class UserProfile {
   final String dinnerTime;    // "HH:mm" e.g. "20:00"
   final bool useHealthApp;
 
+  static const List<String> standardBloodTypes = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
+  ];
+
   const UserProfile({
     this.name = 'User',
     this.avatarId = 'avatar_wellness',
-    this.age,
+    this.dateOfBirth,
+    int? age,
     this.gender,
+    this.healthId,
+    this.bloodType,
     this.allergies = const [],
     this.chronicConditions = const [],
     this.wakeTime = '07:00',
@@ -25,13 +42,31 @@ class UserProfile {
     this.lunchTime = '13:30',
     this.dinnerTime = '20:00',
     this.useHealthApp = false,
-  });
+  }) : _explicitAge = age;
+
+  /// Dynamic clinical age derived strictly from date of birth,
+  /// falling back to explicit age if legacy profile has no DoB set.
+  int? get age {
+    if (dateOfBirth != null) {
+      final now = DateTime.now();
+      int calculated = now.year - dateOfBirth!.year;
+      if (now.month < dateOfBirth!.month ||
+          (now.month == dateOfBirth!.month && now.day < dateOfBirth!.day)) {
+        calculated--;
+      }
+      return calculated >= 0 ? calculated : 0;
+    }
+    return _explicitAge;
+  }
 
   UserProfile copyWith({
     String? name,
     String? avatarId,
+    DateTime? dateOfBirth,
     int? age,
     String? gender,
+    String? healthId,
+    String? bloodType,
     List<String>? allergies,
     List<String>? chronicConditions,
     String? wakeTime,
@@ -44,8 +79,11 @@ class UserProfile {
     return UserProfile(
       name: name ?? this.name,
       avatarId: avatarId ?? this.avatarId,
-      age: age ?? this.age,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      age: age ?? (dateOfBirth != null ? null : this.age),
       gender: gender ?? this.gender,
+      healthId: healthId ?? this.healthId,
+      bloodType: bloodType ?? this.bloodType,
       allergies: allergies ?? this.allergies,
       chronicConditions: chronicConditions ?? this.chronicConditions,
       wakeTime: wakeTime ?? this.wakeTime,
@@ -61,8 +99,11 @@ class UserProfile {
     return {
       'name': name,
       'avatarId': avatarId,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
       'age': age,
       'gender': gender,
+      'healthId': healthId,
+      'bloodType': bloodType,
       'allergies': allergies,
       'chronicConditions': chronicConditions,
       'wakeTime': wakeTime,
@@ -75,11 +116,19 @@ class UserProfile {
   }
 
   factory UserProfile.fromJson(Map<dynamic, dynamic> json) {
+    DateTime? parsedDob;
+    if (json['dateOfBirth'] != null) {
+      parsedDob = DateTime.tryParse(json['dateOfBirth'].toString());
+    }
+
     return UserProfile(
       name: json['name'] as String? ?? 'User',
       avatarId: json['avatarId'] as String? ?? 'avatar_wellness',
+      dateOfBirth: parsedDob,
       age: (json['age'] as num?)?.toInt(),
       gender: json['gender'] as String?,
+      healthId: json['healthId'] as String?,
+      bloodType: json['bloodType'] as String?,
       allergies: (json['allergies'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

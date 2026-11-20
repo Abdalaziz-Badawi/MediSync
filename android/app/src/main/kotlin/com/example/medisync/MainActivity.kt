@@ -3,11 +3,18 @@ package com.example.medisync
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Environment
 import android.provider.CalendarContract
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.io.FileOutputStream
 import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
@@ -248,6 +255,76 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("SHARE_ERROR", e.message, null)
+                    }
+                }
+                "shareEmergencyCardJpg" -> {
+                    try {
+                        val bytes = call.argument<ByteArray>("bytes")
+                        val title = call.argument<String>("title") ?: "MediSync Emergency Health Card"
+                        val filename = call.argument<String>("filename") ?: "medisync_emergency_card.jpg"
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            if (bitmap != null) {
+                                val cacheDir = File(context.cacheDir, "emergency_cards")
+                                if (!cacheDir.exists()) cacheDir.mkdirs()
+                                val file = File(cacheDir, filename)
+                                val fos = FileOutputStream(file)
+                                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                                fos.flush()
+                                fos.close()
+
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file
+                                )
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "image/jpeg"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    putExtra(Intent.EXTRA_SUBJECT, title)
+                                    putExtra(Intent.EXTRA_TEXT, "$title\nVerified Offline Clinical Card")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                val chooser = Intent.createChooser(shareIntent, "Share Emergency Health Card (JPG)")
+                                chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                startActivity(chooser)
+                                result.success(true)
+                            } else {
+                                result.error("DECODE_FAILED", "Failed to decode bitmap from bytes", null)
+                            }
+                        } else {
+                            result.error("EMPTY_BYTES", "Image bytes were null or empty", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("SHARE_JPG_ERROR", e.message, null)
+                    }
+                }
+                "saveEmergencyCardJpg" -> {
+                    try {
+                        val bytes = call.argument<ByteArray>("bytes")
+                        val filename = call.argument<String>("filename") ?: "medisync_emergency_card_${System.currentTimeMillis()}.jpg"
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            if (bitmap != null) {
+                                val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                                val medisyncDir = File(picturesDir, "MediSync")
+                                if (!medisyncDir.exists()) medisyncDir.mkdirs()
+                                val file = File(medisyncDir, filename)
+                                val fos = FileOutputStream(file)
+                                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                                fos.flush()
+                                fos.close()
+
+                                MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("image/jpeg"), null)
+                                result.success(file.absolutePath)
+                            } else {
+                                result.error("DECODE_FAILED", "Failed to decode bitmap from bytes", null)
+                            }
+                        } else {
+                            result.error("EMPTY_BYTES", "Image bytes were null or empty", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("SAVE_JPG_ERROR", e.message, null)
                     }
                 }
                 "getCalendarEvents" -> {

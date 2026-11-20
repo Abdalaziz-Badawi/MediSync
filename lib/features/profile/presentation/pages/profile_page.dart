@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
@@ -8,6 +9,7 @@ import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
 import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/allergy_selector_widget.dart';
+import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   final bool initiallyExpanded;
@@ -19,10 +21,12 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late TextEditingController _nameController;
-  late TextEditingController _ageController;
+  late TextEditingController _healthIdController;
+  DateTime? _dateOfBirth;
 
   late String _avatarId;
   late String _gender;
+  late String _bloodType;
   late String _wakeTime;
   late String _sleepTime;
   late String _breakfastTime;
@@ -31,6 +35,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _useHealthApp;
   late List<String> _allergies;
   late List<String> _chronicConditions;
+
+  int? get _calculatedAge {
+    if (_dateOfBirth == null) return null;
+    final now = DateTime.now();
+    int calculated = now.year - _dateOfBirth!.year;
+    if (now.month < _dateOfBirth!.month ||
+        (now.month == _dateOfBirth!.month && now.day < _dateOfBirth!.day)) {
+      calculated--;
+    }
+    return calculated >= 0 ? calculated : 0;
+  }
 
   // Privacy Shield / Sneak Peek Prevention
   bool _isPrivacyMaskActive = false;
@@ -58,9 +73,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
-    _ageController = TextEditingController(text: profile.age?.toString() ?? '');
+    _healthIdController = TextEditingController(text: profile.healthId ?? '');
+    _dateOfBirth = profile.dateOfBirth;
     _avatarId = profile.avatarId;
     _gender = profile.gender ?? 'Male';
+    _bloodType = profile.bloodType ?? 'O+';
 
     _wakeTime = profile.wakeTime;
     _sleepTime = profile.sleepTime;
@@ -75,15 +92,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _ageController.dispose();
+    _healthIdController.dispose();
     super.dispose();
   }
 
   bool get _hasChanges {
     final profile = ref.read(profileNotifierProvider);
     if (_nameController.text.trim() != profile.name) return true;
-    if (_ageController.text.trim() != (profile.age?.toString() ?? '')) return true;
+    if (_healthIdController.text.trim() != (profile.healthId ?? '')) return true;
+    if (_dateOfBirth != profile.dateOfBirth) return true;
     if (_gender != (profile.gender ?? 'Male')) return true;
+    if (_bloodType != (profile.bloodType ?? 'O+')) return true;
     if (_avatarId != profile.avatarId) return true;
     if (_wakeTime != profile.wakeTime) return true;
     if (_sleepTime != profile.sleepTime) return true;
@@ -164,14 +183,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   void _saveProfile() {
-    final ageInt = int.tryParse(_ageController.text.trim());
     final updated = UserProfile(
       name: _nameController.text.trim().isEmpty
           ? 'User'
           : _nameController.text.trim(),
       avatarId: _avatarId,
-      age: ageInt,
+      dateOfBirth: _dateOfBirth,
       gender: _gender,
+      bloodType: _bloodType,
+      healthId: _healthIdController.text.trim().isNotEmpty
+          ? _healthIdController.text.trim()
+          : null,
       allergies: _allergies,
       chronicConditions: _chronicConditions,
       wakeTime: _wakeTime,
@@ -355,21 +377,99 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
+              // Date of Birth Selector (replacing direct age typing)
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _dateOfBirth ?? DateTime(1995, 5, 14),
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setState(() => _dateOfBirth = picked);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppTheme.cardBorder(ctx)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.cake_outlined, color: Theme.of(ctx).colorScheme.primary, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Date of Birth',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppTheme.textSecondary(ctx),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _dateOfBirth != null
+                                  ? DateFormat('d MMMM yyyy').format(_dateOfBirth!)
+                                  : 'Tap to select Date of Birth',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _dateOfBirth != null
+                                    ? AppTheme.textPrimary(ctx)
+                                    : AppTheme.textMuted(ctx),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_calculatedAge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF134E4A) : const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '$_calculatedAge yrs',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppTheme.primaryTealLight : const Color(0xFF166534),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.calendar_month_rounded, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Health ID Field
               TextField(
-                controller: _ageController,
-                keyboardType: TextInputType.number,
+                controller: _healthIdController,
                 style: TextStyle(color: AppTheme.textPrimary(ctx)),
                 decoration: InputDecoration(
-                  labelText: 'Age (Years)',
+                  labelText: 'Health ID / Medical Record #',
+                  hintText: 'e.g. National ID, NHS, Insurance #',
                   prefixIcon: Icon(
-                    Icons.cake_outlined,
+                    Icons.credit_card_rounded,
                     color: Theme.of(ctx).colorScheme.primary,
                   ),
-                  helperText: 'Used for pediatric (<18) or geriatric (≥65) safe dosing thresholds',
                 ),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
+
+              // Biological Gender
               Text(
                 'Biological Gender',
                 style: TextStyle(
@@ -394,6 +494,41 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                     ),
                     onSelected: (_) => setState(() => _gender = g),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+
+              // Blood Type Selector
+              Row(
+                children: [
+                  const Icon(Icons.bloodtype_rounded, size: 16, color: Color(0xFFDC2626)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Blood Type (Emergency ID)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(ctx),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: UserProfile.standardBloodTypes.map((bt) {
+                  final isSel = _bloodType == bt;
+                  return ChoiceChip(
+                    label: Text(bt),
+                    selected: isSel,
+                    selectedColor: const Color(0xFFDC2626),
+                    labelStyle: TextStyle(
+                      color: isSel ? Colors.white : AppTheme.textPrimary(ctx),
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (_) => setState(() => _bloodType = bt),
                   );
                 }).toList(),
               ),
@@ -589,9 +724,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               const SizedBox(height: 3),
                               Row(
                                 children: [
-                                  if (_ageController.text.isNotEmpty) ...[
+                                  if (_calculatedAge != null) ...[
                                     Text(
-                                      '${_ageController.text} yrs • $_gender',
+                                      '$_calculatedAge yrs • $_gender',
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
@@ -689,12 +824,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       children: [
                         Wrap(
                           spacing: 8,
+                          runSpacing: 6,
                           children: [
                             Chip(
                               visualDensity: VisualDensity.compact,
                               avatar: const Icon(Icons.cake_outlined, size: 14),
-                              label: Text(_ageController.text.isNotEmpty ? '${_ageController.text} yrs' : 'Age: Not set',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              label: Text(
+                                _dateOfBirth != null
+                                    ? '${_calculatedAge ?? 0} yrs (${DateFormat('d MMM yyyy').format(_dateOfBirth!)})'
+                                    : 'DoB: Not set',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
                               backgroundColor: AppTheme.surfaceVariant(context),
                             ),
                             Chip(
@@ -703,6 +843,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               label: Text(_gender, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                               backgroundColor: AppTheme.surfaceVariant(context),
                             ),
+                            Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(Icons.bloodtype_rounded, size: 14, color: Color(0xFFDC2626)),
+                              label: Text('Blood: $_bloodType', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                              backgroundColor: const Color(0xFFFEF2F2),
+                              side: const BorderSide(color: Color(0xFFFECACA)),
+                            ),
+                            if (_healthIdController.text.trim().isNotEmpty)
+                              Chip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.credit_card_rounded, size: 14),
+                                label: Text('ID: ${_healthIdController.text.trim()}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                backgroundColor: AppTheme.surfaceVariant(context),
+                              ),
                           ],
                         ),
                         TextButton.icon(
@@ -1329,6 +1483,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
           const SizedBox(height: 16),
 
+          // Emergency Medical ID Card Section (JPG format)
+          _buildEmergencyCardSection(context),
+          const SizedBox(height: 16),
+
           // About MediSync & Developer Card (Collapsible)
           _buildAboutDeveloperCard(context),
           const SizedBox(height: 20),
@@ -1343,6 +1501,111 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ],
 
           const SizedBox(height: 90),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmergencyCardSection(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    final medications = ref.watch(medicationsNotifierProvider);
+    final activeCount = medications.where((m) => !m.isDiscontinued).length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA),
+          width: 1.5,
+        ),
+        boxShadow: AppTheme.softShadow(context),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+            child: Row(
+              children: [
+                const Icon(Icons.emergency_rounded, color: Color(0xFFDC2626), size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Emergency Medical ID Card',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFDC2626),
+                        ),
+                      ),
+                      Text(
+                        'Instant access for paramedics, emergency rooms & first responders',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your vital safety information (Blood Type: $_bloodType, Health ID, ${_allergies.length} Critical Allergies, $activeCount Active Medications) is prepared for immediate access.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary(context),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.credit_card_rounded, size: 20),
+                    label: const Text(
+                      'View & Share Emergency Card (JPG)',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      final profile = ref.read(profileNotifierProvider);
+                      showEmergencyCardDialog(
+                        context,
+                        profile: profile.copyWith(
+                          name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : profile.name,
+                          dateOfBirth: _dateOfBirth,
+                          bloodType: _bloodType,
+                          healthId: _healthIdController.text.trim().isNotEmpty ? _healthIdController.text.trim() : null,
+                          gender: _gender,
+                          allergies: _allergies,
+                          chronicConditions: _chronicConditions,
+                        ),
+                        medications: medications,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

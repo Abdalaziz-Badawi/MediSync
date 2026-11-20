@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
@@ -18,12 +19,25 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
 
-  // Personal Information
+  // Personal Information & Health Identity
   final TextEditingController _nameController =
       TextEditingController(text: 'Abdalaziz');
-  final TextEditingController _ageController =
+  final TextEditingController _healthIdController =
       TextEditingController(text: '');
+  DateTime? _dateOfBirth;
   String _selectedGender = 'Male';
+  String _selectedBloodType = 'O+';
+
+  int? get _calculatedAge {
+    if (_dateOfBirth == null) return null;
+    final now = DateTime.now();
+    int calculated = now.year - _dateOfBirth!.year;
+    if (now.month < _dateOfBirth!.month ||
+        (now.month == _dateOfBirth!.month && now.day < _dateOfBirth!.day)) {
+      calculated--;
+    }
+    return calculated >= 0 ? calculated : 0;
+  }
 
   // Allergies & Health Triggers
   final List<String> _selectedAllergies = ['Penicillin'];
@@ -56,11 +70,17 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     if (profile.name.isNotEmpty && profile.name != 'User') {
       _nameController.text = profile.name;
     }
-    if (profile.age != null) {
-      _ageController.text = profile.age.toString();
+    if (profile.dateOfBirth != null) {
+      _dateOfBirth = profile.dateOfBirth;
     }
     if (profile.gender != null) {
       _selectedGender = profile.gender!;
+    }
+    if (profile.bloodType != null) {
+      _selectedBloodType = profile.bloodType!;
+    }
+    if (profile.healthId != null) {
+      _healthIdController.text = profile.healthId!;
     }
     if (profile.allergies.isNotEmpty) {
       _selectedAllergies.clear();
@@ -81,7 +101,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
-    _ageController.dispose();
+    _healthIdController.dispose();
     _customTriggerController.dispose();
     super.dispose();
   }
@@ -111,13 +131,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   void _finishSetup() async {
-    final ageInt = int.tryParse(_ageController.text.trim());
     final profile = UserProfile(
       name: _nameController.text.trim().isEmpty
           ? 'User'
           : _nameController.text.trim(),
-      age: ageInt,
+      dateOfBirth: _dateOfBirth,
       gender: _selectedGender,
+      bloodType: _selectedBloodType,
+      healthId: _healthIdController.text.trim().isNotEmpty
+          ? _healthIdController.text.trim()
+          : null,
       allergies: _selectedAllergies,
       chronicConditions: _selectedTriggers,
       wakeTime: _wakeTime,
@@ -355,20 +378,88 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             prefixIcon: Icon(Icons.badge_outlined),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
 
-        // Age Field
-        TextField(
-          controller: _ageController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Age (Years)',
-            hintText: 'e.g. 28',
-            prefixIcon: Icon(Icons.cake_outlined),
-            helperText: 'Used for pediatric (<18) or geriatric (≥65) safe dosing thresholds',
+        // Date of Birth Field (Tappable Card with dynamic age derivation)
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _dateOfBirth ?? DateTime(1995, 5, 14),
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now(),
+            );
+            if (picked != null) {
+              setState(() => _dateOfBirth = picked);
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppTheme.cardBorder(context)),
+              borderRadius: BorderRadius.circular(12),
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.cake_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Date of Birth',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary(context),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _dateOfBirth != null
+                            ? DateFormat('d MMMM yyyy').format(_dateOfBirth!)
+                            : 'Tap to select Date of Birth',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: _dateOfBirth != null
+                              ? AppTheme.textPrimary(context)
+                              : AppTheme.textMuted(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_calculatedAge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF134E4A) : const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$_calculatedAge yrs',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppTheme.primaryTealLight : const Color(0xFF166534),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 6),
+                const Icon(Icons.calendar_month_rounded, size: 18),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 6),
+        Text(
+          'Age is automatically calculated from your Date of Birth for pediatric/geriatric safety.',
+          style: TextStyle(fontSize: 11.5, color: AppTheme.textMuted(context)),
+        ),
+        const SizedBox(height: 18),
 
         // Biological Gender Selector
         Text(
@@ -397,6 +488,53 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               onSelected: (_) => setState(() => _selectedGender = g),
             );
           }).toList(),
+        ),
+        const SizedBox(height: 20),
+
+        // Blood Type Selector (Choice Chips)
+        Row(
+          children: [
+            const Icon(Icons.bloodtype_rounded, size: 18, color: Color(0xFFDC2626)),
+            const SizedBox(width: 6),
+            Text(
+              'Blood Type (Emergency ID)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary(context),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: UserProfile.standardBloodTypes.map((bt) {
+            final isSelected = _selectedBloodType == bt;
+            return ChoiceChip(
+              label: Text(bt),
+              selected: isSelected,
+              selectedColor: const Color(0xFFDC2626),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : AppTheme.textPrimary(context),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              onSelected: (_) => setState(() => _selectedBloodType = bt),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 20),
+
+        // Health ID Field
+        TextField(
+          controller: _healthIdController,
+          decoration: const InputDecoration(
+            labelText: 'Health ID / Medical Record #',
+            hintText: 'e.g. National Health ID, NHS, Insurance #, or Civil ID',
+            prefixIcon: Icon(Icons.credit_card_rounded),
+            helperText: 'Saved securely on your offline Emergency Medical Card for emergency responders',
+          ),
         ),
       ],
     );

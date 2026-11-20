@@ -351,12 +351,8 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
                       ],
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      widget.onMarkTaken(med.id, DateTime.now(), nextDose.timeString);
-                    },
-                    icon: const Icon(Icons.check_rounded, size: 16),
-                    label: const Text('Take'),
+                  ElevatedButton(
+                    onPressed: () => _showTakeOptionsSheet(context, med, nextDose),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary,
                       foregroundColor: Colors.white,
@@ -364,6 +360,16 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_rounded, size: 16),
+                        SizedBox(width: 4),
+                        Text('Take'),
+                        SizedBox(width: 2),
+                        Icon(Icons.keyboard_arrow_down_rounded, size: 16),
+                      ],
                     ),
                   ),
                 ],
@@ -923,6 +929,232 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showTakeOptionsSheet(
+    BuildContext context,
+    Medication med,
+    UpcomingDose nextDose,
+  ) {
+    final isDark = AppTheme.isDark(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Record Intake: ${med.name}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(ctx),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${med.dosage} • Scheduled for ${nextDose.timeString}',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppTheme.textSecondary(ctx),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Select how or when you took this medication to record accurate clinical adherence:',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary(ctx),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 1. Taken On Time
+                _buildTakeOptionTile(
+                  ctx: ctx,
+                  status: DoseStatus.taken,
+                  title: 'Taken On Time',
+                  subtitle: 'Taken as scheduled within optimal therapeutic window',
+                  icon: Icons.check_circle_rounded,
+                  color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                  onSelect: () => _applyDoseStatus(ctx, med, nextDose, DoseStatus.taken, 'Taken on time'),
+                ),
+                const SizedBox(height: 10),
+
+                // 2. Taken Early
+                _buildTakeOptionTile(
+                  ctx: ctx,
+                  status: DoseStatus.takenEarly,
+                  title: 'Taken Early',
+                  subtitle: 'Administered in advance ahead of the scheduled slot',
+                  icon: Icons.alarm_on_rounded,
+                  color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
+                  onSelect: () => _applyDoseStatus(ctx, med, nextDose, DoseStatus.takenEarly, 'Taken early'),
+                ),
+                const SizedBox(height: 10),
+
+                // 3. Taken Delayed / Late
+                _buildTakeOptionTile(
+                  ctx: ctx,
+                  status: DoseStatus.delayed,
+                  title: 'Taken Delayed / Late',
+                  subtitle: 'Taken late after the scheduled time',
+                  icon: Icons.schedule_rounded,
+                  color: isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber,
+                  onSelect: () => _applyDoseStatus(ctx, med, nextDose, DoseStatus.delayed, 'Taken delayed / late'),
+                ),
+                const SizedBox(height: 10),
+
+                // 4. Missed Window
+                _buildTakeOptionTile(
+                  ctx: ctx,
+                  status: DoseStatus.missed,
+                  title: 'Mark as Missed',
+                  subtitle: 'Window expired or unable to take dose safely',
+                  icon: Icons.cancel_rounded,
+                  color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                  onSelect: () => _applyDoseStatus(ctx, med, nextDose, DoseStatus.missed, 'Marked as missed'),
+                ),
+
+                // 5. As Needed / Not Needed
+                const SizedBox(height: 10),
+                _buildTakeOptionTile(
+                  ctx: ctx,
+                  status: DoseStatus.notNeeded,
+                  title: 'Not Needed Today (Skip)',
+                  subtitle: 'Symptoms absent or dose skipped per doctor advice',
+                  icon: Icons.remove_circle_outline_rounded,
+                  color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700,
+                  onSelect: () => _applyDoseStatus(ctx, med, nextDose, DoseStatus.notNeeded, 'Dose marked as not needed'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _applyDoseStatus(
+    BuildContext ctx,
+    Medication med,
+    UpcomingDose nextDose,
+    DoseStatus status,
+    String label,
+  ) {
+    Navigator.pop(ctx);
+    ref
+        .read(medicationsNotifierProvider.notifier)
+        .setDoseStatus(med.id, DateTime.now(), nextDose.timeString, status);
+
+    if (status == DoseStatus.taken || status == DoseStatus.takenEarly) {
+      widget.onMarkTaken(med.id, DateTime.now(), nextDose.timeString);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Recorded "$label" for ${med.name} (${nextDose.timeString})')),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildTakeOptionTile({
+    required BuildContext ctx,
+    required DoseStatus status,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onSelect,
+  }) {
+    final isDark = AppTheme.isDark(ctx);
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: color.withValues(alpha: 0.35),
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(ctx),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textSecondary(ctx),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted(ctx), size: 20),
+          ],
         ),
       ),
     );
