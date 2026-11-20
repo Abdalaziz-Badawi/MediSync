@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Environment
@@ -269,9 +271,16 @@ class MainActivity : FlutterActivity() {
                                 if (!cacheDir.exists()) cacheDir.mkdirs()
                                 val file = File(cacheDir, filename)
                                 val fos = FileOutputStream(file)
-                                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                                // Composite on pure white background to prevent JPEG transparent corner black-artifact chipping
+                                val rgbBitmap = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+                                val canvas = Canvas(rgbBitmap)
+                                canvas.drawColor(Color.WHITE)
+                                canvas.drawBitmap(bitmap, 0f, 0f, null)
+                                rgbBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
                                 fos.flush()
                                 fos.close()
+                                rgbBitmap.recycle()
+                                bitmap.recycle()
 
                                 val uri = FileProvider.getUriForFile(
                                     context,
@@ -311,9 +320,16 @@ class MainActivity : FlutterActivity() {
                                 if (!medisyncDir.exists()) medisyncDir.mkdirs()
                                 val file = File(medisyncDir, filename)
                                 val fos = FileOutputStream(file)
-                                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                                // Composite on pure white background to prevent JPEG transparent corner black-artifact chipping
+                                val rgbBitmap = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+                                val canvas = Canvas(rgbBitmap)
+                                canvas.drawColor(Color.WHITE)
+                                canvas.drawBitmap(bitmap, 0f, 0f, null)
+                                rgbBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
                                 fos.flush()
                                 fos.close()
+                                rgbBitmap.recycle()
+                                bitmap.recycle()
 
                                 MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("image/jpeg"), null)
                                 result.success(file.absolutePath)

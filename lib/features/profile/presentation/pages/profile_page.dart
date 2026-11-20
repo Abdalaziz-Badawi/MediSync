@@ -55,7 +55,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _isSettingsCardExpanded;
   late bool _isRoutineExpanded;
   bool _isAllergiesExpanded = false;
+  bool _isConditionsExpanded = false;
   bool _isAboutCardExpanded = false;
+
+  final TextEditingController _customConditionController = TextEditingController();
+
+  static const List<Map<String, dynamic>> _commonChronicConditions = [
+    {'title': 'Asthma (Airway)', 'icon': Icons.air_rounded, 'tag': 'Asthma'},
+    {'title': 'Hypertension (High BP)', 'icon': Icons.favorite_border_rounded, 'tag': 'Hypertension'},
+    {'title': 'Diabetes (Type 1 or 2)', 'icon': Icons.bloodtype_outlined, 'tag': 'Diabetes'},
+    {'title': 'Peptic Ulcer / GERD', 'icon': Icons.lunch_dining_outlined, 'tag': 'Peptic Ulcer'},
+    {'title': 'Kidney Impairment', 'icon': Icons.water_drop_outlined, 'tag': 'Kidney Disease'},
+    {'title': 'Liver Impairment', 'icon': Icons.health_and_safety_outlined, 'tag': 'Liver Disease'},
+    {'title': 'Heart Condition', 'icon': Icons.monitor_heart_outlined, 'tag': 'Heart Disease'},
+    {'title': 'Pregnancy / Lactation', 'icon': Icons.child_care_rounded, 'tag': 'Pregnancy'},
+  ];
 
   static const List<Map<String, dynamic>> _availableAvatars = [
     {'id': 'avatar_wellness', 'icon': Icons.spa_rounded, 'label': 'Wellness'},
@@ -95,6 +109,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   void dispose() {
     _nameController.dispose();
     _healthIdController.dispose();
+    _customConditionController.dispose();
     super.dispose();
   }
 
@@ -181,6 +196,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       setState(() {
         _allergies.add(trimmed);
       });
+    }
+  }
+
+  void _toggleChronicCondition(String tag) {
+    setState(() {
+      if (_chronicConditions.contains(tag)) {
+        _chronicConditions.remove(tag);
+      } else {
+        _chronicConditions.add(tag);
+      }
+    });
+  }
+
+  void _addCustomChronicCondition(String custom) {
+    final trimmed = custom.trim();
+    if (trimmed.isNotEmpty && !_chronicConditions.contains(trimmed)) {
+      setState(() {
+        _chronicConditions.add(trimmed);
+      });
+      _customConditionController.clear();
     }
   }
 
@@ -537,6 +572,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 }).toList(),
               ),
               const SizedBox(height: 14),
+
+              // Chronic Conditions & Clinical Organ Risks
+              Row(
+                children: [
+                  const Icon(Icons.monitor_heart_outlined, size: 16, color: Color(0xFF0D9488)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Chronic Conditions & Organ Risks',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary(ctx),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _commonChronicConditions.map((cond) {
+                  final tag = cond['tag'] as String;
+                  final title = cond['title'] as String;
+                  final isSel = _chronicConditions.contains(tag);
+                  return FilterChip(
+                    label: Text(title),
+                    selected: isSel,
+                    selectedColor: const Color(0xFFCCFBF1),
+                    checkmarkColor: const Color(0xFF0F766E),
+                    labelStyle: TextStyle(
+                      fontSize: 11,
+                      color: isSel ? const Color(0xFF0F766E) : AppTheme.textPrimary(ctx),
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (_) => setState(() => _toggleChronicCondition(tag)),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
@@ -600,13 +674,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     // Auto-collapse when user leaves or changes page
     ref.listen<int>(mainNavIndexProvider, (prev, next) {
       if (next != 3) {
-        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded || _isAboutCardExpanded || _isRoutineExpanded) {
+        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded || _isAboutCardExpanded || _isRoutineExpanded || _isConditionsExpanded) {
           setState(() {
             _isProfileCardExpanded = false;
             _isSettingsCardExpanded = false;
             _isAllergiesExpanded = false;
             _isAboutCardExpanded = false;
             _isRoutineExpanded = false;
+            _isConditionsExpanded = false;
           });
         }
       }
@@ -800,7 +875,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Routine: Wake ${_isPrivacyMaskActive ? '••:••' : _wakeTime} • Bed ${_isPrivacyMaskActive ? '••:••' : _sleepTime} • ${_allergies.length} Safety Triggers',
+                              'Routine: Wake ${_isPrivacyMaskActive ? '••:••' : _wakeTime} • Bed ${_isPrivacyMaskActive ? '••:••' : _sleepTime} • ${_allergies.length} Allergies • ${_chronicConditions.length} Conditions',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -935,6 +1010,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                                 backgroundColor: AppTheme.surfaceVariant(context),
+                              ),
+                            if (_chronicConditions.isNotEmpty)
+                              Chip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.monitor_heart_rounded, size: 14, color: Color(0xFF0D9488)),
+                                label: Text(
+                                  '${_chronicConditions.length} Condition${_chronicConditions.length == 1 ? '' : 's'}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0D9488),
+                                  ),
+                                ),
+                                backgroundColor: const Color(0xFFF0FDFA),
+                                side: const BorderSide(color: Color(0xFFCCFBF1)),
                               ),
                           ],
                         ),
@@ -1216,6 +1306,225 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       onToggleAllergy: _toggleAllergy,
                       onAddCustomAllergy: _addCustomAllergy,
                       isMasked: _isPrivacyMaskActive,
+                    ),
+                  ),
+                ],
+
+                // --- CHRONIC CONDITIONS & ORGAN RISKS SECTION ---
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isConditionsExpanded = !_isConditionsExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0D9488).withValues(alpha: isDark ? 0.25 : 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.monitor_heart_rounded,
+                            size: 18,
+                            color: Color(0xFF0D9488),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Chronic Conditions & Organ Risks',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary(context),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (_chronicConditions.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${_chronicConditions.length}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0D9488),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              Text(
+                                _isConditionsExpanded
+                                    ? 'Tap to collapse clinical risks & precautions'
+                                    : _chronicConditions.isEmpty
+                                        ? 'None recorded • Tap to configure organ risks'
+                                        : '${_chronicConditions.length} active conditions recorded • Tap to view & edit',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textSecondary(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _isConditionsExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: AppTheme.textSecondary(context),
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Collapsed Preview Badges
+                if (!_isConditionsExpanded && _chronicConditions.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: _chronicConditions.map((condition) {
+                          final displayText = _isPrivacyMaskActive ? '••••••••' : condition;
+                          return Chip(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFF0FDFA),
+                            side: BorderSide(color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF99F6E4)),
+                            avatar: const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF0D9488)),
+                            label: Text(
+                              displayText,
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFF5EEAD4) : const Color(0xFF0F766E),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Expanded Conditions Selector
+                if (_isConditionsExpanded) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Select all active chronic medical conditions, organ risks, or clinical states:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary(context),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _commonChronicConditions.map((cond) {
+                            final tag = cond['tag'] as String;
+                            final title = cond['title'] as String;
+                            final icon = cond['icon'] as IconData;
+                            final isSel = _chronicConditions.contains(tag);
+                            return FilterChip(
+                              avatar: Icon(
+                                icon,
+                                size: 16,
+                                color: isSel ? const Color(0xFF0F766E) : AppTheme.textSecondary(context),
+                              ),
+                              label: Text(title),
+                              selected: isSel,
+                              selectedColor: const Color(0xFFCCFBF1),
+                              checkmarkColor: const Color(0xFF0F766E),
+                              labelStyle: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                color: isSel ? const Color(0xFF0F766E) : AppTheme.textPrimary(context),
+                              ),
+                              onSelected: (_) => _toggleChronicCondition(tag),
+                            );
+                          }).toList(),
+                        ),
+                        if (_chronicConditions.any((c) => !_commonChronicConditions.any((cc) => cc['tag'] == c))) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Custom Conditions:',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textSecondary(context),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _chronicConditions
+                                .where((c) => !_commonChronicConditions.any((cc) => cc['tag'] == c))
+                                .map((customTag) => InputChip(
+                                      avatar: const Icon(Icons.star_rounded, size: 14, color: Color(0xFF0D9488)),
+                                      label: Text(customTag),
+                                      labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
+                                      backgroundColor: const Color(0xFFCCFBF1),
+                                      deleteIconColor: const Color(0xFF0F766E),
+                                      onDeleted: () => _toggleChronicCondition(customTag),
+                                    ))
+                                .toList(),
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _customConditionController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Add custom condition (e.g. Epilepsy, G6PD)',
+                                  prefixIcon: Icon(Icons.add_circle_outline_rounded, size: 18),
+                                  isDense: true,
+                                ),
+                                onSubmitted: _addCustomChronicCondition,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.add_rounded),
+                              onPressed: () => _addCustomChronicCondition(_customConditionController.text),
+                              tooltip: 'Add Condition',
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1721,7 +2030,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Your vital safety information (Blood Type: $_bloodType, Health ID, ${_allergies.length} Critical Allergies, $activeCount Active Medications) is prepared for immediate access.',
+                  'Your vital safety information (Blood Type: $_bloodType, Health ID, ${_allergies.length} Critical Allergies, ${_chronicConditions.length} Chronic Conditions, $activeCount Active Medications) is prepared for immediate access.',
                   style: TextStyle(
                     fontSize: 12.5,
                     color: AppTheme.textSecondary(context),
@@ -1827,7 +2136,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'v1.6.0',
+                                'v1.6.2',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
                               ),
                             ),

@@ -343,28 +343,22 @@ class DeviceIntegrationService {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
 
-    // 1. Background (White Card)
+    final cardRRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(12, 12, width - 24, height - 24),
+      const Radius.circular(24),
+    );
+
+    // 1. Background (White Card Canvas)
     final bgPaint = Paint()..color = const Color(0xFFFFFFFF);
     canvas.drawRect(Rect.fromLTWH(0, 0, width, height), bgPaint);
 
-    // Outer subtle border
-    final borderPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(12, 12, width - 24, height - 24), const Radius.circular(20)),
-      borderPaint,
-    );
+    // Clip all card contents cleanly to the rounded card boundary (prevents corner chipping)
+    canvas.save();
+    canvas.clipRRect(cardRRect, doAntiAlias: true);
 
     // 2. Emergency Header Banner (Red)
     final headerPaint = Paint()..color = const Color(0xFFDC2626);
-    final headerRRect = RRect.fromRectAndCorners(
-      Rect.fromLTWH(12, 12, width - 24, 110),
-      topLeft: const Radius.circular(20),
-      topRight: const Radius.circular(20),
-    );
-    canvas.drawRRect(headerRRect, headerPaint);
+    canvas.drawRect(Rect.fromLTWH(12, 12, width - 24, 110), headerPaint);
 
     // Header Text
     _drawCanvasText(
@@ -641,6 +635,15 @@ class DeviceIntegrationService {
         fontWeight: FontWeight.w500,
       ),
     );
+
+    canvas.restore();
+
+    // 7. Draw smooth, continuous outer border over the framed card
+    final borderPaint = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRRect(cardRRect, borderPaint);
 
     final picture = recorder.endRecording();
     final img = await picture.toImage(width.toInt(), height.toInt());

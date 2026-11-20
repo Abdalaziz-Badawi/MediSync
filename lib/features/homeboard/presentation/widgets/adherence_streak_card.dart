@@ -87,13 +87,17 @@ class AdherenceStreakCard extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                '${streakData.currentStreak} Day Streak!',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.textPrimary(context),
-                                  letterSpacing: -0.3,
+                              Flexible(
+                                child: Text(
+                                  '${streakData.currentStreak} Day Streak!',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary(context),
+                                    letterSpacing: -0.3,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               if (streakData.isCompletedToday) ...[

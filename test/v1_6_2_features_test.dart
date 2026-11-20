@@ -8,9 +8,11 @@ import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/features/homeboard/presentation/pages/home_page.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
 import 'package:medisync/features/profile/presentation/pages/profile_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
+import 'package:medisync/features/records/presentation/pages/records_page.dart';
 
 class FakeProfileNotifier extends StateNotifier<UserProfile>
     implements ProfileNotifier {
@@ -23,6 +25,29 @@ class FakeProfileNotifier extends StateNotifier<UserProfile>
             bloodType: 'O+',
             gender: 'Female',
             allergies: const ['Penicillin'],
+            wakeTime: '07:00',
+            sleepTime: '23:00',
+          ),
+        );
+
+  @override
+  Future<void> updateProfile(UserProfile newProfile) async {
+    state = newProfile;
+  }
+}
+
+class FakeProfileWithConditionsNotifier extends StateNotifier<UserProfile>
+    implements ProfileNotifier {
+  FakeProfileWithConditionsNotifier()
+      : super(
+          UserProfile(
+            name: 'Sarah Connor',
+            dateOfBirth: DateTime(1985, 4, 12),
+            healthId: 'ID-99201-X',
+            bloodType: 'O+',
+            gender: 'Female',
+            allergies: const ['Penicillin'],
+            chronicConditions: const ['Asthma', 'Hypertension'],
             wakeTime: '07:00',
             sleepTime: '23:00',
           ),
@@ -439,6 +464,128 @@ void main() {
 
       // Expanded time rows are visible again
       expect(find.text('Wake Up Time'), findsOneWidget);
+    });
+
+    testWidgets('Profile Page displays Chronic Conditions & Organ Risks outside the emergency card', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileWithConditionsNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => MockMedicationsNotifier([])),
+            themeNotifierProvider.overrideWith((ref) => FakeThemeNotifier()),
+            fontScaleNotifierProvider.overrideWith((ref) => FakeFontScaleNotifier()),
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+          ],
+          child: const MaterialApp(
+            home: ProfilePage(initiallyExpanded: true),
+          ),
+        ),
+      );
+
+      // Verify that Chronic Conditions badge is displayed in Bio Info Wrap outside the card
+      expect(find.text('2 Conditions'), findsOneWidget);
+
+      // Verify that the dedicated Chronic Conditions & Organ Risks section is displayed outside the card
+      expect(find.text('Chronic Conditions & Organ Risks'), findsOneWidget);
+      expect(find.text('2 active conditions recorded • Tap to view & edit'), findsOneWidget);
+
+      // Verify collapsed preview chips for active conditions appear outside the card
+      expect(find.text('Asthma'), findsOneWidget);
+      expect(find.text('Hypertension'), findsOneWidget);
+
+      // Tap header to expand Chronic Conditions section
+      await tester.tap(find.text('Chronic Conditions & Organ Risks'));
+      await tester.pumpAndSettle();
+
+      // Verify expanded clinical taxonomy options appear
+      expect(find.text('Select all active chronic medical conditions, organ risks, or clinical states:'), findsOneWidget);
+      expect(find.text('Asthma (Airway)'), findsOneWidget);
+      expect(find.text('Hypertension (High BP)'), findsOneWidget);
+      expect(find.text('Diabetes (Type 1 or 2)'), findsOneWidget);
+      expect(find.text('Heart Condition'), findsOneWidget);
+
+      // Tap to toggle Diabetes
+      await tester.tap(find.text('Diabetes (Type 1 or 2)'));
+      await tester.pumpAndSettle();
+
+      // Verify Diabetes is now selected and condition count updated
+      expect(find.text('3 Conditions'), findsOneWidget);
+    });
+
+    testWidgets('Layout Robustness & Overflow Check on Narrow Viewports (320px)', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      // Test 1: ProfilePage on 320px
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileWithConditionsNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => MockMedicationsNotifier([])),
+            themeNotifierProvider.overrideWith((ref) => FakeThemeNotifier()),
+            fontScaleNotifierProvider.overrideWith((ref) => FakeFontScaleNotifier()),
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+          ],
+          child: const MaterialApp(
+            home: ProfilePage(initiallyExpanded: true),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final err1 = tester.takeException();
+      if (err1 != null) {
+        debugPrint('PROFILE OVERFLOW ERROR: $err1');
+      }
+      expect(err1, isNull);
+
+      // Test 2: HomePage on 320px
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileWithConditionsNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => MockMedicationsNotifier([])),
+            themeNotifierProvider.overrideWith((ref) => FakeThemeNotifier()),
+            fontScaleNotifierProvider.overrideWith((ref) => FakeFontScaleNotifier()),
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+          ],
+          child: const MaterialApp(
+            home: HomePage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final err2 = tester.takeException();
+      if (err2 != null) {
+        debugPrint('HOMEPAGE OVERFLOW ERROR: $err2');
+      }
+      expect(err2, isNull);
+
+      // Test 3: RecordsPage on 320px
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileWithConditionsNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => MockMedicationsNotifier([])),
+            themeNotifierProvider.overrideWith((ref) => FakeThemeNotifier()),
+            fontScaleNotifierProvider.overrideWith((ref) => FakeFontScaleNotifier()),
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+          ],
+          child: const MaterialApp(
+            home: RecordsPage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final err3 = tester.takeException();
+      if (err3 != null) {
+        debugPrint('RECORDSPAGE OVERFLOW ERROR: $err3');
+      }
+      expect(err3, isNull);
     });
   });
 }

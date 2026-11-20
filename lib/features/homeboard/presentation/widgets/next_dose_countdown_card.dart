@@ -242,29 +242,36 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.timer_rounded,
-                        size: 18,
-                        color: isOverdue
-                            ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
-                            : primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'NEXT MEDICATION',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.timer_rounded,
+                          size: 18,
                           color: isOverdue
-                              ? (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309))
+                              ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
                               : primary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'NEXT MEDICATION',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              color: isOverdue
+                                  ? (isDark ? AppTheme.warningAmberLight : const Color(0xFFB45309))
+                                  : primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(

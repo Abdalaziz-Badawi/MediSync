@@ -394,13 +394,17 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                       children: [
                         const Icon(Icons.analytics_rounded, color: Colors.white, size: 18),
                         const SizedBox(width: 6),
-                        Text(
-                          'CONTINUITY DASHBOARD',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.88),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
+                        Expanded(
+                          child: Text(
+                            'CONTINUITY DASHBOARD',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -459,32 +463,40 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildDashboardMetric(
-                  label: 'Taken',
-                  count: totalTaken,
-                  icon: Icons.check_circle_rounded,
-                  color: const Color(0xFF6EE7B7),
+                Expanded(
+                  child: _buildDashboardMetric(
+                    label: 'Taken',
+                    count: totalTaken,
+                    icon: Icons.check_circle_rounded,
+                    color: const Color(0xFF6EE7B7),
+                  ),
                 ),
                 _buildMetricDivider(),
-                _buildDashboardMetric(
-                  label: 'Delayed',
-                  count: totalDelayed,
-                  icon: Icons.schedule_rounded,
-                  color: const Color(0xFFFDE047),
+                Expanded(
+                  child: _buildDashboardMetric(
+                    label: 'Delayed',
+                    count: totalDelayed,
+                    icon: Icons.schedule_rounded,
+                    color: const Color(0xFFFDE047),
+                  ),
                 ),
                 _buildMetricDivider(),
-                _buildDashboardMetric(
-                  label: 'Missed',
-                  count: totalMissed,
-                  icon: Icons.cancel_rounded,
-                  color: const Color(0xFFFCA5A5),
+                Expanded(
+                  child: _buildDashboardMetric(
+                    label: 'Missed',
+                    count: totalMissed,
+                    icon: Icons.cancel_rounded,
+                    color: const Color(0xFFFCA5A5),
+                  ),
                 ),
                 _buildMetricDivider(),
-                _buildDashboardMetric(
-                  label: 'Not Needed',
-                  count: totalNotNeeded,
-                  icon: Icons.remove_circle_outline_rounded,
-                  color: const Color(0xFFE2E8F0),
+                Expanded(
+                  child: _buildDashboardMetric(
+                    label: 'Not Needed',
+                    count: totalNotNeeded,
+                    icon: Icons.remove_circle_outline_rounded,
+                    color: const Color(0xFFE2E8F0),
+                  ),
                 ),
               ],
             ),
@@ -569,21 +581,29 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.calendar_month_rounded, color: primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    headerMonthYear,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary(context),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_month_rounded, color: primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        headerMonthYear,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 6),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Jump to Today Button
                   InkWell(
@@ -681,17 +701,18 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
 
           const SizedBox(height: 12),
           // Adherence Indicator Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildLegendDot(isDark ? AppTheme.successGreenLight : AppTheme.successGreen, 'Taken'),
-              const SizedBox(width: 14),
-              _buildLegendDot(isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber, 'Delayed'),
-              const SizedBox(width: 14),
-              _buildLegendDot(isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed, 'Missed'),
-              const SizedBox(width: 14),
-              _buildLegendDot(isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade600, 'Not Needed'),
-            ],
+          Center(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                _buildLegendDot(isDark ? AppTheme.successGreenLight : AppTheme.successGreen, 'Taken'),
+                _buildLegendDot(isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber, 'Delayed'),
+                _buildLegendDot(isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed, 'Missed'),
+                _buildLegendDot(isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade600, 'Not Needed'),
+              ],
+            ),
           ),
         ],
       ),
@@ -733,63 +754,66 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
     final dayNum = date.day.toString();
     final dotColor = _getDayStatusColor(date, medications, isDark);
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedDate = date;
-          _focusedDate = date;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? primary
-              : (isTodayDate
-                  ? primary.withValues(alpha: isDark ? 0.25 : 0.15)
-                  : Colors.transparent),
-          borderRadius: BorderRadius.circular(16),
-          border: isTodayDate && !isSelected
-              ? Border.all(color: primary, width: 1.5)
-              : null,
-          boxShadow: isSelected
-              ? AppTheme.glowShadow(primary, opacity: 0.3)
-              : null,
-        ),
-        child: Column(
-          children: [
-            Text(
-              dayAbbr,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : AppTheme.textSecondary(context),
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedDate = date;
+            _focusedDate = date;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? primary
+                : (isTodayDate
+                    ? primary.withValues(alpha: isDark ? 0.25 : 0.15)
+                    : Colors.transparent),
+            borderRadius: BorderRadius.circular(16),
+            border: isTodayDate && !isSelected
+                ? Border.all(color: primary, width: 1.5)
+                : null,
+            boxShadow: isSelected
+                ? AppTheme.glowShadow(primary, opacity: 0.3)
+                : null,
+          ),
+          child: Column(
+            children: [
+              Text(
+                dayAbbr,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : AppTheme.textSecondary(context),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              dayNum,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : AppTheme.textPrimary(context),
+              const SizedBox(height: 4),
+              Text(
+                dayNum,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : AppTheme.textPrimary(context),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            // Dose Status Dot
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? Colors.white
-                    : dotColor,
+              const SizedBox(height: 4),
+              // Dose Status Dot
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected
+                      ? Colors.white
+                      : dotColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
