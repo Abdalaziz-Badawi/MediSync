@@ -623,46 +623,53 @@ class _HomePageState extends ConsumerState<HomePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_month_rounded,
-                    size: 16,
-                    color: activeColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    DateFormat('MMMM yyyy').format(_selectedDate),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary(context),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      size: 16,
+                      color: activeColor,
                     ),
-                  ),
-                  if (!_isSameDay(_selectedDate, now)) ...[
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: () => setState(() => _selectedDate = now),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: activeColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        DateFormat('MMMM yyyy').format(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
                         ),
-                        child: Text(
-                          'Today',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: activeColor,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!_isSameDay(_selectedDate, now)) ...[
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => setState(() => _selectedDate = now),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: activeColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Today',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: activeColor,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
+              const SizedBox(width: 8),
 
               // Glowing Animated Flame Streak Chip
               GestureDetector(

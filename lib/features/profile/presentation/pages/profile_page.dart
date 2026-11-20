@@ -53,6 +53,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   // Collapsible Cards State (Starts collapsed by default, expands on interaction, collapses on leave)
   late bool _isProfileCardExpanded;
   late bool _isSettingsCardExpanded;
+  late bool _isRoutineExpanded;
   bool _isAllergiesExpanded = false;
   bool _isAboutCardExpanded = false;
 
@@ -70,6 +71,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     super.initState();
     _isProfileCardExpanded = widget.initiallyExpanded;
     _isSettingsCardExpanded = widget.initiallyExpanded;
+    _isRoutineExpanded = widget.initiallyExpanded;
 
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
@@ -335,17 +337,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -578,7 +582,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
             ],
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }
@@ -594,12 +600,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     // Auto-collapse when user leaves or changes page
     ref.listen<int>(mainNavIndexProvider, (prev, next) {
       if (next != 3) {
-        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded || _isAboutCardExpanded) {
+        if (_isProfileCardExpanded || _isSettingsCardExpanded || _isAllergiesExpanded || _isAboutCardExpanded || _isRoutineExpanded) {
           setState(() {
             _isProfileCardExpanded = false;
             _isSettingsCardExpanded = false;
             _isAllergiesExpanded = false;
             _isAboutCardExpanded = false;
+            _isRoutineExpanded = false;
           });
         }
       }
@@ -725,12 +732,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               Row(
                                 children: [
                                   if (_calculatedAge != null) ...[
-                                    Text(
-                                      '$_calculatedAge yrs • $_gender',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(context).colorScheme.primary,
+                                    Flexible(
+                                      child: Text(
+                                        '$_calculatedAge yrs • $_gender',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     const SizedBox(width: 5),
@@ -816,12 +827,70 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 if (_isProfileCardExpanded) ...[
                   Divider(height: 1, color: AppTheme.cardBorder(context)),
 
-                  // Demographics Bar & Relaunch Setup Wizard Action
+                  // 1. Demographics & Bio Info Section (Organized Clean Layout)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Bio Info Header Row (Title on Left with Expanded, Setup Wizard Action on Right)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.badge_outlined,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Bio & Demographics',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.auto_fix_high_rounded,
+                                      size: 13,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Setup Wizard',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Organized Full-Width Wrap for Bio Info Badges (Eliminates Row Overflow)
                         Wrap(
                           spacing: 8,
                           runSpacing: 6,
@@ -846,7 +915,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             Chip(
                               visualDensity: VisualDensity.compact,
                               avatar: const Icon(Icons.bloodtype_rounded, size: 14, color: Color(0xFFDC2626)),
-                              label: Text('Blood: $_bloodType', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                              label: Text(
+                                'Blood: $_bloodType',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
                               backgroundColor: const Color(0xFFFEF2F2),
                               side: const BorderSide(color: Color(0xFFFECACA)),
                             ),
@@ -854,106 +930,188 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               Chip(
                                 visualDensity: VisualDensity.compact,
                                 avatar: const Icon(Icons.credit_card_rounded, size: 14),
-                                label: Text('ID: ${_healthIdController.text.trim()}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                label: Text(
+                                  'ID: ${_healthIdController.text.trim()}',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
                                 backgroundColor: AppTheme.surfaceVariant(context),
                               ),
                           ],
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const OnboardingPage()),
-                            );
-                          },
-                          icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
-                          label: const Text('Setup Wizard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
                   ),
                   Divider(height: 1, color: AppTheme.cardBorder(context)),
 
-                  // --- INTEGRATED DAILY ROUTINE & MEAL SCHEDULE ---
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.access_time_filled_rounded,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Daily Routine & Meal Times',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary(context),
+                  // --- INTEGRATED DAILY ROUTINE & MEAL SCHEDULE (Collapsible View) ---
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isRoutineExpanded = !_isRoutineExpanded;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.access_time_filled_rounded,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Daily Routine & Meal Times',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary(context),
+                                  ),
+                                ),
+                                Text(
+                                  _isRoutineExpanded
+                                      ? 'Tap to collapse daily routine schedule'
+                                      : 'Wake ${_isPrivacyMaskActive ? '••:••' : _wakeTime} • Bed ${_isPrivacyMaskActive ? '••:••' : _sleepTime} • Tap to view & edit',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textSecondary(context),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            _isRoutineExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: AppTheme.textSecondary(context),
+                            size: 24,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      _RoutineTimeRow(
-                        icon: Icons.wb_sunny_rounded,
-                        label: 'Wake Up Time',
-                        time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
-                        onTap: () => _pickTime(
-                          currentTime: _wakeTime,
-                          onPicked: (t) => _wakeTime = t,
+
+                  // Collapsed Routine Quick-Preview Badges (Horizontal scrollable, 0 risk of overflow)
+                  if (!_isRoutineExpanded)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _buildRoutinePreviewChip(
+                              context,
+                              icon: Icons.wb_sunny_rounded,
+                              label: 'Wake',
+                              time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
+                            ),
+                            const SizedBox(width: 6),
+                            _buildRoutinePreviewChip(
+                              context,
+                              icon: Icons.breakfast_dining_rounded,
+                              label: 'Breakfast',
+                              time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
+                            ),
+                            const SizedBox(width: 6),
+                            _buildRoutinePreviewChip(
+                              context,
+                              icon: Icons.lunch_dining_rounded,
+                              label: 'Lunch',
+                              time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
+                            ),
+                            const SizedBox(width: 6),
+                            _buildRoutinePreviewChip(
+                              context,
+                              icon: Icons.dinner_dining_rounded,
+                              label: 'Dinner',
+                              time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
+                            ),
+                            const SizedBox(width: 6),
+                            _buildRoutinePreviewChip(
+                              context,
+                              icon: Icons.bedtime_rounded,
+                              label: 'Sleep',
+                              time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
+                            ),
+                          ],
                         ),
                       ),
-                      Divider(height: 14, color: AppTheme.cardBorder(context)),
-                      _RoutineTimeRow(
-                        icon: Icons.breakfast_dining_rounded,
-                        label: 'Breakfast Time',
-                        time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
-                        onTap: () => _pickTime(
-                          currentTime: _breakfastTime,
-                          onPicked: (t) => _breakfastTime = t,
-                        ),
+                    ),
+
+                  // Expanded Full Routine Time Selectors
+                  if (_isRoutineExpanded)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          _RoutineTimeRow(
+                            icon: Icons.wb_sunny_rounded,
+                            label: 'Wake Up Time',
+                            time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
+                            onTap: () => _pickTime(
+                              currentTime: _wakeTime,
+                              onPicked: (t) => _wakeTime = t,
+                            ),
+                          ),
+                          Divider(height: 14, color: AppTheme.cardBorder(context)),
+                          _RoutineTimeRow(
+                            icon: Icons.breakfast_dining_rounded,
+                            label: 'Breakfast Time',
+                            time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
+                            onTap: () => _pickTime(
+                              currentTime: _breakfastTime,
+                              onPicked: (t) => _breakfastTime = t,
+                            ),
+                          ),
+                          Divider(height: 14, color: AppTheme.cardBorder(context)),
+                          _RoutineTimeRow(
+                            icon: Icons.lunch_dining_rounded,
+                            label: 'Lunch Time',
+                            time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
+                            onTap: () => _pickTime(
+                              currentTime: _lunchTime,
+                              onPicked: (t) => _lunchTime = t,
+                            ),
+                          ),
+                          Divider(height: 14, color: AppTheme.cardBorder(context)),
+                          _RoutineTimeRow(
+                            icon: Icons.dinner_dining_rounded,
+                            label: 'Dinner Time',
+                            time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
+                            onTap: () => _pickTime(
+                              currentTime: _dinnerTime,
+                              onPicked: (t) => _dinnerTime = t,
+                            ),
+                          ),
+                          Divider(height: 14, color: AppTheme.cardBorder(context)),
+                          _RoutineTimeRow(
+                            icon: Icons.bedtime_rounded,
+                            label: 'Sleep / Bedtime',
+                            time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
+                            onTap: () => _pickTime(
+                              currentTime: _sleepTime,
+                              onPicked: (t) => _sleepTime = t,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                       ),
-                      Divider(height: 14, color: AppTheme.cardBorder(context)),
-                      _RoutineTimeRow(
-                        icon: Icons.lunch_dining_rounded,
-                        label: 'Lunch Time',
-                        time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
-                        onTap: () => _pickTime(
-                          currentTime: _lunchTime,
-                          onPicked: (t) => _lunchTime = t,
-                        ),
-                      ),
-                      Divider(height: 14, color: AppTheme.cardBorder(context)),
-                      _RoutineTimeRow(
-                        icon: Icons.dinner_dining_rounded,
-                        label: 'Dinner Time',
-                        time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
-                        onTap: () => _pickTime(
-                          currentTime: _dinnerTime,
-                          onPicked: (t) => _dinnerTime = t,
-                        ),
-                      ),
-                      Divider(height: 14, color: AppTheme.cardBorder(context)),
-                      _RoutineTimeRow(
-                        icon: Icons.bedtime_rounded,
-                        label: 'Sleep / Bedtime',
-                        time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
-                        onTap: () => _pickTime(
-                          currentTime: _sleepTime,
-                          onPicked: (t) => _sleepTime = t,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
 
                 const SizedBox(height: 10),
                 Divider(height: 1, color: AppTheme.cardBorder(context)),
@@ -1988,6 +2146,46 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       onSelected: (_) {
         ref.read(fontScaleNotifierProvider.notifier).setFontScale(scale);
       },
+    );
+  }
+
+  Widget _buildRoutinePreviewChip(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String time,
+  }) {
+    final isDark = AppTheme.isDark(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppTheme.cardBorder(context)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 5),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary(context),
+            ),
+          ),
+          Text(
+            time,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

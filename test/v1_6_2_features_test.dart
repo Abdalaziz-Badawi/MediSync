@@ -5,17 +5,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
+import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
+import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
+import 'package:medisync/features/profile/presentation/pages/profile_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
 
 class FakeProfileNotifier extends StateNotifier<UserProfile>
     implements ProfileNotifier {
   FakeProfileNotifier()
       : super(
-          const UserProfile(
+          UserProfile(
             name: 'Sarah Connor',
-            allergies: ['Penicillin'],
+            dateOfBirth: DateTime(1985, 4, 12),
+            healthId: 'ID-99201-X',
+            bloodType: 'O+',
+            gender: 'Female',
+            allergies: const ['Penicillin'],
             wakeTime: '07:00',
             sleepTime: '23:00',
           ),
@@ -25,6 +32,73 @@ class FakeProfileNotifier extends StateNotifier<UserProfile>
   Future<void> updateProfile(UserProfile newProfile) async {
     state = newProfile;
   }
+}
+
+class FakeThemeNotifier extends StateNotifier<ThemeMode>
+    implements ThemeNotifier {
+  FakeThemeNotifier() : super(ThemeMode.light);
+
+  @override
+  void setThemeMode(ThemeMode mode) {
+    state = mode;
+  }
+
+  @override
+  void toggleTheme() {
+    state = state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+  }
+}
+
+class FakeFontScaleNotifier extends StateNotifier<double>
+    implements FontScaleNotifier {
+  FakeFontScaleNotifier() : super(1.0);
+
+  @override
+  void setFontScale(double scale) {
+    state = scale;
+  }
+}
+
+class FakePaletteNotifier extends StateNotifier<AppPalette>
+    implements PaletteNotifier {
+  FakePaletteNotifier() : super(AppPalette.emeraldTeal);
+
+  @override
+  void setPalette(AppPalette palette) {
+    state = palette;
+  }
+}
+
+class FakeNotificationService implements NotificationService {
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<void> showTestNotification({String title = '', String body = ''}) async {}
+
+  @override
+  Future<void> scheduleDailyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
+  Future<void> scheduleMealReminder({
+    required int id,
+    required String mealName,
+    required String advice,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
+  Future<void> cancelNotification(int id) async {}
+
+  @override
+  Future<void> cancelAll() async {}
 }
 
 // Test mock notifier for medications
@@ -292,6 +366,79 @@ void main() {
       // Verify mock recorded status
       expect(mockNotifier.lastRecordedStatus, equals(DoseStatus.takenEarly));
       expect(mockNotifier.lastRecordedTime, equals('23:59'));
+    });
+
+    testWidgets('Profile Page renders bio info widgets and handles narrow screens without overflow', (tester) async {
+      tester.view.physicalSize = const Size(340 * 2, 700 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => MockMedicationsNotifier([])),
+            themeNotifierProvider.overrideWith((ref) => FakeThemeNotifier()),
+            fontScaleNotifierProvider.overrideWith((ref) => FakeFontScaleNotifier()),
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+          ],
+          child: const MaterialApp(
+            home: ProfilePage(initiallyExpanded: true),
+          ),
+        ),
+      );
+
+      // Verify Bio & Demographics section header and action button
+      expect(find.text('Bio & Demographics'), findsOneWidget);
+      expect(find.text('Setup Wizard'), findsOneWidget);
+
+      // Verify wrapped bio badges render cleanly
+      expect(find.text('Blood: O+'), findsOneWidget);
+      expect(find.text('Female'), findsOneWidget);
+      expect(find.text('ID: ID-99201-X'), findsOneWidget);
+      expect(find.textContaining('yrs'), findsWidgets);
+    });
+
+    testWidgets('Profile Page collapsible Daily Routine expands and collapses properly', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            profileNotifierProvider.overrideWith((ref) => FakeProfileNotifier()),
+            medicationsNotifierProvider.overrideWith((ref) => MockMedicationsNotifier([])),
+            themeNotifierProvider.overrideWith((ref) => FakeThemeNotifier()),
+            fontScaleNotifierProvider.overrideWith((ref) => FakeFontScaleNotifier()),
+            paletteNotifierProvider.overrideWith((ref) => FakePaletteNotifier()),
+            notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+          ],
+          child: const MaterialApp(
+            home: ProfilePage(initiallyExpanded: true),
+          ),
+        ),
+      );
+
+      // Header is present
+      expect(find.text('Daily Routine & Meal Times'), findsOneWidget);
+
+      // Initially expanded (because initiallyExpanded: true)
+      expect(find.text('Wake Up Time'), findsOneWidget);
+      expect(find.text('Breakfast Time'), findsOneWidget);
+
+      // Tap header to collapse
+      await tester.tap(find.text('Daily Routine & Meal Times'));
+      await tester.pumpAndSettle();
+
+      // Expanded list is hidden, collapsed preview chips are shown
+      expect(find.text('Wake Up Time'), findsNothing);
+      expect(find.text('Wake: '), findsOneWidget);
+      expect(find.text('Breakfast: '), findsOneWidget);
+
+      // Tap header again to re-expand
+      await tester.tap(find.text('Daily Routine & Meal Times'));
+      await tester.pumpAndSettle();
+
+      // Expanded time rows are visible again
+      expect(find.text('Wake Up Time'), findsOneWidget);
     });
   });
 }

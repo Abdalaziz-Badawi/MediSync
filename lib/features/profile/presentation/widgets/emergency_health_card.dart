@@ -421,19 +421,25 @@ void showEmergencyCardDialog(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.credit_card_rounded, color: Color(0xFFDC2626)),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Emergency Medical ID Card',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary(ctx),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.credit_card_rounded, color: Color(0xFFDC2626)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Emergency Medical ID Card',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(ctx),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
