@@ -18,8 +18,10 @@ enum ScheduleFrequency {
   daily,         // Every day (or specific days of week)
   weekly,        // Once or specific days every week
   biWeekly,      // Every 2 weeks (alternate weeks)
+  everyXWeeks,   // Every X weeks (custom week interval)
   monthly,       // Once a month (e.g. 1st or custom day of month)
   twiceMonthly,  // Twice a month (e.g. 1st and 15th)
+  everyXMonths,  // Every X months (e.g. every 2, 3, 6 months)
   everyXDays,    // Every X days (e.g. every 2 or 3 days)
   asNeeded,      // PRN / As Needed
 }
@@ -55,7 +57,14 @@ class Medication {
   // Scheduling frequency details
   final ScheduleFrequency scheduleFrequency;
   final int? intervalDays; // Used for everyXDays (e.g. 2, 3, 5)
+  final int? intervalWeeks; // Used for everyXWeeks (e.g. 2, 3, 4)
   final List<int> monthlyDays; // Used for monthly / twiceMonthly (e.g. [1] or [1, 15])
+  final int? intervalMonths; // Used for everyXMonths (e.g. 2, 3, 6)
+  // Therapeutic category / drug class for clinical styling and guidance
+  final String? category;
+  // Package-based refill runway
+  final int? packageSize; // Total commercial pack quantity (e.g. 30, 60 pills)
+  final int? pillsRemaining; // Current live supply
   // Food & Dietary restrictions (e.g. avoid grapefruit, avoid dairy for 2h)
   final List<String> foodRestrictions;
   // Inactive excipients list (for food/additive cross-reference screening)
@@ -88,7 +97,12 @@ class Medication {
     this.daysOfWeek = const [1, 2, 3, 4, 5, 6, 7],
     this.scheduleFrequency = ScheduleFrequency.daily,
     this.intervalDays,
+    this.intervalWeeks,
     this.monthlyDays = const [1],
+    this.intervalMonths,
+    this.category,
+    this.packageSize,
+    this.pillsRemaining,
     this.foodRestrictions = const [],
     this.inactiveExcipients = const [],
     this.mealCondition,
@@ -148,6 +162,14 @@ class Medication {
         final weekDiff = startOfCheck.difference(startOfStart).inDays ~/ 7;
         return weekDiff % 2 == 0;
 
+      case ScheduleFrequency.everyXWeeks:
+        if (daysOfWeek.isNotEmpty && !daysOfWeek.contains(date.weekday)) {
+          return false;
+        }
+        final intervalW = (intervalWeeks != null && intervalWeeks! > 0) ? intervalWeeks! : 2;
+        final weekDiff = startOfCheck.difference(startOfStart).inDays ~/ 7;
+        return weekDiff >= 0 && (weekDiff % intervalW == 0);
+
       case ScheduleFrequency.monthly:
         final days = monthlyDays.isNotEmpty ? monthlyDays : [startOfStart.day];
         return days.contains(date.day);
@@ -156,11 +178,142 @@ class Medication {
         final days = monthlyDays.isNotEmpty ? monthlyDays : [1, 15];
         return days.contains(date.day);
 
+      case ScheduleFrequency.everyXMonths:
+        final intervalM = (intervalMonths != null && intervalMonths! > 0) ? intervalMonths! : 3;
+        final monthDiff = (date.year - startDate.year) * 12 + (date.month - startDate.month);
+        final days = monthlyDays.isNotEmpty ? monthlyDays : [startOfStart.day];
+        return monthDiff >= 0 && (monthDiff % intervalM == 0) && days.contains(date.day);
+
       case ScheduleFrequency.everyXDays:
         final interval = (intervalDays != null && intervalDays! > 1) ? intervalDays! : 2;
         final dayDiff = startOfCheck.difference(startOfStart).inDays;
         return dayDiff >= 0 && (dayDiff % interval == 0);
     }
+  }
+
+  /// Dynamic clinical description of the schedule frequency
+  String get frequencyDisplay {
+    if (isDiscontinued) return 'Discontinued';
+    switch (scheduleFrequency) {
+      case ScheduleFrequency.asNeeded:
+        return 'As Needed (PRN)';
+      case ScheduleFrequency.daily:
+        if (daysOfWeek.length == 7 || daysOfWeek.isEmpty) {
+          return timesPerDay == 1 ? 'Once daily' : '${timesPerDay}x daily';
+        }
+        return '${_formatDaysOfWeek(daysOfWeek)} • ${timesPerDay}x';
+      case ScheduleFrequency.everyXDays:
+        final days = (intervalDays != null && intervalDays! > 1) ? intervalDays! : 2;
+        return 'Every $days days • ${timesPerDay}x';
+      case ScheduleFrequency.weekly:
+        return 'Weekly (${_formatDaysOfWeek(daysOfWeek)}) • ${timesPerDay}x';
+      case ScheduleFrequency.biWeekly:
+        return 'Every 2 weeks (${_formatDaysOfWeek(daysOfWeek)}) • ${timesPerDay}x';
+      case ScheduleFrequency.everyXWeeks:
+        final weeks = (intervalWeeks != null && intervalWeeks! > 0) ? intervalWeeks! : 2;
+        return 'Every $weeks weeks (${_formatDaysOfWeek(daysOfWeek)}) • ${timesPerDay}x';
+      case ScheduleFrequency.monthly:
+        final days = monthlyDays.isNotEmpty ? monthlyDays.join(', ') : '${startDate.day}';
+        return 'Monthly (Day $days) • ${timesPerDay}x';
+      case ScheduleFrequency.twiceMonthly:
+        final days = monthlyDays.isNotEmpty ? monthlyDays.join(', ') : '1, 15';
+        return 'Twice a month (Days $days) • ${timesPerDay}x';
+      case ScheduleFrequency.everyXMonths:
+        final months = (intervalMonths != null && intervalMonths! > 0) ? intervalMonths! : 3;
+        final days = monthlyDays.isNotEmpty ? monthlyDays.join(', ') : '${startDate.day}';
+        return 'Every $months months (Day $days) • ${timesPerDay}x';
+    }
+  }
+
+  static String _formatDaysOfWeek(List<int> days) {
+    if (days.isEmpty || days.length == 7) return 'Daily';
+    const dayNames = {1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'};
+    final sorted = List<int>.from(days)..sort();
+    return sorted.map((d) => dayNames[d] ?? '').where((s) => s.isNotEmpty).join(', ');
+  }
+
+  /// Refill runway calculations
+  int get estimatedDosesRemaining {
+    if (pillsRemaining != null) return pillsRemaining!;
+    if (packageSize != null) {
+      final totalTaken = continuityStats['taken'] ?? 0;
+      final rem = packageSize! - totalTaken;
+      return rem > 0 ? rem : 0;
+    }
+    return 30; // Default estimate
+  }
+
+  int get estimatedDaysRemaining {
+    final dosesPerDay = timesPerDay > 0 ? timesPerDay : 1;
+    return (estimatedDosesRemaining / dosesPerDay).ceil();
+  }
+
+  bool get isLowSupply => estimatedDaysRemaining <= 7;
+
+  /// Evidence-based clinical guidance for missed doses
+  String get missedDoseAdvice {
+    final cat = (category ?? '').toLowerCase();
+    if (cat.contains('insulin') || form == MedicationForm.injection) {
+      return 'Check blood glucose first before taking a corrective dose. Do not take extra units without medical guidance.';
+    }
+    if (timesPerDay == 1) {
+      return 'If within 12 hours of the missed time, take it now. If closer to your next scheduled dose, skip it. Never take a double dose.';
+    } else if (timesPerDay == 2) {
+      return 'If within 4-6 hours of scheduled time, take now. Otherwise, skip and wait for the next scheduled dose. Never take two doses at once.';
+    } else {
+      return 'Take as soon as remembered if not close to the next dose. If your next dose is in < 2 hours, skip the missed dose. Never double up.';
+    }
+  }
+
+  /// Harmonic clinical theme color based on drug category and physical form
+  Color get categoryColor {
+    final cat = (category ?? '').toLowerCase();
+    if (cat.contains('cardio') || cat.contains('blood pressure') || cat.contains('hyperten') || cat.contains('heart')) {
+      return const Color(0xFFE11D48); // Rose Ruby
+    }
+    if (cat.contains('anti') || cat.contains('infect') || cat.contains('penicillin') || cat.contains('bacter')) {
+      return const Color(0xFF0D9488); // Teal
+    }
+    if (cat.contains('pain') || cat.contains('analgesic') || cat.contains('headache') || cat.contains('nsaid')) {
+      return const Color(0xFF0284C7); // Ocean Blue
+    }
+    if (cat.contains('diabet') || cat.contains('metabol') || cat.contains('insulin') || cat.contains('sugar')) {
+      return const Color(0xFF7C3AED); // Violet
+    }
+    if (cat.contains('respir') || cat.contains('asthma') || cat.contains('inhal') || cat.contains('lung')) {
+      return const Color(0xFF059669); // Emerald Mint
+    }
+    if (cat.contains('stomach') || cat.contains('gastro') || cat.contains('gerd') || cat.contains('ulcer')) {
+      return const Color(0xFFD97706); // Amber
+    }
+    if (cat.contains('nerve') || cat.contains('psych') || cat.contains('sleep') || cat.contains('sedat')) {
+      return const Color(0xFF4F46E5); // Indigo
+    }
+
+    // Fallback based on form
+    switch (form) {
+      case MedicationForm.pill:
+        return const Color(0xFF0D9488); // Teal
+      case MedicationForm.capsule:
+        return const Color(0xFF2563EB); // Royal Blue
+      case MedicationForm.liquid:
+        return const Color(0xFF0284C7); // Cyan
+      case MedicationForm.injection:
+        return const Color(0xFFDC2626); // Crimson
+      case MedicationForm.inhaler:
+        return const Color(0xFF059669); // Mint
+      case MedicationForm.drops:
+        return const Color(0xFF0891B2); // Deep Cyan
+      case MedicationForm.topical:
+        return const Color(0xFFD97706); // Amber
+      case MedicationForm.other:
+        return const Color(0xFF475569); // Slate
+    }
+  }
+
+  Color categoryBackgroundColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return categoryColor.withValues(alpha: isDark ? 0.14 : 0.07);
   }
 
   /// Returns the clinical intake status for a specific dose time.
@@ -290,7 +443,12 @@ class Medication {
     List<int>? daysOfWeek,
     ScheduleFrequency? scheduleFrequency,
     int? intervalDays,
+    int? intervalWeeks,
     List<int>? monthlyDays,
+    int? intervalMonths,
+    String? category,
+    int? packageSize,
+    int? pillsRemaining,
     List<String>? foodRestrictions,
     List<String>? inactiveExcipients,
     String? mealCondition,
@@ -318,7 +476,12 @@ class Medication {
       daysOfWeek: daysOfWeek ?? this.daysOfWeek,
       scheduleFrequency: scheduleFrequency ?? this.scheduleFrequency,
       intervalDays: intervalDays ?? this.intervalDays,
+      intervalWeeks: intervalWeeks ?? this.intervalWeeks,
       monthlyDays: monthlyDays ?? this.monthlyDays,
+      intervalMonths: intervalMonths ?? this.intervalMonths,
+      category: category ?? this.category,
+      packageSize: packageSize ?? this.packageSize,
+      pillsRemaining: pillsRemaining ?? this.pillsRemaining,
       foodRestrictions: foodRestrictions ?? this.foodRestrictions,
       inactiveExcipients: inactiveExcipients ?? this.inactiveExcipients,
       mealCondition: mealCondition ?? this.mealCondition,
@@ -349,7 +512,12 @@ class Medication {
       'daysOfWeek': daysOfWeek,
       'scheduleFrequency': scheduleFrequency.name,
       'intervalDays': intervalDays,
+      'intervalWeeks': intervalWeeks,
       'monthlyDays': monthlyDays,
+      'intervalMonths': intervalMonths,
+      'category': category,
+      'packageSize': packageSize,
+      'pillsRemaining': pillsRemaining,
       'foodRestrictions': foodRestrictions,
       'inactiveExcipients': inactiveExcipients,
       'mealCondition': mealCondition,
@@ -406,10 +574,15 @@ class Medication {
         orElse: () => ScheduleFrequency.daily,
       ),
       intervalDays: json['intervalDays'] as int?,
+      intervalWeeks: json['intervalWeeks'] as int?,
       monthlyDays: (json['monthlyDays'] as List<dynamic>?)
               ?.map((e) => (e as num).toInt())
               .toList() ??
           const [1],
+      intervalMonths: json['intervalMonths'] as int?,
+      category: json['category'] as String?,
+      packageSize: json['packageSize'] as int?,
+      pillsRemaining: json['pillsRemaining'] as int?,
       foodRestrictions: (json['foodRestrictions'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -454,4 +627,7 @@ class Medication {
         return Icons.healing_rounded;
     }
   }
+
+  /// Alias for form-specific micro icon badge
+  IconData get formIcon => icon;
 }

@@ -13,6 +13,8 @@ import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
 import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
+import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
+import 'package:medisync/core/models/user_profile.dart';
 
 class DoseItem {
   final Medication medication;
@@ -37,22 +39,35 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   late DateTime _selectedDate;
+  int _weekOffset = 0; // -1 = Previous week, 0 = Current week, 1 = Next week
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLockscreenLaunch();
+    });
   }
 
-  // Calculate current week's dates (Monday to Sunday)
+  Future<void> _checkLockscreenLaunch() async {
+    final action = await ref.read(deviceIntegrationServiceProvider).getInitialLockscreenAction();
+    if (action != null && mounted) {
+      final profile = ref.read(profileNotifierProvider);
+      final meds = ref.read(medicationsNotifierProvider);
+      showEmergencyCardDialog(context, profile: profile, medications: meds);
+    }
+  }
+
+  // Calculate week's dates (Monday to Sunday) factoring in _weekOffset (-1, 0, 1)
   List<DateTime> _getCurrentWeekDates() {
     final now = DateTime.now();
     final currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
-    final monday = now.subtract(Duration(days: currentWeekday - 1));
+    final targetMonday = now.subtract(Duration(days: currentWeekday - 1)).add(Duration(days: _weekOffset * 7));
 
     return List.generate(7, (index) {
-      final day = monday.add(Duration(days: index));
+      final day = targetMonday.add(Duration(days: index));
       return DateTime(day.year, day.month, day.day);
     });
   }
@@ -134,8 +149,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           med.mealCondition != null;
     }).toList();
 
-    // Human-readable date string avoiding intl specifier issues
-    final formattedHeaderDate = DateFormat('EEEE, MMMM d').format(_selectedDate);
     final formattedScheduleTitle =
         isToday ? "Today's Schedule" : "${DateFormat('EEEE, MMM d').format(_selectedDate)} Schedule";
     final weekDates = _getCurrentWeekDates();
@@ -170,18 +183,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          formattedHeaderDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textSecondary(context),
-                            letterSpacing: 0.3,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
                           'Hello, ${profile.name.split(' ').first}',
                           style: TextStyle(
                             fontSize: 21,
@@ -198,6 +199,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        tooltip: 'Emergency Medical ID',
+                        icon: const Icon(
+                          Icons.contact_emergency_rounded,
+                          color: Color(0xFFDC2626),
+                          size: 26,
+                        ),
+                        onPressed: () => showEmergencyCardDialog(
+                          context,
+                          profile: profile,
+                          medications: medications,
+                        ),
+                      ),
                       IconButton(
                         tooltip: 'Sync Schedule to Calendar',
                         icon: Icon(
@@ -234,6 +248,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         children: [
+          // 0. Quick Access Emergency Health Card Banner
+          _buildQuickEmergencyCardBanner(context, profile, medications),
+          const SizedBox(height: 14),
+
           // 1. Weekly Schedule Day Selector with Field of Depth
           _buildWeeklyDaySelector(weekDates, now, medications),
           const SizedBox(height: 16),
@@ -614,7 +632,114 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  // 7-Day Weekly Schedule Selector with Active Day Dot Indicators & Merged Streak Badge
+  Widget _buildQuickEmergencyCardBanner(
+    BuildContext context,
+    UserProfile profile,
+    List<Medication> medications,
+  ) {
+    final isDark = AppTheme.isDark(context);
+    final activeAllergies = profile.allergies.isNotEmpty
+        ? '${profile.allergies.length} recorded'
+        : 'None recorded';
+    final bloodType = (profile.bloodType?.isNotEmpty ?? false) ? profile.bloodType! : 'Unknown';
+
+    return InkWell(
+      onTap: () => showEmergencyCardDialog(
+        context,
+        profile: profile,
+        medications: medications,
+      ),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA),
+            width: 1.2,
+          ),
+          boxShadow: [
+            ...AppTheme.glowShadow(const Color(0xFFDC2626), opacity: 0.08),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.contact_emergency_rounded,
+                color: Color(0xFFDC2626),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Emergency Medical ID',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC2626),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          bloodType,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Allergies: $activeAllergies • Tap for instant medical summary',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textSecondary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 7-Day Weekly Schedule Selector with Active Day Dot Indicators & Merged Vital Continuity Shield
   Widget _buildWeeklyDaySelector(
     List<DateTime> weekDates,
     DateTime now,
@@ -633,51 +758,109 @@ class _HomePageState extends ConsumerState<HomePage> {
         boxShadow: [
           ...AppTheme.softShadow(context),
           if (streakData.currentStreak > 0)
-            ...AppTheme.glowShadow(const Color(0xFFFF9100), opacity: 0.14),
+            ...AppTheme.glowShadow(const Color(0xFF0D9488), opacity: 0.14),
         ],
       ),
       child: Column(
         children: [
-          // Top Row: Month / Quick Jump + Merged Glowing Streak Pill
+          // Top Row: 3-Week Navigator & Merged Vital Continuity Shield Pill
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              Flexible(
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.calendar_month_rounded,
-                      size: 16,
-                      color: activeColor,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        DateFormat('MMMM yyyy').format(_selectedDate),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary(context),
+                    // Previous Week Arrow Button
+                    InkWell(
+                      onTap: _weekOffset > -1
+                          ? () {
+                              setState(() {
+                                _weekOffset--;
+                                _selectedDate = _getCurrentWeekDates().first;
+                              });
+                            }
+                          : null,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.chevron_left_rounded,
+                          size: 20,
+                          color: _weekOffset > -1
+                              ? activeColor
+                              : AppTheme.textSecondary(context).withValues(alpha: 0.3),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Flexible(
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _weekOffset = 0;
+                            _selectedDate = now;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Text(
+                            _weekOffset == 0
+                                ? 'This Week'
+                                : (_weekOffset == -1 ? 'Prev Week' : 'Next Week'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    // Next Week Arrow Button
+                    InkWell(
+                      onTap: _weekOffset < 1
+                          ? () {
+                              setState(() {
+                                _weekOffset++;
+                                _selectedDate = _getCurrentWeekDates().first;
+                              });
+                            }
+                          : null,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: _weekOffset < 1
+                              ? activeColor
+                              : AppTheme.textSecondary(context).withValues(alpha: 0.3),
+                        ),
                       ),
                     ),
                     if (!_isSameDay(_selectedDate, now)) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
                       InkWell(
-                        onTap: () => setState(() => _selectedDate = now),
-                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => setState(() {
+                          _weekOffset = 0;
+                          _selectedDate = now;
+                        }),
+                        borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: activeColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             'Today',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.bold,
                               color: activeColor,
                             ),
@@ -690,22 +873,22 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               const SizedBox(width: 8),
 
-              // Glowing Animated Flame Streak Chip
+              // Glowing Animated Vital Continuity Shield Chip
               GestureDetector(
                 onTap: () => _showStreakMilestonesSheet(context, streakData),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFFF5722), Color(0xFFFF9800)],
+                      colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF5722).withValues(alpha: isDark ? 0.45 : 0.35),
-                        blurRadius: 10,
+                        color: const Color(0xFF0D9488).withValues(alpha: isDark ? 0.45 : 0.35),
+                        blurRadius: 8,
                         spreadRadius: 1,
                       ),
                     ],
@@ -713,20 +896,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('🔥', style: TextStyle(fontSize: 14)),
-                      const SizedBox(width: 5),
+                      const Icon(Icons.shield_rounded, color: Colors.white, size: 13),
+                      const SizedBox(width: 4),
                       Text(
                         streakData.currentStreak > 0
-                            ? '${streakData.currentStreak} Day${streakData.currentStreak == 1 ? '' : 's'}'
-                            : '0 Days',
+                            ? '${streakData.currentStreak}d Protected'
+                            : 'Shield Active',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
+                      const SizedBox(width: 3),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 9),
                     ],
                   ),
                 ),

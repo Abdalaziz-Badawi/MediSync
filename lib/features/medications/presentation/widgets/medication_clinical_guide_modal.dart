@@ -478,6 +478,46 @@ class _ClinicalGuideBottomSheet extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
 
+                    // Missed Dose Guidance Section
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.cardBorder(context)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.help_outline_rounded, size: 18, color: Color(0xFF0284C7)),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Missed Dose Safety Protocol',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            medication?.missedDoseAdvice ??
+                                'If within the first half of your dosing interval, take now. Never take a double dose to make up for a missed dose.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppTheme.textSecondary(context),
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
                     // Dismiss Button
                     ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(),
@@ -485,7 +525,7 @@ class _ClinicalGuideBottomSheet extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('Understood & Close', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      child: const Text('Noted', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                     const SizedBox(height: 20),
                   ],

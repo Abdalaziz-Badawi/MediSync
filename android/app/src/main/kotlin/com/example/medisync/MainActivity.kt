@@ -1,6 +1,7 @@
 package com.example.medisync
 
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -9,8 +10,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.CalendarContract
+import android.view.WindowManager
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -21,6 +25,48 @@ import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.medisync/device_integration"
+    private var pendingGalleryResult: MethodChannel.Result? = null
+    private val PICK_IMAGE_REQUEST = 2002
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PICK_IMAGE_REQUEST) {
+            val result = pendingGalleryResult
+            pendingGalleryResult = null
+            if (resultCode == RESULT_OK && data?.data != null) {
+                try {
+                    val uri = data.data!!
+                    val inputStream = contentResolver.openInputStream(uri)
+                    val pfpDir = File(context.filesDir, "profile_pictures")
+                    if (!pfpDir.exists()) pfpDir.mkdirs()
+                    val targetFile = File(pfpDir, "custom_avatar_${System.currentTimeMillis()}.jpg")
+                    val outputStream = FileOutputStream(targetFile)
+                    inputStream?.copyTo(outputStream)
+                    inputStream?.close()
+                    outputStream.close()
+                    result?.success(targetFile.absolutePath)
+                } catch (e: Exception) {
+                    result?.error("COPY_FAILED", e.message, null)
+                }
+            } else {
+                result?.success(null)
+            }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -395,6 +441,67 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.success("UTC")
                     }
+                }
+                "getInitialLockscreenAction" -> {
+                    val fromWidget = intent?.getBooleanExtra("from_lockscreen_widget", false) ?: false
+                    val isAction = intent?.action == "com.example.medisync.OPEN_EMERGENCY_QUICK"
+                    if (fromWidget || isAction) {
+                        val view = intent?.getStringExtra("lockscreen_view") ?: "dual"
+                        result.success(view)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "updateWidgetData" -> {
+                    try {
+                        val name = call.argument<String>("patientName") ?: "MediSync Patient"
+                        val blood = call.argument<String>("bloodType") ?: "Unknown"
+                        val nextDose = call.argument<String>("nextDose") ?: "Tap to view medical ID"
+                        val view = call.argument<String>("defaultView") ?: "dual"
+
+                        val prefs = getSharedPreferences(MediSyncWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
+                        prefs.edit()
+                            .putString(MediSyncWidgetProvider.KEY_PATIENT_NAME, name)
+                            .putString(MediSyncWidgetProvider.KEY_BLOOD_TYPE, blood)
+                            .putString(MediSyncWidgetProvider.KEY_NEXT_DOSE, nextDose)
+                            .putString(MediSyncWidgetProvider.KEY_DEFAULT_VIEW, view)
+                            .apply()
+
+                        MediSyncWidgetProvider.updateAllWidgets(this)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("WIDGET_UPDATE_FAILED", e.message, null)
+                    }
+                }
+                "pickGalleryImage" -> {
+                    try {
+                        pendingGalleryResult = result
+                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                            type = "image/*"
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                        }
+                        startActivityForResult(intent, PICK_IMAGE_REQUEST)
+                    } catch (e: Exception) {
+                        pendingGalleryResult = null
+                        result.error("PICKER_ERROR", e.message, null)
+                    }
+                }
+                "openEmergencySettings" -> {
+                    val possibleIntents = listOf(
+                        Intent("android.intent.action.EDIT_EMERGENCY_INFO"),
+                        Intent("com.android.settings.action.EMERGENCY_SETTINGS"),
+                        Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS)
+                    )
+                    var opened = false
+                    for (tryIntent in possibleIntents) {
+                        try {
+                            tryIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(tryIntent)
+                            opened = true
+                            break
+                        } catch (_: Exception) {}
+                    }
+                    result.success(opened)
                 }
                 else -> result.notImplemented()
             }

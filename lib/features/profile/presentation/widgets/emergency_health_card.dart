@@ -33,7 +33,7 @@ class EmergencyHealthCardWidget extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
         boxShadow: isPrintOrExportMode
             ? null
@@ -46,7 +46,7 @@ class EmergencyHealthCardWidget extends StatelessWidget {
               ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20.5),
+        borderRadius: BorderRadius.circular(20),
         clipBehavior: Clip.antiAliasWithSaveLayer,
         child: Container(
           color: Colors.white,
@@ -58,7 +58,7 @@ class EmergencyHealthCardWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20.5)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                   gradient: LinearGradient(
                     colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
                     begin: Alignment.topLeft,
@@ -217,6 +217,89 @@ class EmergencyHealthCardWidget extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // Height, Weight & Dynamic BMI Badges
+                if (profile.heightCm != null || profile.weightKg != null) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (profile.heightCm != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.height_rounded, color: Color(0xFF475569), size: 16),
+                              const SizedBox(width: 5),
+                              Text(
+                                'HT: ${profile.heightCm!.toInt()} cm',
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (profile.weightKg != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.monitor_weight_outlined, color: Color(0xFF475569), size: 16),
+                              const SizedBox(width: 5),
+                              Text(
+                                'WT: ${profile.weightKg!.toStringAsFixed(1)} kg',
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (profile.bmi != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF3B82F6), width: 1.2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.favorite_rounded, color: Color(0xFF2563EB), size: 14),
+                              const SizedBox(width: 5),
+                              Text(
+                                'BMI: ${profile.bmi!.toStringAsFixed(1)} (${profile.bmiCategory})',
+                                style: const TextStyle(
+                                  color: Color(0xFF1D4ED8),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 // 3. High-Alert Red Flag Box (Allergies & Triggers)
@@ -488,63 +571,135 @@ void showEmergencyCardDialog(
 
                 // Bottom Action Buttons
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                     border: Border(top: BorderSide(color: AppTheme.cardBorder(ctx))),
                   ),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Save JPG Button
-                      Expanded(
+                      Row(
+                        children: [
+                          // Save JPG Button
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final bytes = await _captureCardBytes(cardKey, profile, medications);
+                                if (bytes != null) {
+                                  final path = await DeviceIntegrationService().saveEmergencyCardJpg(
+                                    imageBytes: bytes,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        behavior: SnackBarBehavior.floating,
+                                        content: Text(
+                                          path != null
+                                              ? '✓ Saved Emergency Card to:\n$path'
+                                              : '⚠ Failed to save Emergency Card to gallery. Please verify storage permissions.',
+                                        ),
+                                        backgroundColor: path != null
+                                            ? const Color(0xFF0D9488)
+                                            : AppTheme.dangerRed,
+                                        duration: const Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        behavior: SnackBarBehavior.floating,
+                                        content: Text('⚠ Could not capture card image.'),
+                                        backgroundColor: AppTheme.dangerRed,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.download_rounded, size: 17),
+                              label: const Text('Save JPG'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+
+                          // Share JPG Button
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final bytes = await _captureCardBytes(cardKey, profile, medications);
+                                if (bytes != null) {
+                                  try {
+                                    await DeviceIntegrationService().shareEmergencyCardJpg(
+                                      imageBytes: bytes,
+                                      title: 'Emergency Medical ID - ${profile.name}',
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          behavior: SnackBarBehavior.floating,
+                                          content: Text('✓ Shared Emergency Medical ID Card'),
+                                          backgroundColor: Color(0xFF0D9488),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          behavior: SnackBarBehavior.floating,
+                                          content: Text('⚠ Share failed: $e'),
+                                          backgroundColor: AppTheme.dangerRed,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.share_rounded, size: 17),
+                              label: const Text('Share JPG'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFDC2626),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Lockscreen Emergency Sync Action
+                      SizedBox(
+                        width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            final bytes = await _captureCardBytes(cardKey, profile, medications);
-                            if (bytes != null) {
-                              final path = await DeviceIntegrationService().saveEmergencyCardJpg(
-                                imageBytes: bytes,
+                            await DeviceIntegrationService().updateLockscreenWidget(
+                              patientName: profile.name,
+                              bloodType: profile.bloodType ?? 'Unknown',
+                              allergiesCount: profile.allergies.length,
+                              activeMedsCount: medications.where((m) => !m.isDiscontinued).length,
+                            );
+                            await DeviceIntegrationService().openEmergencySettings();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  behavior: SnackBarBehavior.floating,
+                                  content: Text('✓ Refreshed Lockscreen Widget & Opening Android Emergency Settings...'),
+                                  backgroundColor: Color(0xFF0D9488),
+                                ),
                               );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(path != null
-                                        ? '✓ Saved Emergency Card JPG to Gallery!'
-                                        : '✓ Saved Emergency Card JPG to Device Storage'),
-                                    backgroundColor: const Color(0xFF0D9488),
-                                  ),
-                                );
-                              }
                             }
                           },
-                          icon: const Icon(Icons.download_rounded, size: 18),
-                          label: const Text('Save JPG'),
+                          icon: const Icon(Icons.screen_lock_portrait_rounded, size: 17),
+                          label: const Text('Sync to Lockscreen Emergency Widget'),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Share JPG Button
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final bytes = await _captureCardBytes(cardKey, profile, medications);
-                            if (bytes != null) {
-                              await DeviceIntegrationService().shareEmergencyCardJpg(
-                                imageBytes: bytes,
-                                title: 'Emergency Medical ID - ${profile.name}',
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.share_rounded, size: 18),
-                          label: const Text('Share Card (JPG)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDC2626),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),

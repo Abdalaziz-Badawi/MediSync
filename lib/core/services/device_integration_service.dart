@@ -215,6 +215,55 @@ class DeviceIntegrationService {
     }
   }
 
+  /// Picks an image from the device gallery via Android system photo picker.
+  Future<String?> pickGalleryImage() async {
+    try {
+      return await _channel.invokeMethod<String>('pickGalleryImage');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Opens native Android / Samsung One UI Emergency Medical Info settings.
+  Future<bool> openEmergencySettings() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('openEmergencySettings');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Updates the native lock screen / keyguard widget with live patient data.
+  Future<void> updateLockscreenWidget({
+    required String patientName,
+    required String bloodType,
+    String nextDose = 'None pending',
+    String defaultView = 'card',
+    int? allergiesCount,
+    int? activeMedsCount,
+  }) async {
+    try {
+      await _channel.invokeMethod('updateWidgetData', {
+        'patientName': patientName,
+        'bloodType': bloodType,
+        'nextDose': nextDose,
+        'defaultView': defaultView,
+        'allergiesCount': ?allergiesCount,
+        'activeMedsCount': ?activeMedsCount,
+      });
+    } catch (_) {}
+  }
+
+  /// Checks if the app was launched from the lockscreen widget or corner shortcut.
+  Future<String?> getInitialLockscreenAction() async {
+    try {
+      return await _channel.invokeMethod<String>('getInitialLockscreenAction');
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Opens an online clinical drug reference monograph for a specific medicine.
   /// 100% Privacy Preserving: Transmits ONLY the public drug name, with ZERO patient identifiers.
   Future<bool> openOnlineDrugMonograph(String medicationName) async {

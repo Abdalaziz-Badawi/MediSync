@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:medisync/core/models/medication.dart';
 
+typedef ContinuityMilestone = StreakMilestone;
+typedef ContinuityData = StreakData;
+typedef ContinuityService = StreakService;
+
 class StreakMilestone {
   final String id;
   final int requiredDays;
@@ -21,60 +25,60 @@ class StreakMilestone {
   static const List<StreakMilestone> all = allMilestones;
   static const List<StreakMilestone> allMilestones = [
     StreakMilestone(
-      id: 'rookie_3',
+      id: 'vital_3',
       requiredDays: 3,
-      title: '3-Day Spark',
-      badgeEmoji: '🥉',
-      description: 'Built the initial ignition of your medication routine.',
-      accentColor: Color(0xFFF97316), // Orange
+      title: '3-Day Vital Initiation',
+      badgeEmoji: '🛡️',
+      description: 'Established the initial baseline of your clinical routine.',
+      accentColor: Color(0xFF0D9488), // Teal
     ),
     StreakMilestone(
-      id: 'habit_7',
+      id: 'routine_7',
       requiredDays: 7,
-      title: '7-Day Habit Builder',
-      badgeEmoji: '🥈',
-      description: 'One full week of flawless consistency! The habit is forming.',
-      accentColor: Color(0xFFEAB308), // Amber / Gold
+      title: '7-Day Vital Equilibrium',
+      badgeEmoji: '💎',
+      description: 'One full week of continuous therapeutic adherence.',
+      accentColor: Color(0xFF0284C7), // Sapphire Blue
     ),
     StreakMilestone(
-      id: 'routine_14',
+      id: 'shield_14',
       requiredDays: 14,
-      title: '14-Day Routine Master',
-      badgeEmoji: '🥇',
-      description: 'Two consecutive weeks of therapeutic plasma equilibrium.',
+      title: '14-Day Shield Sentinel',
+      badgeEmoji: '🏅',
+      description: 'Two consecutive weeks of uninterrupted plasma stability.',
       accentColor: Color(0xFF10B981), // Emerald
     ),
     StreakMilestone(
-      id: 'champion_30',
+      id: 'fortress_30',
       requiredDays: 30,
-      title: '30-Day Health Champion',
+      title: '30-Day Clinical Fortress',
       badgeEmoji: '🏆',
-      description: 'A full month of proactive health protection. Truly phenomenal.',
+      description: 'A full month of proactive health protection and steady continuity.',
       accentColor: Color(0xFF06B6D4), // Cyan
     ),
     StreakMilestone(
-      id: 'persistence_60',
+      id: 'guardian_60',
       requiredDays: 60,
-      title: '60-Day Diamond Persistence',
-      badgeEmoji: '💎',
+      title: '60-Day Diamond Guardian',
+      badgeEmoji: '⭐',
       description: 'Two full months of unbreakable commitment to your well-being.',
-      accentColor: Color(0xFF6366F1), // Indigo
+      accentColor: Color(0xFF6366F1), // Royal Indigo
     ),
     StreakMilestone(
       id: 'legend_100',
       requiredDays: 100,
-      title: '100-Day Centurion Legend',
+      title: '100-Day Master of Health',
       badgeEmoji: '👑',
-      description: 'Centurion status. Medication adherence is now second nature.',
+      description: 'Centurion status. Medication adherence is now an effortless lifestyle.',
       accentColor: Color(0xFF8B5CF6), // Royal Violet
     ),
     StreakMilestone(
       id: 'titan_365',
       requiredDays: 365,
-      title: '365-Day Immortal Titan',
-      badgeEmoji: '🌟',
-      description: 'A full consecutive year of uncompromising health dedication!',
-      accentColor: Color(0xFFF59E0B), // Golden Amber
+      title: '365-Day Lifelong Vital Shield',
+      badgeEmoji: '✨',
+      description: 'A full consecutive year of uncompromising health dedication and vital care.',
+      accentColor: Color(0xFF14B8A6), // Mint Emerald
     ),
   ];
 }
@@ -107,6 +111,11 @@ class StreakData {
   final List<StreakMilestone> unlockedMilestones;
   final StreakMilestone? nextMilestone;
   final double progressToNext;
+
+  // Vital Continuity Aliases
+  int get protectedDays => currentStreak;
+  int get longestProtectedDays => longestStreak;
+  bool get isProtectedToday => isCompletedToday;
 
   const StreakData({
     required this.currentStreak,
@@ -168,10 +177,9 @@ class StreakService {
     final bool isCompletedToday =
         todayScheduled > 0 && todayPending == 0 && todayResolved == todayScheduled;
 
-    // 2. Count consecutive streak days going backwards
+    // 2. Count consecutive protected days going backwards
     int streak = 0;
 
-    // Start with today if completed
     if (isCompletedToday) {
       streak = 1;
     }
@@ -200,11 +208,11 @@ class StreakService {
         if (allDosesResolved) {
           streak++;
         } else {
-          // Missed dose terminates unbroken streak
+          // Missed dose halts unbroken continuity
           break;
         }
       } else {
-        // Rest day / PRN day without scheduled doses: preserves streak
+        // Rest day / PRN day without scheduled doses preserves continuity
         continue;
       }
     }

@@ -131,6 +131,16 @@ class NotificationService {
     return (medId.hashCode ^ time.hashCode).abs() & 0x7FFFFFFF;
   }
 
+  /// Deterministic Notification ID for Pre-Dose Preparation Reminder (15 min before)
+  static int getPreNotificationId(String medId, String time) {
+    return (medId.hashCode ^ time.hashCode ^ 0x33333333).abs() & 0x7FFFFFFF;
+  }
+
+  /// Deterministic Notification ID for Post-Dose Recovery Advisory (30 min after)
+  static int getPostNotificationId(String medId, String time) {
+    return (medId.hashCode ^ time.hashCode ^ 0x77777777).abs() & 0x7FFFFFFF;
+  }
+
   /// Deterministic Notification ID generator for specific weekday doses
   static int getNotificationIdWithDay(String medId, String time, int dayOfWeek) {
     return (medId.hashCode ^ time.hashCode ^ (dayOfWeek * 7919)).abs() &
@@ -351,7 +361,7 @@ class NotificationService {
     }
   }
 
-  /// Automatically schedules all dose alarms for a given medication
+  /// Automatically schedules all 3-phase dose alarms for a given medication
   Future<void> scheduleMedicationReminders(Medication med) async {
     if (med.isDiscontinued || med.scheduleFrequency == ScheduleFrequency.asNeeded) {
       await cancelMedicationReminders(med);
@@ -369,55 +379,115 @@ class NotificationService {
       final minute = int.tryParse(parts[1]);
       if (hour == null || minute == null) continue;
 
-      final title = '⏰ Time for ${med.name}';
-      final buffer = StringBuffer();
-      buffer.write('${med.dosage} (${med.form.name})');
-
+      // Condition text
+      String readableCondition = '';
       if (med.mealCondition != null && med.mealCondition!.trim().isNotEmpty) {
         final mc = med.mealCondition!.trim();
-        String readableMc = mc;
         if (mc == 'before_meal' ||
             mc == 'before_breakfast' ||
             mc == 'before_lunch' ||
             mc == 'before_dinner') {
-          readableMc = 'Take before meal';
+          readableCondition = 'Take before meal';
         } else if (mc == 'with_meal') {
-          readableMc = 'Take with meal';
+          readableCondition = 'Take with meal';
         } else if (mc == 'after_meal' ||
             mc == 'after_breakfast' ||
             mc == 'after_lunch' ||
             mc == 'after_dinner') {
-          readableMc = 'Take after meal';
+          readableCondition = 'Take after meal';
+        } else {
+          readableCondition = mc;
         }
-        buffer.write('\n🍽️ Condition: $readableMc');
       }
 
+      // --- PHASE 1: Pre-Dose Preparation Reminder (15 min prior) ---
+      final totalMinutes = hour * 60 + minute;
+      var preMinutes = totalMinutes - 15;
+      if (preMinutes < 0) preMinutes += 24 * 60;
+      final preHour = preMinutes ~/ 60;
+      final preMin = preMinutes % 60;
+
+      final preBuffer = StringBuffer();
+      preBuffer.write('Prepare ${med.dosage} (${med.form.name}).');
+      if (readableCondition.isNotEmpty) {
+        preBuffer.write(' $readableCondition.');
+      }
       if (med.foodRestrictions.isNotEmpty) {
-        buffer.write('\n⚠️ Avoid: ${med.foodRestrictions.join(', ')}');
+        preBuffer.write(' Avoid: ${med.foodRestrictions.join(", ")}.');
       }
 
-      final body = buffer.toString();
+      // --- PHASE 2: Administration Dose Reminder (At scheduled time) ---
+      final atBuffer = StringBuffer();
+      atBuffer.write('${med.dosage} (${med.form.name})');
+      if (readableCondition.isNotEmpty) {
+        atBuffer.write('\n🍽️ Condition: $readableCondition');
+      }
+      if (med.doctorNotes != null && med.doctorNotes!.trim().isNotEmpty) {
+        atBuffer.write('\n📝 ${med.doctorNotes!.trim()}');
+      }
+
+      // --- PHASE 3: Post-Dose Recovery Advisory (30 min after) ---
+      final postMinutes = (totalMinutes + 30) % (24 * 60);
+      final postHour = postMinutes ~/ 60;
+      final postMin = postMinutes % 60;
+
+      final postBuffer = StringBuffer();
+      postBuffer.write(med.missedDoseAdvice);
+      if (med.sideEffects.isNotEmpty) {
+        postBuffer.write(' Monitor for: ${med.sideEffects.map((s) => s.description).take(2).join(", ")}.');
+      }
 
       if (isAllDays) {
-        final id = getNotificationId(med.id, time);
+        // Phase 1
         await scheduleDailyNotification(
-          id: id,
-          title: title,
-          body: body,
+          id: getPreNotificationId(med.id, time),
+          title: '⏳ Upcoming: ${med.name} in 15 min',
+          body: preBuffer.toString(),
+          hour: preHour,
+          minute: preMin,
+        );
+        // Phase 2
+        await scheduleDailyNotification(
+          id: getNotificationId(med.id, time),
+          title: '💊 Time for ${med.name}',
+          body: atBuffer.toString(),
           hour: hour,
           minute: minute,
+        );
+        // Phase 3
+        await scheduleDailyNotification(
+          id: getPostNotificationId(med.id, time),
+          title: '📋 Post-Dose Care: ${med.name}',
+          body: postBuffer.toString(),
+          hour: postHour,
+          minute: postMin,
         );
       } else {
         for (final day in med.daysOfWeek) {
           if (day >= 1 && day <= 7) {
-            final id = getNotificationIdWithDay(med.id, time, day);
             await scheduleWeeklyNotification(
-              id: id,
-              title: title,
-              body: body,
+              id: getPreNotificationId(med.id, '$time-$day'),
+              title: '⏳ Upcoming: ${med.name} in 15 min',
+              body: preBuffer.toString(),
+              dayOfWeek: day,
+              hour: preHour,
+              minute: preMin,
+            );
+            await scheduleWeeklyNotification(
+              id: getNotificationIdWithDay(med.id, time, day),
+              title: '💊 Time for ${med.name}',
+              body: atBuffer.toString(),
               dayOfWeek: day,
               hour: hour,
               minute: minute,
+            );
+            await scheduleWeeklyNotification(
+              id: getPostNotificationId(med.id, '$time-$day'),
+              title: '📋 Post-Dose Care: ${med.name}',
+              body: postBuffer.toString(),
+              dayOfWeek: day,
+              hour: postHour,
+              minute: postMin,
             );
           }
         }
@@ -425,12 +495,16 @@ class NotificationService {
     }
   }
 
-  /// Cancels all alarms associated with a medication
+  /// Cancels all alarms associated with a medication (all 3 phases)
   Future<void> cancelMedicationReminders(Medication med) async {
     for (final time in med.scheduledTimes) {
+      await cancelNotification(getPreNotificationId(med.id, time));
       await cancelNotification(getNotificationId(med.id, time));
+      await cancelNotification(getPostNotificationId(med.id, time));
       for (int day = 1; day <= 7; day++) {
+        await cancelNotification(getPreNotificationId(med.id, '$time-$day'));
         await cancelNotification(getNotificationIdWithDay(med.id, time, day));
+        await cancelNotification(getPostNotificationId(med.id, '$time-$day'));
       }
       await cancelNotification(getMealNotificationId(med.id, time));
     }

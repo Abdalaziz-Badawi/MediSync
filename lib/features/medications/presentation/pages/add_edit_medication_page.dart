@@ -36,10 +36,15 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   bool _isOngoing = false; // Defaulted to false as requested
   ScheduleFrequency _frequency = ScheduleFrequency.daily;
   int _intervalDays = 2; // For everyXDays
+  int _intervalWeeks = 2; // For everyXWeeks
+  int _intervalMonths = 2; // For everyXMonths
+  String _category = 'General';
   List<int> _monthlyDays = [1]; // For monthly / twiceMonthly
   List<String> _scheduledTimes = ['08:00'];
   String _clinicalRationale = '';
   List<CompanionMealReminder> _companionMealReminders = [];
+  late TextEditingController _packageSizeController;
+  late TextEditingController _pillsRemainingController;
 
   // Weekly Schedule: 1 = Mon, 7 = Sun
   List<int> _daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
@@ -66,6 +71,10 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
     _refillsController =
         TextEditingController(text: med?.refillsRemaining?.toString() ?? '');
     _notesController = TextEditingController(text: med?.doctorNotes ?? '');
+    _packageSizeController =
+        TextEditingController(text: med?.packageSize?.toString() ?? '');
+    _pillsRemainingController =
+        TextEditingController(text: med?.pillsRemaining?.toString() ?? '');
 
     if (med != null) {
       _selectedForm = med.form;
@@ -73,6 +82,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       _isOngoing = med.isOngoing;
       _frequency = med.scheduleFrequency;
       _intervalDays = med.intervalDays ?? 2;
+      _intervalWeeks = med.intervalWeeks ?? 2;
+      _intervalMonths = med.intervalMonths ?? 2;
+      _category = med.category ?? 'General';
       _monthlyDays = List.from(med.monthlyDays);
       _scheduledTimes = List.from(med.scheduledTimes);
       _daysOfWeek = List.from(med.daysOfWeek);
@@ -100,6 +112,8 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
     _durationDaysController.dispose();
     _refillsController.dispose();
     _notesController.dispose();
+    _packageSizeController.dispose();
+    _pillsRemainingController.dispose();
     super.dispose();
   }
 
@@ -710,6 +724,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       daysOfWeek: _daysOfWeek.isEmpty ? const [1, 2, 3, 4, 5, 6, 7] : _daysOfWeek,
       scheduleFrequency: _frequency,
       intervalDays: _intervalDays,
+      intervalWeeks: _frequency == ScheduleFrequency.everyXWeeks ? _intervalWeeks : null,
+      intervalMonths: _frequency == ScheduleFrequency.everyXMonths ? _intervalMonths : null,
+      category: _category,
+      packageSize: int.tryParse(_packageSizeController.text.trim()),
+      pillsRemaining: int.tryParse(_pillsRemainingController.text.trim()) ??
+          int.tryParse(_packageSizeController.text.trim()),
       monthlyDays: _monthlyDays,
       foodRestrictions: _matchedTemplate?.foodRestrictions ?? (widget.medicationToEdit?.foodRestrictions ?? const []),
       inactiveExcipients: _matchedTemplate?.inactiveExcipients ?? (widget.medicationToEdit?.inactiveExcipients ?? const []),
@@ -1131,6 +1151,30 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                 );
               },
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: const InputDecoration(
+                labelText: 'Clinical Category / Specialty',
+                prefixIcon: Icon(Icons.local_hospital_outlined),
+              ),
+              dropdownColor: AppTheme.cardColor(context),
+              items: const [
+                DropdownMenuItem(value: 'General', child: Text('General Medicine')),
+                DropdownMenuItem(value: 'Cardiology', child: Text('Cardiology (Heart & BP)')),
+                DropdownMenuItem(value: 'Endocrinology', child: Text('Endocrinology (Diabetes & Thyroid)')),
+                DropdownMenuItem(value: 'Pain Relief', child: Text('Pain Relief & Analgesic')),
+                DropdownMenuItem(value: 'Neurology', child: Text('Neurology & Psychiatry')),
+                DropdownMenuItem(value: 'Antibiotics', child: Text('Antibiotics & Anti-infectives')),
+                DropdownMenuItem(value: 'Vitamins', child: Text('Vitamins & Supplements')),
+                DropdownMenuItem(value: 'Respiratory', child: Text('Respiratory & Pulmonology')),
+                DropdownMenuItem(value: 'Allergy', child: Text('Allergy & Antihistamine')),
+                DropdownMenuItem(value: 'Gastrointestinal', child: Text('Gastrointestinal & Digestion')),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _category = val);
+              },
+            ),
             const SizedBox(height: 24),
 
             // Section 2: Conditions (Before & After Taking)
@@ -1320,6 +1364,11 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                           ),
                           const SizedBox(width: 8),
                           _buildFrequencyChip(
+                            label: 'Every X Weeks',
+                            frequency: ScheduleFrequency.everyXWeeks,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
                             label: 'Bi-Weekly (2 Wks)',
                             frequency: ScheduleFrequency.biWeekly,
                           ),
@@ -1327,6 +1376,11 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                           _buildFrequencyChip(
                             label: 'Monthly (1x/Mo)',
                             frequency: ScheduleFrequency.monthly,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFrequencyChip(
+                            label: 'Every X Months',
+                            frequency: ScheduleFrequency.everyXMonths,
                           ),
                           const SizedBox(width: 8),
                           _buildFrequencyChip(
@@ -1487,6 +1541,68 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                                 onSelected: (_) {
                                   setState(() {
                                     _intervalDays = interval;
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ] else if (_frequency == ScheduleFrequency.everyXWeeks) ...[
+                      Text(
+                        'Select Week Interval:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [2, 3, 4, 6, 8, 12].map((weeks) {
+                            final isSel = _intervalWeeks == weeks;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('Every $weeks Weeks'),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _intervalWeeks = weeks;
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ] else if (_frequency == ScheduleFrequency.everyXMonths) ...[
+                      Text(
+                        'Select Month Interval:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [2, 3, 4, 6, 12].map((months) {
+                            final isSel = _intervalMonths == months;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('Every $months Months'),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _intervalMonths = months;
                                   });
                                 },
                               ),
@@ -1860,6 +1976,36 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                         hintText: 'e.g. 2',
                         prefixIcon: Icon(Icons.repeat),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _packageSizeController,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(color: AppTheme.textPrimary(context)),
+                            decoration: const InputDecoration(
+                              labelText: 'Package Size (Pills/Units)',
+                              hintText: 'e.g. 30',
+                              prefixIcon: Icon(Icons.inventory_2_outlined),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _pillsRemainingController,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(color: AppTheme.textPrimary(context)),
+                            decoration: const InputDecoration(
+                              labelText: 'Pills in Hand',
+                              hintText: 'e.g. 28',
+                              prefixIcon: Icon(Icons.numbers_rounded),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

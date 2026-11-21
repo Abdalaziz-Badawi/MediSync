@@ -18,13 +18,13 @@ class AdherenceStreakCard extends StatelessWidget {
     final isDark = AppTheme.isDark(context);
     final streakData = StreakService.computeStreakData(medications);
 
-    final flameColorStart = const Color(0xFFFF5722); // Deep Orange
-    final flameColorEnd = const Color(0xFFFFC107);   // Bright Amber
+    final flameColorStart = const Color(0xFF0D9488); // Medical Teal
+    final flameColorEnd = const Color(0xFF0284C7);   // Sapphire Blue
 
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.cardColor(context),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: streakData.currentStreak > 0
               ? flameColorStart.withValues(alpha: isDark ? 0.45 : 0.35)
@@ -44,17 +44,17 @@ class AdherenceStreakCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(20),
           onTap: () => _showStreakMilestonesSheet(context, streakData),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Duolingo Flame + Streak Count + Milestone Badge
+                // Top Row: Shield Icon + Protected Days + Milestone Badge
                 Row(
                   children: [
-                    // Glowing Flame Icon
+                    // Glowing Shield Icon
                     Container(
                       width: 44,
                       height: 44,
@@ -74,9 +74,10 @@ class AdherenceStreakCard extends StatelessWidget {
                         ],
                       ),
                       child: const Center(
-                        child: Text(
-                          '🔥',
-                          style: TextStyle(fontSize: 22),
+                        child: Icon(
+                          Icons.shield_rounded,
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
                     ),
@@ -89,7 +90,7 @@ class AdherenceStreakCard extends StatelessWidget {
                             children: [
                               Flexible(
                                 child: Text(
-                                  '${streakData.currentStreak} Day Streak!',
+                                  '${streakData.currentStreak} Protected Day${streakData.currentStreak == 1 ? '' : 's'}',
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w800,
@@ -111,10 +112,10 @@ class AdherenceStreakCard extends StatelessWidget {
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_rounded, size: 11, color: Color(0xFF10B981)),
+                                      Icon(Icons.verified_user_rounded, size: 11, color: Color(0xFF10B981)),
                                       SizedBox(width: 3),
                                       Text(
-                                        'Active',
+                                        'Protected',
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.bold,
@@ -130,10 +131,10 @@ class AdherenceStreakCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             streakData.isCompletedToday
-                                ? "You're on fire! Today's streak is secured."
+                                ? "Vital continuity secured for today."
                                 : (streakData.todayPendingCount > 0
-                                    ? "${streakData.todayPendingCount} dose(s) remaining today to keep the flame burning."
-                                    : "Take today's scheduled doses to build your streak!"),
+                                    ? "${streakData.todayPendingCount} dose(s) remaining today to maintain continuity."
+                                    : "Take today's doses to activate your protection shield."),
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary(context),
@@ -198,7 +199,7 @@ class AdherenceStreakCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: const Center(
-              child: Text('🔥', style: TextStyle(fontSize: 15)),
+              child: Icon(Icons.shield_rounded, color: Colors.white, size: 16),
             ),
           ),
           const SizedBox(height: 4),
@@ -207,7 +208,7 @@ class AdherenceStreakCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.bold,
-              color: isDark ? const Color(0xFFFFB74D) : const Color(0xFFE65100),
+              color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0F766E),
             ),
           ),
         ],
@@ -307,10 +308,10 @@ class AdherenceStreakCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Text('🔥', style: TextStyle(fontSize: 26)),
+                        const Icon(Icons.shield_rounded, color: Color(0xFF0D9488), size: 26),
                         const SizedBox(width: 8),
                         Text(
-                          'Adherence Streak & Milestones',
+                          'Vital Continuity & Milestones',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -327,7 +328,7 @@ class AdherenceStreakCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Inspired by consistency gamification: taking your medications on schedule maintains therapeutic plasma balance and prevents complications.',
+                  'Maintaining continuous medication adherence preserves steady therapeutic plasma equilibrium and shields against health complications.',
                   style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary(ctx), height: 1.3),
                 ),
                 const SizedBox(height: 18),
@@ -345,7 +346,7 @@ class AdherenceStreakCard extends StatelessWidget {
                         ),
                         child: Column(
                           children: [
-                            const Text('🔥', style: TextStyle(fontSize: 22)),
+                            const Icon(Icons.shield_rounded, color: Color(0xFF0D9488), size: 22),
                             const SizedBox(height: 4),
                             Text(
                               '${streakData.currentStreak}',
@@ -356,7 +357,7 @@ class AdherenceStreakCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Current Streak',
+                              'Protected Days',
                               style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(ctx)),
                             ),
                           ],

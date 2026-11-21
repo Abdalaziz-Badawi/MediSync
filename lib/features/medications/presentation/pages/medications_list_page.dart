@@ -20,6 +20,7 @@ class MedicationsListPage extends ConsumerStatefulWidget {
 
 class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   String _selectedFilter = 'all'; // 'all', 'scheduled', 'asNeeded', 'alerts'
   String _selectedSort = 'nameAsc'; // 'nameAsc', 'nameDesc', 'dosesDesc', 'form'
@@ -29,6 +30,7 @@ class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -189,7 +191,25 @@ class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
     final isDark = AppTheme.isDark(context);
     final primary = Theme.of(context).colorScheme.primary;
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_isSelectionMode && !_searchFocusNode.hasFocus && _searchQuery.isEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_isSelectionMode) {
+          _exitSelectionMode();
+          return;
+        }
+        if (_searchFocusNode.hasFocus) {
+          _searchFocusNode.unfocus();
+          return;
+        }
+        if (_searchQuery.isNotEmpty) {
+          _searchController.clear();
+          setState(() => _searchQuery = '');
+          return;
+        }
+      },
+      child: Scaffold(
       appBar: _isSelectionMode
           ? AppBar(
               backgroundColor: isDark
@@ -420,6 +440,7 @@ class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
                       // Search Bar
                       TextField(
                         controller: _searchController,
+                        focusNode: _searchFocusNode,
                         onChanged: (val) {
                           setState(() {
                             _searchQuery = val;
@@ -597,8 +618,9 @@ class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
                 ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFilterChip({
     required String label,
@@ -689,15 +711,15 @@ class _MedicationCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isSelected
             ? primary.withValues(alpha: isDark ? 0.20 : 0.10)
-            : AppTheme.cardColor(context),
+            : medication.categoryBackgroundColor(context),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isSelected
               ? primary
               : (hasCriticalFlag
                   ? (isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed)
-                  : AppTheme.cardBorder(context)),
-          width: isSelected || hasCriticalFlag ? 1.8 : 1,
+                  : medication.categoryColor.withValues(alpha: isDark ? 0.40 : 0.25)),
+          width: isSelected || hasCriticalFlag ? 1.8 : 1.2,
         ),
         boxShadow: isSelected
             ? AppTheme.glowShadow(primary, opacity: 0.22)
@@ -731,7 +753,7 @@ class _MedicationCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row: Checkbox (if in selection mode) + Icon + Name/Dosage + More menu (if normal)
+              // Row: Checkbox (if in selection mode) + Icon with micro form badge + Name/Dosage + More menu (if normal)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -760,26 +782,56 @@ class _MedicationCard extends ConsumerWidget {
                           : null,
                     ),
                   ],
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: hasCriticalFlag
-                          ? (isDark
-                              ? const Color(0xFF450A0A)
-                              : const Color(0xFFFEE2E2))
-                          : AppTheme.surfaceVariant(context),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      medication.icon,
-                      color: hasCriticalFlag
-                          ? (isDark
-                              ? AppTheme.dangerRedLight
-                              : AppTheme.dangerRed)
-                          : primary,
-                      size: 26,
-                    ),
+                  // Medication Icon with Corner Micro-Icon Badge representing medicine form
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: hasCriticalFlag
+                              ? (isDark
+                                  ? const Color(0xFF450A0A)
+                                  : const Color(0xFFFEE2E2))
+                              : medication.categoryColor.withValues(alpha: isDark ? 0.22 : 0.14),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: medication.categoryColor.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          medication.icon,
+                          color: hasCriticalFlag
+                              ? (isDark
+                                  ? AppTheme.dangerRedLight
+                                  : AppTheme.dangerRed)
+                              : medication.categoryColor,
+                          size: 26,
+                        ),
+                      ),
+                      Positioned(
+                        right: -3,
+                        bottom: -3,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: medication.categoryColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            medication.formIcon,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -793,22 +845,41 @@ class _MedicationCard extends ConsumerWidget {
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary(context),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 3),
                         Text(
                           medication.isDiscontinued
                               ? '${medication.dosage} • Discontinued (Records Saved)'
-                              : (medication.scheduleFrequency ==
-                                      ScheduleFrequency.asNeeded
-                                  ? '${medication.dosage} • As Needed (PRN)'
-                                  : '${medication.dosage} • ${medication.timesPerDay}x daily'),
+                              : '${medication.dosage} • ${medication.frequencyDisplay}',
                           style: TextStyle(
                             fontSize: 13,
                             color: medication.isDiscontinued
                                 ? AppTheme.warningAmber
                                 : AppTheme.textSecondary(context),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                        if (medication.category != null && medication.category!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: medication.categoryColor.withValues(alpha: isDark ? 0.25 : 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              medication.category!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: medication.categoryColor,
+                              ),
+                            ),
+                          ),
+                        ],
                         if (medication.isDiscontinued) ...[
                           const SizedBox(height: 4),
                           Container(
@@ -1077,6 +1148,49 @@ class _MedicationCard extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+              ],
+
+              // Refill runway supply indicator
+              if (medication.packageSize != null || medication.pillsRemaining != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: medication.isLowSupply
+                        ? (isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7))
+                        : (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5)),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: medication.isLowSupply
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF10B981),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        medication.isLowSupply ? Icons.warning_amber_rounded : Icons.inventory_2_outlined,
+                        size: 13,
+                        color: medication.isLowSupply
+                            ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706))
+                            : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '📦 ${medication.estimatedDosesRemaining} doses left (~${medication.estimatedDaysRemaining}d supply)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: medication.isLowSupply
+                              ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706))
+                              : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],

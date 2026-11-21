@@ -6,6 +6,10 @@ class UserProfile {
   final String? gender;
   final String? healthId;
   final String? bloodType;
+  final double? weightKg;
+  final double? heightCm;
+  final String? profileImagePath;
+  final String lockscreenDefaultView; // 'card', 'medications', 'dual'
   final List<String> allergies;
   final List<String> chronicConditions;
   final String wakeTime;      // "HH:mm" e.g. "07:00"
@@ -34,6 +38,10 @@ class UserProfile {
     this.gender,
     this.healthId,
     this.bloodType,
+    this.weightKg,
+    this.heightCm,
+    this.profileImagePath,
+    this.lockscreenDefaultView = 'dual',
     this.allergies = const [],
     this.chronicConditions = const [],
     this.wakeTime = '07:00',
@@ -59,6 +67,24 @@ class UserProfile {
     return _explicitAge;
   }
 
+  /// Dynamic clinical BMI calculation
+  double? get bmi {
+    if (weightKg != null && heightCm != null && heightCm! > 0) {
+      final heightM = heightCm! / 100.0;
+      return double.parse((weightKg! / (heightM * heightM)).toStringAsFixed(1));
+    }
+    return null;
+  }
+
+  String get bmiCategory {
+    final val = bmi;
+    if (val == null) return 'Unrecorded';
+    if (val < 18.5) return 'Underweight';
+    if (val < 25.0) return 'Normal';
+    if (val < 30.0) return 'Overweight';
+    return 'Obese';
+  }
+
   UserProfile copyWith({
     String? name,
     String? avatarId,
@@ -67,6 +93,10 @@ class UserProfile {
     String? gender,
     String? healthId,
     String? bloodType,
+    double? weightKg,
+    double? heightCm,
+    String? profileImagePath,
+    String? lockscreenDefaultView,
     List<String>? allergies,
     List<String>? chronicConditions,
     String? wakeTime,
@@ -84,6 +114,10 @@ class UserProfile {
       gender: gender ?? this.gender,
       healthId: healthId ?? this.healthId,
       bloodType: bloodType ?? this.bloodType,
+      weightKg: weightKg ?? this.weightKg,
+      heightCm: heightCm ?? this.heightCm,
+      profileImagePath: profileImagePath ?? this.profileImagePath,
+      lockscreenDefaultView: lockscreenDefaultView ?? this.lockscreenDefaultView,
       allergies: allergies ?? this.allergies,
       chronicConditions: chronicConditions ?? this.chronicConditions,
       wakeTime: wakeTime ?? this.wakeTime,
@@ -104,6 +138,10 @@ class UserProfile {
       'gender': gender,
       'healthId': healthId,
       'bloodType': bloodType,
+      'weightKg': weightKg,
+      'heightCm': heightCm,
+      'profileImagePath': profileImagePath,
+      'lockscreenDefaultView': lockscreenDefaultView,
       'allergies': allergies,
       'chronicConditions': chronicConditions,
       'wakeTime': wakeTime,
@@ -129,6 +167,10 @@ class UserProfile {
       gender: json['gender'] as String?,
       healthId: json['healthId'] as String?,
       bloodType: json['bloodType'] as String?,
+      weightKg: (json['weightKg'] as num?)?.toDouble(),
+      heightCm: (json['heightCm'] as num?)?.toDouble(),
+      profileImagePath: json['profileImagePath'] as String?,
+      lockscreenDefaultView: json['lockscreenDefaultView'] as String? ?? 'dual',
       allergies: (json['allergies'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

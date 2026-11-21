@@ -422,7 +422,7 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                     const SizedBox(height: 4),
                     Text(
                       streakDays > 0
-                          ? '🔥 $streakDays-day consecutive adherence streak'
+                          ? '🛡️ $streakDays-day vital continuity shield active'
                           : '${medications.length} active medication regimen(s)',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.92),

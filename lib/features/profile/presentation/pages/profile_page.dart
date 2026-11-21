@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -22,9 +23,13 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late TextEditingController _nameController;
   late TextEditingController _healthIdController;
+  late TextEditingController _weightController;
+  late TextEditingController _heightController;
   DateTime? _dateOfBirth;
 
   late String _avatarId;
+  String? _profileImagePath;
+  String _lockscreenDefaultView = 'card';
   late String _gender;
   late String _bloodType;
   late String _wakeTime;
@@ -35,6 +40,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _useHealthApp;
   late List<String> _allergies;
   late List<String> _chronicConditions;
+
+  double? get _currentWeight => double.tryParse(_weightController.text.trim());
+  double? get _currentHeight => double.tryParse(_heightController.text.trim());
+  double? get _calculatedBmi {
+    final w = _currentWeight;
+    final h = _currentHeight;
+    if (w != null && h != null && h > 0) {
+      final meters = h / 100.0;
+      return w / (meters * meters);
+    }
+    return null;
+  }
+
+  String get _currentBmiCategory {
+    final b = _calculatedBmi;
+    if (b == null) return '';
+    if (b < 18.5) return 'Underweight';
+    if (b < 25.0) return 'Normal Weight';
+    if (b < 30.0) return 'Overweight';
+    return 'Obese';
+  }
 
   int? get _calculatedAge {
     if (_dateOfBirth == null) return null;
@@ -90,6 +116,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final profile = ref.read(profileNotifierProvider);
     _nameController = TextEditingController(text: profile.name);
     _healthIdController = TextEditingController(text: profile.healthId ?? '');
+    _weightController =
+        TextEditingController(text: profile.weightKg?.toString() ?? '');
+    _heightController =
+        TextEditingController(text: profile.heightCm?.toString() ?? '');
+    _profileImagePath = profile.profileImagePath;
+    _lockscreenDefaultView = profile.lockscreenDefaultView;
     _dateOfBirth = profile.dateOfBirth;
     _avatarId = profile.avatarId;
     _gender = profile.gender ?? 'Male';
@@ -109,6 +141,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   void dispose() {
     _nameController.dispose();
     _healthIdController.dispose();
+    _weightController.dispose();
+    _heightController.dispose();
     _customConditionController.dispose();
     super.dispose();
   }
@@ -117,6 +151,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final profile = ref.read(profileNotifierProvider);
     if (_nameController.text.trim() != profile.name) return true;
     if (_healthIdController.text.trim() != (profile.healthId ?? '')) return true;
+    if (_weightController.text.trim() != (profile.weightKg?.toString() ?? '')) return true;
+    if (_heightController.text.trim() != (profile.heightCm?.toString() ?? '')) return true;
+    if (_profileImagePath != profile.profileImagePath) return true;
+    if (_lockscreenDefaultView != profile.lockscreenDefaultView) return true;
     if (_dateOfBirth != profile.dateOfBirth) return true;
     if (_gender != (profile.gender ?? 'Male')) return true;
     if (_bloodType != (profile.bloodType ?? 'O+')) return true;
@@ -225,6 +263,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ? 'User'
           : _nameController.text.trim(),
       avatarId: _avatarId,
+      profileImagePath: _profileImagePath,
+      lockscreenDefaultView: _lockscreenDefaultView,
       dateOfBirth: _dateOfBirth,
       gender: _gender,
       bloodType: _bloodType,
@@ -239,14 +279,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       lunchTime: _lunchTime,
       dinnerTime: _dinnerTime,
       useHealthApp: _useHealthApp,
+      weightKg: _currentWeight,
+      heightCm: _currentHeight,
     );
 
     ref.read(profileNotifierProvider.notifier).updateProfile(updated);
+
+    // Sync updated profile to Lockscreen Emergency Widget
+    final activeCount = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).length;
+    DeviceIntegrationService().updateLockscreenWidget(
+      patientName: updated.name,
+      bloodType: updated.bloodType ?? 'Unknown',
+      allergiesCount: updated.allergies.length,
+      activeMedsCount: activeCount,
+    );
+
     setState(() {}); // Updates _hasChanges to false
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Profile and daily routine saved locally!'),
+        content: const Text('Profile, health biometrics & emergency data saved locally!'),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
@@ -319,11 +371,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   spacing: 16,
                   runSpacing: 16,
                   children: _availableAvatars.map((av) {
-                    final isSel = _avatarId == av['id'];
+                    final isSel = _avatarId == av['id'] && _profileImagePath == null;
                     return InkWell(
                       onTap: () {
                         setState(() {
                           _avatarId = av['id'] as String;
+                          _profileImagePath = null;
                         });
                         Navigator.pop(ctx);
                       },
@@ -353,6 +406,70 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     );
                   }).toList(),
                 ),
+                const SizedBox(height: 18),
+                Divider(height: 1, color: AppTheme.cardBorder(ctx)),
+                const SizedBox(height: 10),
+
+                // Custom Gallery Photo Picker Action
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.photo_library_rounded, color: Theme.of(ctx).colorScheme.primary, size: 22),
+                  ),
+                  title: const Text('Pick Photo from Device Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: Text(
+                    _profileImagePath != null
+                        ? 'Custom photo currently active (tap to replace)'
+                        : 'Select an image from device gallery',
+                    style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary(ctx)),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final picked = await DeviceIntegrationService().pickGalleryImage();
+                    if (picked != null) {
+                      setState(() {
+                        _profileImagePath = picked;
+                      });
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('✓ Profile picture selected from gallery! Save profile to keep changes.'),
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+
+                if (_profileImagePath != null) ...[
+                  const SizedBox(height: 6),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.dangerRed.withValues(alpha: isDark ? 0.25 : 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, color: AppTheme.dangerRed, size: 22),
+                    ),
+                    title: const Text('Remove Custom Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.dangerRed)),
+                    subtitle: Text('Revert back to icon avatar', style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary(ctx))),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        _profileImagePath = null;
+                      });
+                    },
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
             ),
@@ -506,6 +623,73 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
                 onChanged: (_) => setState(() {}),
               ),
+              const SizedBox(height: 14),
+
+              // Height & Weight Fields with Live Dynamic BMI
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _heightController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                      decoration: InputDecoration(
+                        labelText: 'Height (cm)',
+                        hintText: 'e.g. 175',
+                        prefixIcon: Icon(
+                          Icons.height_rounded,
+                          color: Theme.of(ctx).colorScheme.primary,
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _weightController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                      decoration: InputDecoration(
+                        labelText: 'Weight (kg)',
+                        hintText: 'e.g. 70.5',
+                        prefixIcon: Icon(
+                          Icons.monitor_weight_outlined,
+                          color: Theme.of(ctx).colorScheme.primary,
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
+              ),
+              if (_calculatedBmi != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.favorite_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Calculated BMI: ${_calculatedBmi!.toStringAsFixed(1)} • $_currentBmiCategory',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(ctx).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
 
               // Biological Gender
@@ -763,11 +947,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               CircleAvatar(
                                 radius: 30,
                                 backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15),
-                                child: Icon(
-                                  _getAvatarIcon(_avatarId),
-                                  size: 30,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                                backgroundImage: (_profileImagePath != null && File(_profileImagePath!).existsSync())
+                                    ? FileImage(File(_profileImagePath!))
+                                    : null,
+                                child: (_profileImagePath != null && File(_profileImagePath!).existsSync())
+                                    ? null
+                                    : Icon(
+                                        _getAvatarIcon(_avatarId),
+                                        size: 30,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
                               ),
                               Positioned(
                                 bottom: 0,
@@ -1025,6 +1214,41 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 ),
                                 backgroundColor: const Color(0xFFF0FDFA),
                                 side: const BorderSide(color: Color(0xFFCCFBF1)),
+                              ),
+                            if (_heightController.text.trim().isNotEmpty)
+                              Chip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.height_rounded, size: 14),
+                                label: Text(
+                                  'HT: ${_heightController.text.trim()} cm',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                backgroundColor: AppTheme.surfaceVariant(context),
+                              ),
+                            if (_weightController.text.trim().isNotEmpty)
+                              Chip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.monitor_weight_outlined, size: 14),
+                                label: Text(
+                                  'WT: ${_weightController.text.trim()} kg',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                backgroundColor: AppTheme.surfaceVariant(context),
+                              ),
+                            if (_calculatedBmi != null)
+                              Chip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.favorite_rounded, size: 14, color: Color(0xFF2563EB)),
+                                label: Text(
+                                  'BMI: ${_calculatedBmi!.toStringAsFixed(1)} ($_currentBmiCategory)',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1D4ED8),
+                                  ),
+                                ),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
                               ),
                           ],
                         ),
@@ -1930,6 +2154,59 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           style: TextStyle(color: Theme.of(context).colorScheme.primary),
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Lockscreen Quick Access View Selector
+                      const Divider(height: 1),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.screen_lock_portrait_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Lockscreen Quick Access View',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary(context),
+                                  ),
+                                ),
+                                Text(
+                                  'Controls what view opens from lockscreen widget or shortcut without unlocking device',
+                                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        initialValue: _lockscreenDefaultView,
+                        decoration: const InputDecoration(
+                          labelText: 'Default Lockscreen Action',
+                          prefixIcon: Icon(Icons.touch_app_rounded),
+                        ),
+                        dropdownColor: AppTheme.cardColor(context),
+                        items: const [
+                          DropdownMenuItem(value: 'card', child: Text('Emergency Medical ID Card (Recommended)')),
+                          DropdownMenuItem(value: 'medications', child: Text('Upcoming Dose Schedule')),
+                          DropdownMenuItem(value: 'dual', child: Text('Dual View (Card + Medications)')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _lockscreenDefaultView = val);
+                          }
+                        },
+                      ),
 
                       // Explicit Save Settings Button at bottom of card
                       const SizedBox(height: 20),
@@ -2064,6 +2341,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           gender: _gender,
                           allergies: _allergies,
                           chronicConditions: _chronicConditions,
+                          weightKg: _currentWeight,
+                          heightCm: _currentHeight,
+                          profileImagePath: _profileImagePath,
+                          lockscreenDefaultView: _lockscreenDefaultView,
                         ),
                         medications: medications,
                       );
