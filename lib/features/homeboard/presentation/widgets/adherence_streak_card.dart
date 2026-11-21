@@ -21,6 +21,22 @@ class AdherenceStreakCard extends StatelessWidget {
     final flameColorStart = const Color(0xFF0D9488); // Medical Teal
     final flameColorEnd = const Color(0xFF0284C7);   // Sapphire Blue
 
+    int totalTaken = 0;
+    int totalDelayed = 0;
+    int totalMissed = 0;
+    int totalNotNeeded = 0;
+
+    for (final med in medications) {
+      final stats = med.continuityStats;
+      totalTaken += stats['taken'] ?? 0;
+      totalDelayed += stats['delayed'] ?? 0;
+      totalMissed += stats['missed'] ?? 0;
+      totalNotNeeded += stats['notNeeded'] ?? 0;
+    }
+
+    final totalLogged = totalTaken + totalDelayed + totalMissed;
+    final adherenceRate = totalLogged > 0 ? ((totalTaken / totalLogged) * 100).round() : 100;
+
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.cardColor(context),
@@ -126,6 +142,24 @@ class AdherenceStreakCard extends StatelessWidget {
                                   ),
                                 ),
                               ],
+                              if (totalLogged > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (adherenceRate >= 80 ? const Color(0xFF10B981) : AppTheme.warningAmber).withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '$adherenceRate% Adherence',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: adherenceRate >= 80 ? const Color(0xFF10B981) : AppTheme.warningAmber,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 2),
@@ -151,7 +185,45 @@ class AdherenceStreakCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+
+                // Intake Breakdown Metric Chips (Taken, Delayed, Missed, PRN)
+                Row(
+                  children: [
+                    _buildIntakeMetric(
+                      context: context,
+                      label: 'Taken',
+                      count: totalTaken,
+                      color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                      icon: Icons.check_circle_rounded,
+                    ),
+                    const SizedBox(width: 6),
+                    _buildIntakeMetric(
+                      context: context,
+                      label: 'Delayed',
+                      count: totalDelayed,
+                      color: isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber,
+                      icon: Icons.schedule_rounded,
+                    ),
+                    const SizedBox(width: 6),
+                    _buildIntakeMetric(
+                      context: context,
+                      label: 'Missed',
+                      count: totalMissed,
+                      color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                      icon: Icons.cancel_rounded,
+                    ),
+                    const SizedBox(width: 6),
+                    _buildIntakeMetric(
+                      context: context,
+                      label: 'PRN',
+                      count: totalNotNeeded,
+                      color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                      icon: Icons.remove_circle_outline_rounded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
 
                 // 7-Day Flame Track (Duolingo Style M - T - W - T - F - S - S)
                 Container(
@@ -171,6 +243,59 @@ class AdherenceStreakCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntakeMetric({
+    required BuildContext context,
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+  }) {
+    final isDark = AppTheme.isDark(context);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.14 : 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: isDark ? 0.35 : 0.20),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 11, color: color),
+                const SizedBox(width: 3),
+                Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary(context),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

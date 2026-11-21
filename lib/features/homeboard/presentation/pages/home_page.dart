@@ -11,10 +11,11 @@ import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/services/streak_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
+import 'package:medisync/features/homeboard/presentation/widgets/expandable_add_medication_fab.dart';
+import 'package:medisync/features/homeboard/presentation/widgets/missed_dose_guidance_sheet.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
 import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
-import 'package:medisync/core/models/user_profile.dart';
 
 class DoseItem {
   final Medication medication;
@@ -74,27 +75,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  void _syncAllToCalendar(BuildContext context) async {
-    final meds = ref.read(medicationsNotifierProvider);
-    final res = await ref.read(deviceIntegrationServiceProvider).syncMedicationsToCalendar(meds);
-    if (!context.mounted) return;
-    if (res.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✓ Successfully synced ${res.eventsCreated} medication event(s) to phone calendar!'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res.message),
-          backgroundColor: AppTheme.warningAmber,
-        ),
-      );
-    }
   }
 
   @override
@@ -212,31 +192,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                           medications: medications,
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Sync Schedule to Calendar',
-                        icon: Icon(
-                          Icons.calendar_month_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 26,
-                        ),
-                        onPressed: () => _syncAllToCalendar(context),
-                      ),
-                      IconButton(
-                        tooltip: 'Add Medication',
-                        icon: Icon(
-                          Icons.add_circle,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 30,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AddEditMedicationPage(),
-                            ),
-                          );
-                        },
-                      ),
                     ],
                   ),
                 ],
@@ -248,10 +203,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         children: [
-          // 0. Quick Access Emergency Health Card Banner
-          _buildQuickEmergencyCardBanner(context, profile, medications),
-          const SizedBox(height: 14),
-
           // 1. Weekly Schedule Day Selector with Field of Depth
           _buildWeeklyDaySelector(weekDates, now, medications),
           const SizedBox(height: 16),
@@ -611,6 +562,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: 90),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: const Padding(
+        padding: EdgeInsets.only(bottom: 84),
+        child: ExpandableAddMedicationFab(),
+      ),
     );
   }
 
@@ -627,113 +583,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           color: Colors.white,
           fontSize: 11,
           fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickEmergencyCardBanner(
-    BuildContext context,
-    UserProfile profile,
-    List<Medication> medications,
-  ) {
-    final isDark = AppTheme.isDark(context);
-    final activeAllergies = profile.allergies.isNotEmpty
-        ? '${profile.allergies.length} recorded'
-        : 'None recorded';
-    final bloodType = (profile.bloodType?.isNotEmpty ?? false) ? profile.bloodType! : 'Unknown';
-
-    return InkWell(
-      onTap: () => showEmergencyCardDialog(
-        context,
-        profile: profile,
-        medications: medications,
-      ),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF2F2),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA),
-            width: 1.2,
-          ),
-          boxShadow: [
-            ...AppTheme.glowShadow(const Color(0xFFDC2626), opacity: 0.08),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDC2626).withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.contact_emergency_rounded,
-                color: Color(0xFFDC2626),
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'Emergency Medical ID',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDC2626),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          bloodType,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Allergies: $activeAllergies • Tap for instant medical summary',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: AppTheme.textSecondary(context),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
-              size: 22,
-            ),
-          ],
         ),
       ),
     );
@@ -1419,8 +1268,18 @@ class _DoseTimelineCard extends ConsumerWidget {
 
     return InkWell(
       onTap: () {
-        onUpdateStatus(status);
-        Navigator.pop(ctx);
+        if (status == DoseStatus.missed) {
+          Navigator.pop(ctx);
+          showMissedDoseGuidanceSheet(
+            ctx,
+            medication: dose.medication,
+            scheduledTime: dose.time,
+            onSelectStatus: onUpdateStatus,
+          );
+        } else {
+          onUpdateStatus(status);
+          Navigator.pop(ctx);
+        }
       },
       borderRadius: BorderRadius.circular(14),
       child: Container(

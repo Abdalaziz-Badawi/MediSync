@@ -7,6 +7,7 @@ import 'package:medisync/core/models/side_effect.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/features/homeboard/presentation/widgets/missed_dose_guidance_sheet.dart';
 import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 
 class UpcomingDose {
@@ -1050,7 +1051,22 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
                   subtitle: 'Window expired or unable to take dose safely',
                   icon: Icons.cancel_rounded,
                   color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                  onSelect: () => _applyDoseStatus(ctx, med, nextDose, DoseStatus.missed, 'Marked as missed'),
+                  onSelect: () {
+                    Navigator.pop(ctx);
+                    showMissedDoseGuidanceSheet(
+                      context,
+                      medication: med,
+                      scheduledTime: nextDose.timeString,
+                      onSelectStatus: (newStatus) {
+                        ref.read(medicationsNotifierProvider.notifier).setDoseStatus(
+                              med.id,
+                              DateTime.now(),
+                              nextDose.timeString,
+                              newStatus,
+                            );
+                      },
+                    );
+                  },
                 ),
 
                 // 5. As Needed / Not Needed

@@ -636,9 +636,7 @@ class DeviceIntegrationService {
         final timesStr = med.scheduledTimes.isNotEmpty
             ? med.scheduledTimes.join(', ')
             : 'As needed';
-        final freqStr = med.scheduleFrequency == ScheduleFrequency.asNeeded
-            ? 'PRN'
-            : '${med.timesPerDay}x daily ($timesStr)';
+        final freqStr = '${med.frequencyDisplay} ($timesStr)';
 
         final medLine = '${i + 1}. ${med.name} (${med.dosage}, ${med.form.name})  —  $freqStr';
         _drawCanvasText(
@@ -772,7 +770,7 @@ class DeviceIntegrationService {
       final onTimePct = totalDoses > 0
           ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
           : 'N/A';
-      buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | ${med.scheduleFrequency.name} | ${med.scheduledTimes.join(", ")} | $onTimePct% |');
+      buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | ${med.frequencyDisplay} | ${med.scheduledTimes.join(", ")} | $onTimePct% |');
     }
     buf.writeln();
 
@@ -784,6 +782,7 @@ class DeviceIntegrationService {
       buf.writeln('### ${med.name} (${med.dosage})');
       buf.writeln('- **Started:** ${dayFmt.format(med.startDate)}');
       buf.writeln('- **Last Dose Taken:** $lastTaken');
+      buf.writeln('- **Schedule Frequency:** ${med.frequencyDisplay}');
       buf.writeln('- **Intake Breakdown:**');
       buf.writeln('  - ✅ Taken On Time: `${stats["taken"]}`');
       buf.writeln('  - ⏰ Taken Delayed: `${stats["delayed"]}`');
@@ -798,7 +797,8 @@ class DeviceIntegrationService {
         buf.writeln('\n**Chronological Intake Log:**');
         final sortedKeys = med.doseLog.keys.toList()..sort((a, b) => b.compareTo(a));
         for (final dateKey in sortedKeys) {
-          buf.writeln('- `$dateKey`: ${med.doseLog[dateKey]!.join(", ")}');
+          final entries = med.doseLog[dateKey]!.map(formatDoseLogEntry).join(', ');
+          buf.writeln('- `$dateKey`: $entries');
         }
       }
       buf.writeln();
@@ -968,6 +968,33 @@ class DeviceIntegrationService {
     return generateContinuityReportHtml(medications: medications, profile: profile, isPrintablePdf: true);
   }
 
+  /// Formats raw dose log entries (e.g. "08:00:taken") into human-friendly clinical labels
+  static String formatDoseLogEntry(String raw) {
+    final parts = raw.split(':');
+    if (parts.length < 3) return raw;
+    final timeStr = '${parts[0]}:${parts[1]}';
+    final statusStr = parts.sublist(2).join(':').toLowerCase();
+    String label;
+    switch (statusStr) {
+      case 'taken':
+      case 'takenearly':
+        label = 'Taken On Time ✅';
+        break;
+      case 'delayed':
+        label = 'Taken Delayed ⏰';
+        break;
+      case 'missed':
+        label = 'Missed Window ❌';
+        break;
+      case 'notneeded':
+        label = 'Not Needed (PRN) ⚪';
+        break;
+      default:
+        label = statusStr;
+    }
+    return '$timeStr ($label)';
+  }
+
   /// Generates a complete, offline-only Clinical Medication Continuity & Intake Report.
   /// Strictly requires user permission & call to action before generation.
   String generateContinuityReport({
@@ -1013,7 +1040,7 @@ class DeviceIntegrationService {
 
       buf.writeln('\n• Medication: ${med.name} (${med.dosage})');
       buf.writeln('  Form: ${med.form.name.toUpperCase()}');
-      buf.writeln('  Frequency: ${med.scheduleFrequency.name}');
+      buf.writeln('  Frequency: ${med.frequencyDisplay}');
       buf.writeln('  Schedule Times: ${med.scheduledTimes.join(', ')}');
       buf.writeln('  Date Started: ${dayFmt.format(med.startDate)}');
       buf.writeln('  Last Dose Taken: $lastTaken');
@@ -1035,8 +1062,8 @@ class DeviceIntegrationService {
         buf.writeln('  Chronological Intake Log:');
         final sortedKeys = med.doseLog.keys.toList()..sort((a, b) => b.compareTo(a));
         for (final dateKey in sortedKeys) {
-          final entries = med.doseLog[dateKey]!;
-          buf.writeln('    [$dateKey]: ${entries.join(', ')}');
+          final entries = med.doseLog[dateKey]!.map(formatDoseLogEntry).join(', ');
+          buf.writeln('    [$dateKey]: $entries');
         }
       }
     }

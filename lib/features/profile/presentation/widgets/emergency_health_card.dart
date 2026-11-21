@@ -405,9 +405,7 @@ class EmergencyHealthCardWidget extends StatelessWidget {
                     final timesStr = med.scheduledTimes.isNotEmpty
                         ? med.scheduledTimes.join(', ')
                         : 'As needed';
-                    final freqStr = med.scheduleFrequency == ScheduleFrequency.asNeeded
-                        ? 'PRN'
-                        : '${med.timesPerDay}x daily ($timesStr)';
+                    final freqStr = '${med.frequencyDisplay} ($timesStr)';
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 6),

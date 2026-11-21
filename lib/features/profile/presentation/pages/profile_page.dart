@@ -2231,6 +2231,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           _buildEmergencyCardSection(context),
           const SizedBox(height: 16),
 
+          // Calendar Sync Section
+          _buildCalendarSyncCard(context),
+          const SizedBox(height: 16),
+
           // About MediSync & Developer Card (Collapsible)
           _buildAboutDeveloperCard(context),
           const SizedBox(height: 20),
@@ -2348,6 +2352,114 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                         medications: medications,
                       );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarSyncCard(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    final medications = ref.watch(medicationsNotifierProvider);
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1E3A5F) : const Color(0xFFBFDBFE),
+          width: 1.5,
+        ),
+        boxShadow: AppTheme.softShadow(context),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            color: isDark ? const Color(0xFF0F2338) : const Color(0xFFEFF6FF),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_month_rounded, color: Color(0xFF2563EB), size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Device Calendar Synchronization',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      Text(
+                        'Export doses directly into your phone’s native calendar',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sync all active medication schedules (${activeMeds.length} active) to your device calendar (Google Calendar / Samsung Calendar) with recurring notifications.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary(context),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF2563EB),
+                      side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.sync_rounded, size: 20),
+                    label: const Text(
+                      'Sync Active Meds to Device Calendar',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      final res = await ref.read(deviceIntegrationServiceProvider).syncMedicationsToCalendar(activeMeds);
+                      if (!context.mounted) return;
+                      if (res.success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('✓ Successfully synced ${res.eventsCreated} medication event(s) to phone calendar!'),
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res.message),
+                            backgroundColor: AppTheme.warningAmber,
+                          ),
+                        );
+                      }
                     },
                   ),
                 ),
