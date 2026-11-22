@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medisync/core/models/condition.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/user_profile.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/features/homeboard/presentation/pages/home_page.dart';
@@ -314,6 +316,62 @@ void main() {
       expect(entry['bloodType'], 'O+');
       expect(entry['allergiesCount'], 1);
       expect(entry['activeMedsCount'], 1);
+    });
+
+    test('syncEmergencyData serializes full demographics, blood group and dispatches card picture to native storage', () async {
+      final methodCalls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('com.example.medisync/device_integration'),
+        (MethodCall call) async {
+          methodCalls.add(call);
+          if (call.method == 'updateWidgetData') return true;
+          if (call.method == 'saveEmergencyCardImage') return true;
+          return null;
+        },
+      );
+
+      final service = DeviceIntegrationService();
+      final profile = UserProfile(
+        name: 'Dr. Jane Doe',
+        gender: 'Female',
+        dateOfBirth: DateTime(1990, 5, 15),
+        bloodType: 'AB+',
+        healthId: 'HEALTH-4432',
+        allergies: const ['Aspirin', 'Sulfa'],
+        chronicConditions: const ['Asthma'],
+        wakeTime: '07:00',
+        sleepTime: '23:00',
+        breakfastTime: '08:00',
+        lunchTime: '13:00',
+        dinnerTime: '20:00',
+      );
+
+      final med = Medication(
+        id: 'med-inhaler',
+        name: 'Albuterol',
+        dosage: '90 mcg',
+        timesPerDay: 2,
+        scheduledTimes: const ['08:00', '20:00'],
+        startDate: DateTime.now(),
+      );
+
+      await service.syncEmergencyData(profile: profile, medications: [med]);
+
+      final widgetUpdate = methodCalls.firstWhere((c) => c.method == 'updateWidgetData');
+      expect(widgetUpdate.arguments['patientName'], 'Dr. Jane Doe');
+      expect(widgetUpdate.arguments['bloodType'], 'AB+');
+      expect(widgetUpdate.arguments['healthId'], 'HEALTH-4432');
+      expect(widgetUpdate.arguments['allergiesCount'], 2);
+      expect(widgetUpdate.arguments['activeMedsCount'], 1);
+      expect(widgetUpdate.arguments['demographics'], contains('Gender: Female'));
+      expect(widgetUpdate.arguments['allergies'], 'Aspirin, Sulfa');
+      expect(widgetUpdate.arguments['conditions'], 'Asthma');
+      expect(widgetUpdate.arguments['medications'], contains('Albuterol 90 mcg'));
+
+      final imageSave = methodCalls.firstWhere((c) => c.method == 'saveEmergencyCardImage');
+      expect(imageSave.arguments['bytes'], isNotNull);
+      expect((imageSave.arguments['bytes'] as List).isNotEmpty, isTrue);
     });
   });
 }

@@ -53,48 +53,57 @@ class _ExpandableAddMedicationFabState extends State<ExpandableAddMedicationFab>
 
     return ScaleTransition(
       scale: _scaleAnimation,
-      child: GestureDetector(
-        onTap: _onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeInOutCubic,
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primary, secondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              ...AppTheme.glowShadow(primary, opacity: isDark ? 0.38 : 0.28),
-              BoxShadow(
-                color: (isDark ? Colors.black : primary).withValues(alpha: 0.20),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(26),
+          onTap: _onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeInOutCubic,
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primary, secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Add Medicine',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.2,
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: [
+                BoxShadow(
+                  color: primary.withValues(alpha: isDark ? 0.45 : 0.35),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-            ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.20),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Add Medicine',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

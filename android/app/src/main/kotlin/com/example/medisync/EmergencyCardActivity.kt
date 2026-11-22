@@ -3,12 +3,17 @@ package com.example.medisync
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
+import java.io.File
 
 class EmergencyCardActivity : Activity() {
 
@@ -29,6 +34,13 @@ class EmergencyCardActivity : Activity() {
 
         setContentView(R.layout.activity_emergency_card)
 
+        // Configure floating window dimensions (94% screen width, centered floating overlay)
+        val dm = resources.displayMetrics
+        val width = (dm.widthPixels * 0.94).toInt()
+        window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+        window.setGravity(Gravity.CENTER)
+
+        // Read verified patient data from SharedPreferences
         val prefs = getSharedPreferences(MediSyncWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
         val patientName = prefs.getString(MediSyncWidgetProvider.KEY_PATIENT_NAME, "MediSync Patient") ?: "MediSync Patient"
         val bloodType = prefs.getString(MediSyncWidgetProvider.KEY_BLOOD_TYPE, "Unknown") ?: "Unknown"
@@ -46,7 +58,21 @@ class EmergencyCardActivity : Activity() {
         findViewById<TextView>(R.id.tv_conditions)?.text = conditions
         findViewById<TextView>(R.id.tv_medications)?.text = medications
 
-        findViewById<Button>(R.id.btn_close)?.setOnClickListener {
+        // Try loading high-resolution rendered emergency card picture (JPG / PNG)
+        val cardImageFile = File(filesDir, "emergency_card.png")
+        val ivCardImage = findViewById<ImageView>(R.id.iv_emergency_card_image)
+
+        if (cardImageFile.exists() && ivCardImage != null) {
+            try {
+                val bitmap = BitmapFactory.decodeFile(cardImageFile.absolutePath)
+                if (bitmap != null) {
+                    ivCardImage.setImageBitmap(bitmap)
+                    ivCardImage.visibility = View.VISIBLE
+                }
+            } catch (_: Exception) {}
+        }
+
+        findViewById<View>(R.id.btn_close)?.setOnClickListener {
             finish()
         }
 

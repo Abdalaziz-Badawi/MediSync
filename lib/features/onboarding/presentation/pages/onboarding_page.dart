@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:medisync/core/models/user_profile.dart';
+import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
@@ -152,6 +153,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
     await ref.read(profileNotifierProvider.notifier).updateProfile(profile);
     await ref.read(storageServiceProvider).setSetupCompleted(true);
+    await ref.read(deviceIntegrationServiceProvider).syncEmergencyData(profile: profile, medications: []);
 
     if (mounted) {
       Navigator.of(context).pushReplacement(

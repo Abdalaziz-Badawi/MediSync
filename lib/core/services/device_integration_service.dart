@@ -268,14 +268,71 @@ class DeviceIntegrationService {
         'bloodType': bloodType,
         'nextDose': nextDose,
         'defaultView': defaultView,
-        'allergiesCount': ?allergiesCount,
-        'activeMedsCount': ?activeMedsCount,
+        'allergiesCount': allergiesCount,
+        'activeMedsCount': activeMedsCount,
         'healthId': healthId ?? 'Not Provided',
         'demographics': demographics ?? '',
         'allergies': allergies ?? '',
         'conditions': conditions ?? '',
         'medications': medications ?? '',
       });
+    } catch (_) {}
+  }
+
+  /// Saves the rendered emergency card picture (PNG/JPG) to native app storage
+  Future<bool> saveEmergencyCardImage(Uint8List bytes) async {
+    try {
+      final res = await _channel.invokeMethod<bool>('saveEmergencyCardImage', {
+        'bytes': bytes,
+      });
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Proactively synchronizes all emergency ID patient data, blood type, age,
+  /// gender, allergies, conditions, and renders the high-res card image to native storage.
+  Future<void> syncEmergencyData({
+    required UserProfile profile,
+    required List<Medication> medications,
+  }) async {
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    final activeMedNames = activeMeds
+        .map((m) => '${m.name} ${m.dosage} (${m.frequencyDisplay})')
+        .join('\n');
+    final ageStr = profile.age != null ? '${profile.age} yrs' : 'Not recorded';
+    final genderStr = profile.gender != null && profile.gender!.isNotEmpty
+        ? profile.gender!
+        : 'Not recorded';
+    final demographicsStr = 'Age: $ageStr • Gender: $genderStr';
+    final allergiesStr = profile.allergies.isNotEmpty
+        ? profile.allergies.join(', ')
+        : 'No known drug or environmental allergies recorded.';
+    final conditionsStr = profile.chronicConditions.isNotEmpty
+        ? profile.chronicConditions.join(', ')
+        : 'No chronic conditions or organ risks recorded.';
+
+    // 1. Update native lockscreen widgets & SharedPreferences
+    await updateLockscreenWidget(
+      patientName: profile.name,
+      bloodType: profile.bloodType ?? 'Unknown',
+      allergiesCount: profile.allergies.length,
+      activeMedsCount: activeMeds.length,
+      healthId: profile.healthId ?? 'Not Provided',
+      demographics: demographicsStr,
+      allergies: allergiesStr,
+      conditions: conditionsStr,
+      medications: activeMedNames.isNotEmpty ? activeMedNames : 'No active medications.',
+    );
+
+    // 2. Render and save the high-res emergency card picture
+    try {
+      final cardBytes = await renderEmergencyCardBytes(
+        profile: profile,
+        medications: medications,
+      );
+      await saveEmergencyCardImage(cardBytes);
     } catch (_) {}
   }
 

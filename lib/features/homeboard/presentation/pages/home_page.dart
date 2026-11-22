@@ -51,6 +51,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     _selectedDate = DateTime(now.year, now.month, now.day);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLockscreenLaunch();
+      _syncEmergencyCard();
     });
 
     ref.read(deviceIntegrationServiceProvider).onEmergencyCardRequested = () {
@@ -82,6 +83,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  Future<void> _syncEmergencyCard() async {
+    try {
+      final profile = ref.read(profileNotifierProvider);
+      final meds = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).toList();
+      await ref.read(deviceIntegrationServiceProvider).syncEmergencyData(
+        profile: profile,
+        medications: meds,
+      );
+    } catch (_) {}
+  }
+
   // Calculate week's dates (Monday to Sunday) factoring in _weekOffset (-1, 0, 1)
   List<DateTime> _getCurrentWeekDates() {
     final now = DateTime.now();
@@ -100,6 +112,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<UserProfile>(profileNotifierProvider, (previous, next) {
+      _syncEmergencyCard();
+    });
+    ref.listen<List<Medication>>(medicationsNotifierProvider, (previous, next) {
+      _syncEmergencyCard();
+    });
+
     final medications = ref.watch(medicationsNotifierProvider);
     final profile = ref.watch(profileNotifierProvider);
     final now = DateTime.now();
@@ -443,14 +462,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 },
               ),
           ],
-          // Extra bottom padding to ensure content is fully clear of the floating bottom bar
-          const SizedBox(height: 90),
+          // Generous bottom buffer ensuring content is completely clear of elevated FAB and floating nav bar
+          const SizedBox(height: 140),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: const Padding(
-        padding: EdgeInsets.only(bottom: 84),
-        child: ExpandableAddMedicationFab(),
+      floatingActionButton: const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 96, right: 8),
+          child: ExpandableAddMedicationFab(),
+        ),
       ),
     );
   }

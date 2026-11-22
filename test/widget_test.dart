@@ -275,7 +275,7 @@ void main() {
 
     expect(find.text('My Medications'), findsOneWidget);
     expect(find.text('Metformin'), findsOneWidget);
-    expect(find.text('Add Medicine'), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
   });
 
   testWidgets('Renders Profile page with theme toggle, routine and allergies',

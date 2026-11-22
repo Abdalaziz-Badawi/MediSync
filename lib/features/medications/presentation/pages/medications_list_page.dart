@@ -587,10 +587,10 @@ class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 92, right: 8),
+          padding: const EdgeInsets.only(bottom: 96, right: 8),
           child: _isSelectionMode
               ? FloatingActionButton.extended(
-                  elevation: 4,
+                  elevation: 6,
                   backgroundColor: _selectedIds.isEmpty
                       ? Colors.grey
                       : AppTheme.dangerRed,
@@ -601,20 +601,55 @@ class _MedicationsListPageState extends ConsumerState<MedicationsListPage> {
                   icon: const Icon(Icons.delete_forever_rounded),
                   label: Text('Delete (${_selectedIds.length})'),
                 )
-              : FloatingActionButton.extended(
-                  elevation: 4,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditMedicationPage(),
+              : Container(
+                  height: 52,
+                  width: 52,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.secondary,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.45 : 0.35),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 4),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add Medicine'),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.20),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AddEditMedicationPage(),
+                          ),
+                        );
+                      },
+                      child: const Center(
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
         ),
       ),

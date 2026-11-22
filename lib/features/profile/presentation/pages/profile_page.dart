@@ -63,7 +63,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   int? get _calculatedAge {
-    if (_dateOfBirth == null) return null;
+    if (_dateOfBirth == null) {
+      final p = ref.read(profileNotifierProvider);
+      return p.age;
+    }
     final now = DateTime.now();
     int calculated = now.year - _dateOfBirth!.year;
     if (now.month < _dateOfBirth!.month ||
@@ -257,7 +260,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
-  void _saveProfile() {
+  void _saveProfile() async {
     final updated = UserProfile(
       name: _nameController.text.trim().isEmpty
           ? 'User'
@@ -285,33 +288,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     ref.read(profileNotifierProvider.notifier).updateProfile(updated);
 
-    // Sync updated profile to Lockscreen Emergency Widget & Persistent Notification
+    // Sync updated profile to Lockscreen Emergency Widget, native floating dialog & Persistent Notification
     final activeMeds = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).toList();
-    final activeCount = activeMeds.length;
-    final activeMedNames = activeMeds.map((m) => '${m.name} ${m.dosage} (${m.frequencyDisplay})').join('\n');
-    final demographicsStr = 'Age: ${_calculatedAge ?? 'Not set'} • Gender: $_gender';
-    final allergiesStr = _allergies.isNotEmpty ? _allergies.join(', ') : 'No known drug allergies.';
-    final conditionsStr = _chronicConditions.isNotEmpty ? _chronicConditions.join(', ') : 'No chronic conditions recorded.';
-
-    ref.read(deviceIntegrationServiceProvider).updateLockscreenWidget(
-      patientName: updated.name,
-      bloodType: updated.bloodType ?? 'Unknown',
-      allergiesCount: updated.allergies.length,
-      activeMedsCount: activeCount,
-      healthId: updated.healthId ?? 'Not Provided',
-      demographics: demographicsStr,
-      allergies: allergiesStr,
-      conditions: conditionsStr,
-      medications: activeMedNames.isNotEmpty ? activeMedNames : 'No active medications.',
+    await ref.read(deviceIntegrationServiceProvider).syncEmergencyData(
+      profile: updated,
+      medications: activeMeds,
     );
 
     ref.read(notificationServiceProvider).showPersistentEmergencyNotification(
       patientName: updated.name,
       bloodType: updated.bloodType ?? 'Unknown',
       allergiesCount: updated.allergies.length,
-      activeMedsCount: activeCount,
+      activeMedsCount: activeMeds.length,
     );
 
+    if (!mounted) return;
     setState(() {}); // Updates _hasChanges to false
 
     ScaffoldMessenger.of(context).showSnackBar(

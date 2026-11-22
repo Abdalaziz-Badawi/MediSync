@@ -56,7 +56,7 @@
             android:exported="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:theme="@style/EmergencyDialogTheme"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize">
             <intent-filter>
@@ -64,19 +64,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
-        <activity-alias
-            android:name=".EmergencyCardShortcut"
-            android:targetActivity=".EmergencyCardActivity"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher"
-            android:label="MediSync Emergency ID">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity-alias>
 
         <receiver
             android:name=".MediSyncWidgetProvider"
@@ -87,6 +74,17 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/medisync_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".MediSyncEmergencyButtonWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/medisync_emergency_button_widget_info" />
         </receiver>
 
         <provider

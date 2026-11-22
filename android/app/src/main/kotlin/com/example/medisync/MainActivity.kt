@@ -490,9 +490,24 @@ class MainActivity : FlutterActivity() {
                             .apply()
 
                         MediSyncWidgetProvider.updateAllWidgets(this)
+                        MediSyncEmergencyButtonWidgetProvider.updateAllWidgets(this)
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("WIDGET_UPDATE_FAILED", e.message, null)
+                    }
+                }
+                "saveEmergencyCardImage" -> {
+                    try {
+                        val bytes = call.argument<ByteArray>("bytes")
+                        if (bytes != null) {
+                            val file = java.io.File(filesDir, "emergency_card.png")
+                            file.writeBytes(bytes)
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    } catch (e: Exception) {
+                        result.error("SAVE_IMAGE_FAILED", e.message, null)
                     }
                 }
                 "pickGalleryImage" -> {
