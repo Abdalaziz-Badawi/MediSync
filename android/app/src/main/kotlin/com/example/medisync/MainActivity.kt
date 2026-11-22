@@ -31,40 +31,11 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        }
-
-        // If opened while device is locked (e.g. from lockscreen corner shortcut or widget),
-        // immediately pop up the zero-PIN floating emergency medical card overlay!
-        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        if (km.isKeyguardLocked) {
-            val emergencyIntent = Intent(this, EmergencyCardActivity::class.java)
-            emergencyIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            startActivity(emergencyIntent)
-            finish()
-            return
-        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        if (km.isKeyguardLocked) {
-            val emergencyIntent = Intent(this, EmergencyCardActivity::class.java)
-            emergencyIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            startActivity(emergencyIntent)
-            finish()
-            return
-        }
         val fromWidget = intent.getBooleanExtra("from_lockscreen_widget", false)
         val isAction = intent.action == "com.example.medisync.OPEN_EMERGENCY_QUICK"
         if (fromWidget || isAction) {
@@ -209,6 +180,18 @@ class MainActivity : FlutterActivity() {
                         val targetCalId = calId ?: 1L
                         var insertedCount = 0
                         val tz = TimeZone.getDefault().id
+
+                        // Clear previously synced MediSync events to cleanly remove discontinued or updated medications
+                        try {
+                            contentResolver.delete(
+                                CalendarContract.Events.CONTENT_URI,
+                                "${CalendarContract.Events.EVENT_LOCATION} = ?",
+                                arrayOf("MediSync Local")
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.e("MediSync", "Error clearing existing calendar events: ${e.message}")
+                        }
+
                         for (event in eventsList) {
                             val title = (event["title"] as? String) ?: "Medication Reminder"
                             val desc = (event["description"] as? String) ?: "MediSync Dose"
@@ -253,6 +236,32 @@ class MainActivity : FlutterActivity() {
                         result.success(mapOf("success" to true, "count" to insertedCount))
                     } catch (e: Exception) {
                         result.error("SYNC_ERROR", e.message, null)
+                    }
+                }
+                "removeCalendarEventsForMedication" -> {
+                    try {
+                        val medicationName = call.argument<String>("medicationName") ?: ""
+                        val hasWrite = checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                        if (!hasWrite) {
+                            result.success(0)
+                            return@setMethodCallHandler
+                        }
+                        val deleted = if (medicationName.isNotEmpty()) {
+                            contentResolver.delete(
+                                CalendarContract.Events.CONTENT_URI,
+                                "${CalendarContract.Events.EVENT_LOCATION} = ? AND ${CalendarContract.Events.TITLE} LIKE ?",
+                                arrayOf("MediSync Local", "%$medicationName%")
+                            )
+                        } else {
+                            contentResolver.delete(
+                                CalendarContract.Events.CONTENT_URI,
+                                "${CalendarContract.Events.EVENT_LOCATION} = ?",
+                                arrayOf("MediSync Local")
+                            )
+                        }
+                        result.success(deleted)
+                    } catch (e: Exception) {
+                        result.success(0)
                     }
                 }
                 "openHealthApp" -> {

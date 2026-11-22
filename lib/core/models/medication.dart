@@ -121,15 +121,22 @@ class Medication {
   }
 
   bool isActiveOn(DateTime date) {
-    // 0. Discontinuation check: if discontinued on a date, it is inactive for any day after that date
     final startOfCheck = DateTime(date.year, date.month, date.day);
-    if (discontinuedDate != null) {
-      final endOfDiscontinueDay = DateTime(
-        discontinuedDate!.year,
-        discontinuedDate!.month,
-        discontinuedDate!.day,
-      );
-      if (startOfCheck.isAfter(endOfDiscontinueDay)) return false;
+
+    // 0. Discontinuation check: if discontinued, it is completely removed from all future dates
+    if (isDiscontinued) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (startOfCheck.isAfter(today)) return false;
+
+      if (discontinuedDate != null) {
+        final endOfDiscontinueDay = DateTime(
+          discontinuedDate!.year,
+          discontinuedDate!.month,
+          discontinuedDate!.day,
+        );
+        if (startOfCheck.isAfter(endOfDiscontinueDay)) return false;
+      }
     }
 
     // 1. Start date check

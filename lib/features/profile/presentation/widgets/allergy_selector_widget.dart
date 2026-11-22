@@ -6,14 +6,12 @@ class AllergySelectorWidget extends StatefulWidget {
   final List<String> selectedAllergies;
   final Function(String allergy) onToggleAllergy;
   final Function(String customAllergy)? onAddCustomAllergy;
-  final bool isMasked;
 
   const AllergySelectorWidget({
     super.key,
     required this.selectedAllergies,
     required this.onToggleAllergy,
     this.onAddCustomAllergy,
-    this.isMasked = false,
   });
 
   @override
@@ -66,25 +64,6 @@ class _AllergySelectorWidgetState extends State<AllergySelectorWidget> {
                   color: AppTheme.textPrimary(context),
                 ),
               ),
-              if (widget.isMasked)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.visibility_off, size: 12, color: AppTheme.textSecondary(context)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Masked',
-                        style: TextStyle(fontSize: 10, color: AppTheme.textSecondary(context), fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -92,7 +71,7 @@ class _AllergySelectorWidgetState extends State<AllergySelectorWidget> {
             spacing: 8,
             runSpacing: 6,
             children: widget.selectedAllergies.map((allergy) {
-              final displayText = widget.isMasked ? '••••••••' : allergy;
+              final displayText = allergy;
               return Chip(
                 backgroundColor: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
                 side: BorderSide(

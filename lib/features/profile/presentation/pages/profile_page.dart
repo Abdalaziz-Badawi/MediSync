@@ -76,9 +76,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return calculated >= 0 ? calculated : 0;
   }
 
-  // Privacy Shield / Sneak Peek Prevention
-  bool _isPrivacyMaskActive = false;
-
   // Collapsible Cards State (Starts collapsed by default, expands on interaction, collapses on leave)
   late bool _isProfileCardExpanded;
   late bool _isSettingsCardExpanded;
@@ -320,12 +317,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
-  }
-
-  String _maskText(String text) {
-    if (!_isPrivacyMaskActive) return text;
-    if (text.isEmpty) return '••••••';
-    return '${text[0]}${'•' * (text.length - 1).clamp(4, 10)}';
   }
 
   IconData _getAvatarIcon(String id) {
@@ -916,21 +907,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
         ),
         actions: [
-          // Sneak Peek Privacy Toggle in AppBar
-          IconButton(
-            tooltip: _isPrivacyMaskActive ? 'Disable Privacy Mask' : 'Enable Privacy Mask',
-            icon: Icon(
-              _isPrivacyMaskActive ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-              color: _isPrivacyMaskActive
-                  ? (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber)
-                  : AppTheme.textSecondary(context),
-            ),
-            onPressed: () {
-              setState(() {
-                _isPrivacyMaskActive = !_isPrivacyMaskActive;
-              });
-            },
-          ),
           // Save button only appears if changes have been made
           if (hasChanges)
             TextButton(
@@ -1018,7 +994,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _maskText(_nameController.text),
+                                _nameController.text,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1099,7 +1075,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Routine: Wake ${_isPrivacyMaskActive ? '••:••' : _wakeTime} • Bed ${_isPrivacyMaskActive ? '••:••' : _sleepTime} • ${_allergies.length} Allergies • ${_chronicConditions.length} Conditions',
+                              'Routine: Wake $_wakeTime • Bed $_sleepTime • ${_allergies.length} Allergies • ${_chronicConditions.length} Conditions',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -1331,7 +1307,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 Text(
                                   _isRoutineExpanded
                                       ? 'Tap to collapse daily routine schedule'
-                                      : 'Wake ${_isPrivacyMaskActive ? '••:••' : _wakeTime} • Bed ${_isPrivacyMaskActive ? '••:••' : _sleepTime} • Tap to view & edit',
+                                      : 'Wake $_wakeTime • Bed $_sleepTime • Tap to view & edit',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: AppTheme.textSecondary(context),
@@ -1367,35 +1343,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               context,
                               icon: Icons.wb_sunny_rounded,
                               label: 'Wake',
-                              time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
+                              time: _wakeTime,
                             ),
                             const SizedBox(width: 6),
                             _buildRoutinePreviewChip(
                               context,
                               icon: Icons.breakfast_dining_rounded,
                               label: 'Breakfast',
-                              time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
+                              time: _breakfastTime,
                             ),
                             const SizedBox(width: 6),
                             _buildRoutinePreviewChip(
                               context,
                               icon: Icons.lunch_dining_rounded,
                               label: 'Lunch',
-                              time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
+                              time: _lunchTime,
                             ),
                             const SizedBox(width: 6),
                             _buildRoutinePreviewChip(
                               context,
                               icon: Icons.dinner_dining_rounded,
                               label: 'Dinner',
-                              time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
+                              time: _dinnerTime,
                             ),
                             const SizedBox(width: 6),
                             _buildRoutinePreviewChip(
                               context,
                               icon: Icons.bedtime_rounded,
                               label: 'Sleep',
-                              time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
+                              time: _sleepTime,
                             ),
                           ],
                         ),
@@ -1411,7 +1387,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _RoutineTimeRow(
                             icon: Icons.wb_sunny_rounded,
                             label: 'Wake Up Time',
-                            time: _isPrivacyMaskActive ? '••:••' : _wakeTime,
+                            time: _wakeTime,
                             onTap: () => _pickTime(
                               currentTime: _wakeTime,
                               onPicked: (t) => _wakeTime = t,
@@ -1421,7 +1397,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _RoutineTimeRow(
                             icon: Icons.breakfast_dining_rounded,
                             label: 'Breakfast Time',
-                            time: _isPrivacyMaskActive ? '••:••' : _breakfastTime,
+                            time: _breakfastTime,
                             onTap: () => _pickTime(
                               currentTime: _breakfastTime,
                               onPicked: (t) => _breakfastTime = t,
@@ -1431,7 +1407,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _RoutineTimeRow(
                             icon: Icons.lunch_dining_rounded,
                             label: 'Lunch Time',
-                            time: _isPrivacyMaskActive ? '••:••' : _lunchTime,
+                            time: _lunchTime,
                             onTap: () => _pickTime(
                               currentTime: _lunchTime,
                               onPicked: (t) => _lunchTime = t,
@@ -1441,7 +1417,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _RoutineTimeRow(
                             icon: Icons.dinner_dining_rounded,
                             label: 'Dinner Time',
-                            time: _isPrivacyMaskActive ? '••:••' : _dinnerTime,
+                            time: _dinnerTime,
                             onTap: () => _pickTime(
                               currentTime: _dinnerTime,
                               onPicked: (t) => _dinnerTime = t,
@@ -1451,7 +1427,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _RoutineTimeRow(
                             icon: Icons.bedtime_rounded,
                             label: 'Sleep / Bedtime',
-                            time: _isPrivacyMaskActive ? '••:••' : _sleepTime,
+                            time: _sleepTime,
                             onTap: () => _pickTime(
                               currentTime: _sleepTime,
                               onPicked: (t) => _sleepTime = t,
@@ -1535,7 +1511,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         spacing: 6,
                         runSpacing: 4,
                         children: _allergies.take(4).map((allergy) {
-                          final displayText = _isPrivacyMaskActive ? '••••••••' : allergy;
+                          final displayText = allergy;
                           return Chip(
                             visualDensity: VisualDensity.compact,
                             backgroundColor: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
@@ -1564,7 +1540,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       selectedAllergies: _allergies,
                       onToggleAllergy: _toggleAllergy,
                       onAddCustomAllergy: _addCustomAllergy,
-                      isMasked: _isPrivacyMaskActive,
                     ),
                   ),
                 ],
@@ -1670,7 +1645,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         spacing: 6,
                         runSpacing: 4,
                         children: _chronicConditions.map((condition) {
-                          final displayText = _isPrivacyMaskActive ? '••••••••' : condition;
+                          final displayText = condition;
                           return Chip(
                             visualDensity: VisualDensity.compact,
                             backgroundColor: isDark ? const Color(0xFF134E4A) : const Color(0xFFF0FDFA),

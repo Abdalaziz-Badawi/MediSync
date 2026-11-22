@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/medication.dart';
 import '../models/user_profile.dart';
+import 'device_integration_service.dart';
 import 'notification_service.dart';
 
 const String kSettingsBoxName = 'settings_box';
@@ -200,6 +201,11 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
     if (notifs != null && med != null) {
       await notifs.cancelMedicationReminders(med);
     }
+    if (med != null) {
+      try {
+        await DeviceIntegrationService().removeCalendarEventsForMedication(med.name);
+      } catch (_) {}
+    }
   }
 
   Future<void> discontinue(String id, {DateTime? date, String? reason}) async {
@@ -212,6 +218,11 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
     final notifs = _notifications;
     if (notifs != null && med != null) {
       await notifs.cancelMedicationReminders(med);
+    }
+    if (med != null) {
+      try {
+        await DeviceIntegrationService().removeCalendarEventsForMedication(med.name);
+      } catch (_) {}
     }
   }
 

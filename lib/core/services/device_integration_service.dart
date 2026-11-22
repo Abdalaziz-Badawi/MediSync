@@ -171,6 +171,18 @@ class DeviceIntegrationService {
     );
   }
 
+  /// Removes all local calendar events associated with a discontinued medication.
+  Future<int> removeCalendarEventsForMedication(String medicationName) async {
+    try {
+      final res = await _channel.invokeMethod<int>('removeCalendarEventsForMedication', {
+        'medicationName': medicationName,
+      });
+      return res ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Opens the device's native local calendar app.
   Future<bool> openCalendar() async {
     try {
