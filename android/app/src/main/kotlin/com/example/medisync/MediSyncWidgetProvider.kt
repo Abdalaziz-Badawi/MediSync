@@ -35,8 +35,8 @@ class MediSyncWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_blood_type, "BLOOD: $bloodType")
             views.setTextViewText(R.id.widget_next_dose, nextDose)
 
-            // Intent to launch MainActivity on top of the lockscreen
-            val intent = Intent(context, MainActivity::class.java).apply {
+            // Intent to launch EmergencyCardActivity on top of the lockscreen with ZERO PIN
+            val intent = Intent(context, EmergencyCardActivity::class.java).apply {
                 action = "com.example.medisync.OPEN_EMERGENCY_QUICK"
                 putExtra("from_lockscreen_widget", true)
                 putExtra("lockscreen_view", defaultView)

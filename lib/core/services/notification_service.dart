@@ -361,6 +361,104 @@ class NotificationService {
     }
   }
 
+  /// Schedules monthly repeating medication dose notification on a specific day of month
+  Future<void> scheduleMonthlyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfMonth, // 1 to 31
+    required int hour,
+    required int minute,
+  }) async {
+    final vibrationPattern = Int64List.fromList([0, 350, 150, 350, 150, 650]);
+
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: vibrationPattern,
+      category: AndroidNotificationCategory.alarm,
+      styleInformation: BigTextStyleInformation(body),
+    );
+
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+    );
+
+    final now = tz.TZDateTime.now(tz.local);
+    final clampedDay = dayOfMonth.clamp(1, 28);
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      clampedDay,
+      hour,
+      minute,
+    );
+
+    if (scheduledDate.isBefore(now)) {
+      var nextMonth = now.month + 1;
+      var nextYear = now.year;
+      if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear++;
+      }
+      scheduledDate = tz.TZDateTime(
+        tz.local,
+        nextYear,
+        nextMonth,
+        clampedDay,
+        hour,
+        minute,
+      );
+    }
+
+    final mode = _canScheduleExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
+    try {
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        details,
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+      );
+    } catch (_) {
+      if (_canScheduleExact) {
+        _canScheduleExact = false;
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledDate,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+        );
+      }
+    }
+  }
+
   /// Automatically schedules all 3-phase dose alarms for a given medication
   Future<void> scheduleMedicationReminders(Medication med) async {
     if (med.isDiscontinued || med.scheduleFrequency == ScheduleFrequency.asNeeded) {
@@ -437,7 +535,40 @@ class NotificationService {
         postBuffer.write(' Monitor for: ${med.sideEffects.map((s) => s.description).take(2).join(", ")}.');
       }
 
-      if (isAllDays) {
+      if (med.scheduleFrequency == ScheduleFrequency.monthly ||
+          med.scheduleFrequency == ScheduleFrequency.twiceMonthly) {
+        final days = med.monthlyDays.isNotEmpty
+            ? med.monthlyDays
+            : (med.scheduleFrequency == ScheduleFrequency.monthly
+                ? [med.startDate.day]
+                : [1, 15]);
+        for (final d in days) {
+          await scheduleMonthlyNotification(
+            id: getPreNotificationId(med.id, '$time-m$d'),
+            title: '⏳ Upcoming: ${med.name} in 15 min',
+            body: preBuffer.toString(),
+            dayOfMonth: d,
+            hour: preHour,
+            minute: preMin,
+          );
+          await scheduleMonthlyNotification(
+            id: getNotificationIdWithDay(med.id, time, d + 100),
+            title: '💊 Time for ${med.name}',
+            body: atBuffer.toString(),
+            dayOfMonth: d,
+            hour: hour,
+            minute: minute,
+          );
+          await scheduleMonthlyNotification(
+            id: getPostNotificationId(med.id, '$time-m$d'),
+            title: '📋 Post-Dose Care: ${med.name}',
+            body: postBuffer.toString(),
+            dayOfMonth: d,
+            hour: postHour,
+            minute: postMin,
+          );
+        }
+      } else if (med.scheduleFrequency == ScheduleFrequency.daily && isAllDays) {
         // Phase 1
         await scheduleDailyNotification(
           id: getPreNotificationId(med.id, time),
@@ -463,7 +594,8 @@ class NotificationService {
           minute: postMin,
         );
       } else {
-        for (final day in med.daysOfWeek) {
+        final targetDays = med.daysOfWeek.isNotEmpty ? med.daysOfWeek : [med.startDate.weekday];
+        for (final day in targetDays) {
           if (day >= 1 && day <= 7) {
             await scheduleWeeklyNotification(
               id: getPreNotificationId(med.id, '$time-$day'),
@@ -506,8 +638,48 @@ class NotificationService {
         await cancelNotification(getNotificationIdWithDay(med.id, time, day));
         await cancelNotification(getPostNotificationId(med.id, '$time-$day'));
       }
+      for (int mDay = 1; mDay <= 31; mDay++) {
+        await cancelNotification(getPreNotificationId(med.id, '$time-m$mDay'));
+        await cancelNotification(getNotificationIdWithDay(med.id, time, mDay + 100));
+        await cancelNotification(getPostNotificationId(med.id, '$time-m$mDay'));
+      }
       await cancelNotification(getMealNotificationId(med.id, time));
     }
+  }
+
+  /// Displays a prominent, ongoing, public Emergency Medical ID notification on the lockscreen
+  Future<void> showPersistentEmergencyNotification({
+    required String patientName,
+    required String bloodType,
+    int? allergiesCount,
+    int? activeMedsCount,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'emergency_medical_id_channel',
+      'Emergency Medical ID',
+      channelDescription: 'Persistent 1-touch emergency medical ID for first responders and lock screen',
+      importance: Importance.high,
+      priority: Priority.high,
+      ongoing: true,
+      autoCancel: false,
+      visibility: NotificationVisibility.public,
+      color: Color(0xFFDC2626),
+      colorized: true,
+      showWhen: false,
+      category: AndroidNotificationCategory.status,
+    );
+
+    const details = NotificationDetails(android: androidDetails);
+    final allergiesStr = (allergiesCount != null && allergiesCount > 0) ? ' • $allergiesCount Allergies' : '';
+    final medsStr = (activeMedsCount != null && activeMedsCount > 0) ? ' • $activeMedsCount Meds' : '';
+
+    await _notificationsPlugin.show(
+      888888,
+      '🚨 EMERGENCY MEDICAL ID: $patientName',
+      'Blood: $bloodType$allergiesStr$medsStr • Tap to view without PIN',
+      details,
+      payload: 'emergency_card',
+    );
   }
 
   /// Synchronizes all active medication alarms (purges stale/cancelled alarms and reschedules active ones)

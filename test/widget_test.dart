@@ -201,6 +201,24 @@ class FakeNotificationService implements NotificationService {
 
   @override
   Future<void> syncAllMedicationReminders(List<Medication> medications) async {}
+
+  @override
+  Future<void> scheduleMonthlyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfMonth,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
+  Future<void> showPersistentEmergencyNotification({
+    required String patientName,
+    required String bloodType,
+    int? allergiesCount,
+    int? activeMedsCount,
+  }) async {}
 }
 
 void main() {
@@ -223,7 +241,7 @@ void main() {
     );
 
     expect(find.text('Hello, Sarah'), findsOneWidget);
-    expect(find.byType(NextDoseCountdownCard), findsOneWidget);
+    expect(find.text("Today's Schedule"), findsOneWidget);
     expect(find.text('NEXT MEDICATION'), findsOneWidget);
     expect(find.text('BEFORE'), findsOneWidget);
     expect(find.text('Take'), findsOneWidget);

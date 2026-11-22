@@ -42,6 +42,18 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val fromWidget = intent.getBooleanExtra("from_lockscreen_widget", false)
+        val isAction = intent.action == "com.example.medisync.OPEN_EMERGENCY_QUICK"
+        if (fromWidget || isAction) {
+            flutterEngine?.dartExecutor?.binaryMessenger?.let {
+                MethodChannel(it, CHANNEL).invokeMethod("onEmergencyCardRequested", null)
+            }
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == PICK_IMAGE_REQUEST) {
@@ -458,6 +470,11 @@ class MainActivity : FlutterActivity() {
                         val blood = call.argument<String>("bloodType") ?: "Unknown"
                         val nextDose = call.argument<String>("nextDose") ?: "Tap to view medical ID"
                         val view = call.argument<String>("defaultView") ?: "dual"
+                        val healthId = call.argument<String>("healthId") ?: "Not Provided"
+                        val demographics = call.argument<String>("demographics") ?: ""
+                        val allergies = call.argument<String>("allergies") ?: ""
+                        val conditions = call.argument<String>("conditions") ?: ""
+                        val medications = call.argument<String>("medications") ?: ""
 
                         val prefs = getSharedPreferences(MediSyncWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
                         prefs.edit()
@@ -465,6 +482,11 @@ class MainActivity : FlutterActivity() {
                             .putString(MediSyncWidgetProvider.KEY_BLOOD_TYPE, blood)
                             .putString(MediSyncWidgetProvider.KEY_NEXT_DOSE, nextDose)
                             .putString(MediSyncWidgetProvider.KEY_DEFAULT_VIEW, view)
+                            .putString("health_id", healthId)
+                            .putString("demographics", demographics)
+                            .putString("allergies", allergies)
+                            .putString("conditions", conditions)
+                            .putString("medications", medications)
                             .apply()
 
                         MediSyncWidgetProvider.updateAllWidgets(this)

@@ -41,6 +41,20 @@ class CalendarSyncResult {
 class DeviceIntegrationService {
   static const _channel = MethodChannel('com.example.medisync/device_integration');
 
+  VoidCallback? onEmergencyCardRequested;
+
+  DeviceIntegrationService() {
+    try {
+      _channel.setMethodCallHandler((call) async {
+        if (call.method == 'onEmergencyCardRequested') {
+          onEmergencyCardRequested?.call();
+        }
+      });
+    } catch (_) {
+      // Safe fallback when running in headless unit tests without Flutter engine binding
+    }
+  }
+
   /// Prepares pure calendar event payloads for all active scheduled medications.
   /// Filters out as-needed and discontinued medications, and creates distinct entries for each dose.
   List<Map<String, dynamic>> buildCalendarEventPayloads({
@@ -242,6 +256,11 @@ class DeviceIntegrationService {
     String defaultView = 'card',
     int? allergiesCount,
     int? activeMedsCount,
+    String? healthId,
+    String? demographics,
+    String? allergies,
+    String? conditions,
+    String? medications,
   }) async {
     try {
       await _channel.invokeMethod('updateWidgetData', {
@@ -251,6 +270,11 @@ class DeviceIntegrationService {
         'defaultView': defaultView,
         'allergiesCount': ?allergiesCount,
         'activeMedsCount': ?activeMedsCount,
+        'healthId': healthId ?? 'Not Provided',
+        'demographics': demographics ?? '',
+        'allergies': allergies ?? '',
+        'conditions': conditions ?? '',
+        'medications': medications ?? '',
       });
     } catch (_) {}
   }

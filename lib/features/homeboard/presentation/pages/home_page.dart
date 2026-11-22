@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -5,12 +6,12 @@ import 'package:medisync/core/data/medicines_database.dart';
 import 'package:medisync/core/models/condition.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
+import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/services/streak_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/expandable_add_medication_fab.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/missed_dose_guidance_sheet.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
@@ -41,6 +42,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   late DateTime _selectedDate;
   int _weekOffset = 0; // -1 = Previous week, 0 = Current week, 1 = Next week
+  Timer? _countdownTimer;
 
   @override
   void initState() {
@@ -50,6 +52,25 @@ class _HomePageState extends ConsumerState<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLockscreenLaunch();
     });
+
+    ref.read(deviceIntegrationServiceProvider).onEmergencyCardRequested = () {
+      if (mounted) {
+        final profile = ref.read(profileNotifierProvider);
+        final meds = ref.read(medicationsNotifierProvider);
+        showEmergencyCardDialog(context, profile: profile, medications: meds);
+      }
+    };
+
+    // Update countdown every 30 seconds
+    _countdownTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkLockscreenLaunch() async {
@@ -258,159 +279,23 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 16),
           ],
 
-          // 3. Hero Next Dose Countdown Widget (shown on current day)
-          if (isToday) ...[
-            NextDoseCountdownCard(
-              medications: medications,
-              onMarkTaken: (medId, date, time) {
-                ref
-                    .read(medicationsNotifierProvider.notifier)
-                    .toggleDoseTaken(medId, date, time);
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // 4. Daily Adherence Progress Card (Dynamic Enhanced Height & Breakdown)
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOutCubic,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.90),
-                        Theme.of(context).colorScheme.secondary.withValues(alpha: 0.80),
-                      ]
-                    : [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.secondary,
-                      ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: AppTheme.glowShadow(
-                Theme.of(context).colorScheme.primary,
-                opacity: 0.28,
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.event_note_rounded, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              formattedScheduleTitle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${(progress * 100).toInt()}% Done',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    backgroundColor: Colors.white.withValues(alpha: 0.25),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isDark ? Theme.of(context).colorScheme.secondary : const Color(0xFF5EEAD4),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Dynamic Status Breakdown Chips
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _buildAdherencePill('✓ $takenCount Taken', Colors.white.withValues(alpha: 0.22)),
-                    if (pendingCount > 0)
-                      _buildAdherencePill('⏳ $pendingCount Due', Colors.white.withValues(alpha: 0.22)),
-                    if (delayedCount > 0)
-                      _buildAdherencePill('⏱ $delayedCount Delayed', const Color(0xFFFDE68A).withValues(alpha: 0.35)),
-                    if (missedCount > 0)
-                      _buildAdherencePill('⚠ $missedCount Missed', const Color(0xFFFCA5A5).withValues(alpha: 0.35)),
-                    if (notNeededCount > 0)
-                      _buildAdherencePill('🛡 $notNeededCount As-Needed', Colors.white.withValues(alpha: 0.22)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Next Due Preview or Completion Message
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        totalDoses == 0
-                            ? Icons.bedtime_rounded
-                            : (pendingCount == 0
-                                ? Icons.stars_rounded
-                                : Icons.alarm_rounded),
-                        color: Colors.white.withValues(alpha: 0.95),
-                        size: 16,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          totalDoses == 0
-                              ? 'No medications scheduled for this day.'
-                              : (pendingCount == 0
-                                  ? 'Outstanding! All scheduled doses completed.'
-                                  : 'Next Due: ${nextPendingDose!.medication.name} (${nextPendingDose.medication.dosage}) at ${nextPendingDose.time}'),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          // 3. Unified Hero: Today's Schedule & Next Dose
+          _buildUnifiedTodayScheduleHero(
+            context: context,
+            isDark: isDark,
+            isToday: isToday,
+            formattedScheduleTitle: formattedScheduleTitle,
+            progress: progress,
+            takenCount: takenCount,
+            pendingCount: pendingCount,
+            delayedCount: delayedCount,
+            missedCount: missedCount,
+            notNeededCount: notNeededCount,
+            totalDoses: totalDoses,
+            nextPendingDose: nextPendingDose,
+            profile: profile,
           ),
+          const SizedBox(height: 20),
           const SizedBox(height: 20),
 
           // 5. Smart Companion Meal Coordination Banner
@@ -584,6 +469,468 @@ class _HomePageState extends ConsumerState<HomePage> {
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+
+  DateTime _parseDoseDateTime(DateTime date, String hhmm) {
+    final parts = hhmm.split(':');
+    final h = int.tryParse(parts[0]) ?? 0;
+    final m = int.tryParse(parts[1]) ?? 0;
+    return DateTime(date.year, date.month, date.day, h, m);
+  }
+
+  String _formatCountdown(Duration diff) {
+    if (diff.isNegative) {
+      final abs = diff.abs();
+      if (abs.inMinutes < 1) return 'Due right now';
+      if (abs.inHours < 1) return 'Due ${abs.inMinutes}m ago';
+      return 'Due ${abs.inHours}h ${abs.inMinutes % 60}m ago';
+    }
+
+    if (diff.inMinutes < 1) {
+      return 'Due right now';
+    } else if (diff.inHours < 1) {
+      return 'In ${diff.inMinutes}m';
+    } else if (diff.inHours < 24) {
+      final hours = diff.inHours;
+      final minutes = diff.inMinutes % 60;
+      return minutes > 0 ? 'In ${hours}h ${minutes}m' : 'In ${hours}h';
+    } else {
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      return 'In ${days}d ${hours}h';
+    }
+  }
+
+  Widget _buildUnifiedTodayScheduleHero({
+    required BuildContext context,
+    required bool isDark,
+    required bool isToday,
+    required String formattedScheduleTitle,
+    required double progress,
+    required int takenCount,
+    required int pendingCount,
+    required int delayedCount,
+    required int missedCount,
+    required int notNeededCount,
+    required int totalDoses,
+    required DoseItem? nextPendingDose,
+    required UserProfile profile,
+  }) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final secondary = Theme.of(context).colorScheme.secondary;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOutCubic,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  primary.withValues(alpha: 0.90),
+                  secondary.withValues(alpha: 0.80),
+                ]
+              : [
+                  primary,
+                  secondary,
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: AppTheme.glowShadow(
+          primary,
+          opacity: 0.28,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header Row: Date/Schedule Title + Percentage Badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.event_note_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        formattedScheduleTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${(progress * 100).toInt()}% Done',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 2. Linear Progress Bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white.withValues(alpha: 0.25),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? secondary : const Color(0xFF5EEAD4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 3. Status Breakdown Pills
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildAdherencePill('✓ $takenCount Taken', Colors.white.withValues(alpha: 0.22)),
+              if (pendingCount > 0)
+                _buildAdherencePill('⏳ $pendingCount Due', Colors.white.withValues(alpha: 0.22)),
+              if (delayedCount > 0)
+                _buildAdherencePill('⏱ $delayedCount Delayed', const Color(0xFFFDE68A).withValues(alpha: 0.35)),
+              if (missedCount > 0)
+                _buildAdherencePill('⚠ $missedCount Missed', const Color(0xFFFCA5A5).withValues(alpha: 0.35)),
+              if (notNeededCount > 0)
+                _buildAdherencePill('🛡 $notNeededCount As-Needed', Colors.white.withValues(alpha: 0.22)),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // 4. Integrated Next Dose / Schedule Spotlight
+          _buildNextDoseSpotlight(
+            context: context,
+            isDark: isDark,
+            isToday: isToday,
+            totalDoses: totalDoses,
+            pendingCount: pendingCount,
+            nextPendingDose: nextPendingDose,
+            profile: profile,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextDoseSpotlight({
+    required BuildContext context,
+    required bool isDark,
+    required bool isToday,
+    required int totalDoses,
+    required int pendingCount,
+    required DoseItem? nextPendingDose,
+    required UserProfile profile,
+  }) {
+    if (isToday && nextPendingDose != null) {
+      final now = DateTime.now();
+      final doseDateTime = _parseDoseDateTime(now, nextPendingDose.time);
+      final diff = doseDateTime.difference(now);
+      final countdownText = _formatCountdown(diff);
+      final isOverdue = diff.isNegative && diff.abs().inMinutes >= 15;
+      final med = nextPendingDose.medication;
+      final allergyFlags = SchedulerService.getAllergyConflictsForMedication(
+        medication: med,
+        profile: profile,
+      );
+
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.20),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isOverdue
+                ? const Color(0xFFFCA5A5)
+                : Colors.white.withValues(alpha: 0.20),
+            width: isOverdue ? 1.5 : 1,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Spotlight Subheader: Label + Countdown Pill
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isOverdue ? Icons.warning_amber_rounded : Icons.timer_rounded,
+                      color: isOverdue ? const Color(0xFFFDE68A) : Colors.white70,
+                      size: 15,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'NEXT MEDICATION',
+                      style: TextStyle(
+                        color: isOverdue ? const Color(0xFFFDE68A) : Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isOverdue
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.40)
+                        : Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    countdownText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Med Details Row with Take Action Button
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                  ),
+                  child: Icon(
+                    med.icon,
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              med.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () => showMedicationClinicalGuide(
+                              context,
+                              medicationName: med.name,
+                              medication: med,
+                            ),
+                            child: const Icon(
+                              Icons.info_outline_rounded,
+                              size: 16,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${med.dosage} • Scheduled for ${nextPendingDose.time}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.90),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    showDoseIntakeStatusPicker(
+                      context: context,
+                      dose: nextPendingDose,
+                      onUpdateStatus: (newStatus) {
+                        ref
+                            .read(medicationsNotifierProvider.notifier)
+                            .setDoseStatus(
+                              nextPendingDose.medication.id,
+                              _selectedDate,
+                              nextPendingDose.time,
+                              newStatus,
+                            );
+                      },
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_rounded, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Take',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Pre-condition badges if applicable
+            if (med.preConditions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final pre in med.preConditions)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'BEFORE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            pre.description,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+
+            // Allergy Alert if applicable
+            if (allergyFlags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626).withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFCA5A5), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.flag_rounded, color: Colors.white, size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Allergy Alert: ${allergyFlags.first.relatedAllergy ?? "Potential conflict"}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Default status summary when no next pending dose or not today
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            totalDoses == 0
+                ? Icons.bedtime_rounded
+                : (pendingCount == 0
+                    ? Icons.stars_rounded
+                    : Icons.alarm_rounded),
+            color: Colors.white.withValues(alpha: 0.95),
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              totalDoses == 0
+                  ? 'No medications scheduled for this day.'
+                  : (pendingCount == 0
+                      ? 'Outstanding! All scheduled doses completed for today.'
+                      : 'Next Due: ${nextPendingDose!.medication.name} (${nextPendingDose.medication.dosage}) at ${nextPendingDose.time}'),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.95),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1113,6 +1460,210 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
+void showDoseIntakeStatusPicker({
+  required BuildContext context,
+  required DoseItem dose,
+  required ValueChanged<DoseStatus> onUpdateStatus,
+}) {
+  final isDark = AppTheme.isDark(context);
+  final med = dose.medication;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Record Dose: ${med.name} (${dose.time})',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary(ctx),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Record whether you took this medication on time, delayed, or missed the dosing window:',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx)),
+              ),
+              const SizedBox(height: 16),
+              _buildIntakeStatusOption(
+                ctx: ctx,
+                currentStatus: dose.status,
+                status: DoseStatus.taken,
+                title: 'Taken On Time',
+                subtitle: 'Taken as scheduled within optimal therapeutic window',
+                icon: Icons.check_circle_rounded,
+                color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                onUpdateStatus: onUpdateStatus,
+                dose: dose,
+              ),
+              const SizedBox(height: 8),
+              _buildIntakeStatusOption(
+                ctx: ctx,
+                currentStatus: dose.status,
+                status: DoseStatus.takenEarly,
+                title: 'Taken Early',
+                subtitle: 'Administered in advance ahead of the scheduled time slot',
+                icon: Icons.alarm_on_rounded,
+                color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
+                onUpdateStatus: onUpdateStatus,
+                dose: dose,
+              ),
+              const SizedBox(height: 8),
+              _buildIntakeStatusOption(
+                ctx: ctx,
+                currentStatus: dose.status,
+                status: DoseStatus.delayed,
+                title: 'Taken Delayed / Late',
+                subtitle: 'Taken late after the scheduled time',
+                icon: Icons.schedule_rounded,
+                color: isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber,
+                onUpdateStatus: onUpdateStatus,
+                dose: dose,
+              ),
+              const SizedBox(height: 8),
+              _buildIntakeStatusOption(
+                ctx: ctx,
+                currentStatus: dose.status,
+                status: DoseStatus.missed,
+                title: 'Missed Window',
+                subtitle: 'Window expired or unable to take dose safely',
+                icon: Icons.cancel_rounded,
+                color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                onUpdateStatus: onUpdateStatus,
+                dose: dose,
+              ),
+              if (med.scheduleFrequency == ScheduleFrequency.asNeeded) ...[
+                const SizedBox(height: 8),
+                _buildIntakeStatusOption(
+                  ctx: ctx,
+                  currentStatus: dose.status,
+                  status: DoseStatus.notNeeded,
+                  title: 'Not Needed (As Needed / PRN)',
+                  subtitle: 'Symptoms absent or medication was not required today',
+                  icon: Icons.remove_circle_outline_rounded,
+                  color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700,
+                  onUpdateStatus: onUpdateStatus,
+                  dose: dose,
+                ),
+              ],
+              const SizedBox(height: 8),
+              _buildIntakeStatusOption(
+                ctx: ctx,
+                currentStatus: dose.status,
+                status: DoseStatus.pending,
+                title: 'Reset to Pending',
+                subtitle: 'Clear intake log for this time slot',
+                icon: Icons.restore_rounded,
+                color: AppTheme.textMuted(ctx),
+                onUpdateStatus: onUpdateStatus,
+                dose: dose,
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildIntakeStatusOption({
+  required BuildContext ctx,
+  required DoseStatus currentStatus,
+  required DoseStatus status,
+  required String title,
+  required String subtitle,
+  required IconData icon,
+  required Color color,
+  required ValueChanged<DoseStatus> onUpdateStatus,
+  required DoseItem dose,
+}) {
+  final isSelected = currentStatus == status;
+
+  return InkWell(
+    onTap: () {
+      if (status == DoseStatus.missed) {
+        Navigator.pop(ctx);
+        showMissedDoseGuidanceSheet(
+          ctx,
+          medication: dose.medication,
+          scheduledTime: dose.time,
+          onSelectStatus: onUpdateStatus,
+        );
+      } else {
+        onUpdateStatus(status);
+        Navigator.pop(ctx);
+      }
+    },
+    borderRadius: BorderRadius.circular(14),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? color.withValues(alpha: 0.15)
+            : AppTheme.surfaceVariant(ctx),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSelected ? color : AppTheme.cardBorder(ctx),
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppTheme.textPrimary(ctx),
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textSecondary(ctx),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isSelected)
+            Icon(Icons.check_rounded, color: color, size: 20),
+        ],
+      ),
+    ),
+  );
+}
+
 class _DoseTimelineCard extends ConsumerWidget {
   final DoseItem dose;
   final DateTime date;
@@ -1127,109 +1678,10 @@ class _DoseTimelineCard extends ConsumerWidget {
   });
 
   void _showStatusPicker(BuildContext context) {
-    final isDark = AppTheme.isDark(context);
-    final med = dose.medication;
-
-    showModalBottomSheet(
+    showDoseIntakeStatusPicker(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Record Dose: ${med.name} (${dose.time})',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary(ctx),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Record whether you took this medication on time, delayed, or missed the dosing window:',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(ctx)),
-                ),
-                const SizedBox(height: 16),
-                _buildStatusOption(
-                  ctx: ctx,
-                  status: DoseStatus.taken,
-                  title: 'Taken On Time',
-                  subtitle: 'Taken as scheduled within optimal therapeutic window',
-                  icon: Icons.check_circle_rounded,
-                  color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
-                ),
-                const SizedBox(height: 8),
-                _buildStatusOption(
-                  ctx: ctx,
-                  status: DoseStatus.takenEarly,
-                  title: 'Taken Early',
-                  subtitle: 'Administered in advance ahead of the scheduled time slot',
-                  icon: Icons.alarm_on_rounded,
-                  color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
-                ),
-                const SizedBox(height: 8),
-                _buildStatusOption(
-                  ctx: ctx,
-                  status: DoseStatus.delayed,
-                  title: 'Taken Delayed / Late',
-                  subtitle: 'Taken late after the scheduled time',
-                  icon: Icons.schedule_rounded,
-                  color: isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber,
-                ),
-                const SizedBox(height: 8),
-                _buildStatusOption(
-                  ctx: ctx,
-                  status: DoseStatus.missed,
-                  title: 'Missed Window',
-                  subtitle: 'Window expired or unable to take dose safely',
-                  icon: Icons.cancel_rounded,
-                  color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
-                ),
-                if (med.scheduleFrequency == ScheduleFrequency.asNeeded) ...[
-                  const SizedBox(height: 8),
-                  _buildStatusOption(
-                    ctx: ctx,
-                    status: DoseStatus.notNeeded,
-                    title: 'Not Needed (As Needed / PRN)',
-                    subtitle: 'Symptoms absent or medication was not required today',
-                    icon: Icons.remove_circle_outline_rounded,
-                    color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade700,
-                  ),
-                ],
-                const SizedBox(height: 8),
-                _buildStatusOption(
-                  ctx: ctx,
-                  status: DoseStatus.pending,
-                  title: 'Reset to Pending',
-                  subtitle: 'Clear intake log for this time slot',
-                  icon: Icons.restore_rounded,
-                  color: AppTheme.textMuted(ctx),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      dose: dose,
+      onUpdateStatus: onUpdateStatus,
     );
   }
 
@@ -1252,78 +1704,6 @@ class _DoseTimelineCard extends ConsumerWidget {
         ),
         backgroundColor: AppTheme.textPrimary(context),
         duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Widget _buildStatusOption({
-    required BuildContext ctx,
-    required DoseStatus status,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
-    final isSelected = dose.status == status;
-
-    return InkWell(
-      onTap: () {
-        if (status == DoseStatus.missed) {
-          Navigator.pop(ctx);
-          showMissedDoseGuidanceSheet(
-            ctx,
-            medication: dose.medication,
-            scheduledTime: dose.time,
-            onSelectStatus: onUpdateStatus,
-          );
-        } else {
-          onUpdateStatus(status);
-          Navigator.pop(ctx);
-        }
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? color.withValues(alpha: 0.15)
-              : AppTheme.surfaceVariant(ctx),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? color : AppTheme.cardBorder(ctx),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppTheme.textPrimary(ctx),
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary(ctx),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_rounded, color: color, size: 20),
-          ],
-        ),
       ),
     );
   }

@@ -144,6 +144,24 @@ class FakeNotificationService implements NotificationService {
 
   @override
   Future<void> syncAllMedicationReminders(List<Medication> medications) async {}
+
+  @override
+  Future<void> scheduleMonthlyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfMonth,
+    required int hour,
+    required int minute,
+  }) async {}
+
+  @override
+  Future<void> showPersistentEmergencyNotification({
+    required String patientName,
+    required String bloodType,
+    int? allergiesCount,
+    int? activeMedsCount,
+  }) async {}
 }
 
 class FakeStorageService implements StorageService {

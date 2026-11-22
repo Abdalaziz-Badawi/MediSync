@@ -51,9 +51,23 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".EmergencyCardActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize">
+            <intent-filter>
+                <action android:name="com.example.medisync.OPEN_EMERGENCY_QUICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity-alias
             android:name=".EmergencyCardShortcut"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".EmergencyCardActivity"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="MediSync Emergency ID">

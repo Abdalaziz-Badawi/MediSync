@@ -285,9 +285,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     ref.read(profileNotifierProvider.notifier).updateProfile(updated);
 
-    // Sync updated profile to Lockscreen Emergency Widget
-    final activeCount = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).length;
-    DeviceIntegrationService().updateLockscreenWidget(
+    // Sync updated profile to Lockscreen Emergency Widget & Persistent Notification
+    final activeMeds = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).toList();
+    final activeCount = activeMeds.length;
+    final activeMedNames = activeMeds.map((m) => '${m.name} ${m.dosage} (${m.frequencyDisplay})').join('\n');
+    final demographicsStr = 'Age: ${_calculatedAge ?? 'Not set'} • Gender: $_gender';
+    final allergiesStr = _allergies.isNotEmpty ? _allergies.join(', ') : 'No known drug allergies.';
+    final conditionsStr = _chronicConditions.isNotEmpty ? _chronicConditions.join(', ') : 'No chronic conditions recorded.';
+
+    ref.read(deviceIntegrationServiceProvider).updateLockscreenWidget(
+      patientName: updated.name,
+      bloodType: updated.bloodType ?? 'Unknown',
+      allergiesCount: updated.allergies.length,
+      activeMedsCount: activeCount,
+      healthId: updated.healthId ?? 'Not Provided',
+      demographics: demographicsStr,
+      allergies: allergiesStr,
+      conditions: conditionsStr,
+      medications: activeMedNames.isNotEmpty ? activeMedNames : 'No active medications.',
+    );
+
+    ref.read(notificationServiceProvider).showPersistentEmergencyNotification(
       patientName: updated.name,
       bloodType: updated.bloodType ?? 'Unknown',
       allergiesCount: updated.allergies.length,
@@ -489,360 +507,386 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Edit Personal Profile',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary(ctx),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _nameController,
-                style: TextStyle(color: AppTheme.textPrimary(ctx)),
-                decoration: InputDecoration(
-                  labelText: 'Your Name or Nickname',
-                  prefixIcon: Icon(
-                    Icons.person_outline_rounded,
-                    color: Theme.of(ctx).colorScheme.primary,
-                  ),
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
                 ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 14),
-              // Date of Birth Selector (replacing direct age typing)
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _dateOfBirth ?? DateTime(1995, 5, 14),
-                    firstDate: DateTime(1900),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setState(() => _dateOfBirth = picked);
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.cardBorder(ctx)),
-                    borderRadius: BorderRadius.circular(12),
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                  ),
-                  child: Row(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.cake_outlined, color: Theme.of(ctx).colorScheme.primary, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date of Birth',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppTheme.textSecondary(ctx),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _dateOfBirth != null
-                                  ? DateFormat('d MMMM yyyy').format(_dateOfBirth!)
-                                  : 'Tap to select Date of Birth',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: _dateOfBirth != null
-                                    ? AppTheme.textPrimary(ctx)
-                                    : AppTheme.textMuted(ctx),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_calculatedAge != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF134E4A) : const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '$_calculatedAge yrs',
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Edit Personal Profile',
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? AppTheme.primaryTealLight : const Color(0xFF166534),
+                              color: AppTheme.textPrimary(ctx),
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _nameController,
+                        style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                        decoration: InputDecoration(
+                          labelText: 'Your Name or Nickname',
+                          prefixIcon: Icon(
+                            Icons.person_outline_rounded,
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
                         ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.calendar_month_rounded, size: 18),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Health ID Field
-              TextField(
-                controller: _healthIdController,
-                style: TextStyle(color: AppTheme.textPrimary(ctx)),
-                decoration: InputDecoration(
-                  labelText: 'Health ID / Medical Record #',
-                  hintText: 'e.g. National ID, NHS, Insurance #',
-                  prefixIcon: Icon(
-                    Icons.credit_card_rounded,
-                    color: Theme.of(ctx).colorScheme.primary,
-                  ),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 14),
-
-              // Height & Weight Fields with Live Dynamic BMI
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _heightController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: TextStyle(color: AppTheme.textPrimary(ctx)),
-                      decoration: InputDecoration(
-                        labelText: 'Height (cm)',
-                        hintText: 'e.g. 175',
-                        prefixIcon: Icon(
-                          Icons.height_rounded,
-                          color: Theme.of(ctx).colorScheme.primary,
+                        onChanged: (_) {
+                          setState(() {});
+                          setModalState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      // Date of Birth Selector (replacing direct age typing)
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _dateOfBirth ?? DateTime(1995, 5, 14),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setState(() => _dateOfBirth = picked);
+                            setModalState(() => _dateOfBirth = picked);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.cardBorder(ctx)),
+                            borderRadius: BorderRadius.circular(12),
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.cake_outlined, color: Theme.of(ctx).colorScheme.primary, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Date of Birth',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: AppTheme.textSecondary(ctx),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _dateOfBirth != null
+                                          ? DateFormat('d MMMM yyyy').format(_dateOfBirth!)
+                                          : 'Tap to select Date of Birth',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: _dateOfBirth != null
+                                            ? AppTheme.textPrimary(ctx)
+                                            : AppTheme.textMuted(ctx),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_calculatedAge != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF134E4A) : const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '$_calculatedAge yrs',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppTheme.primaryTealLight : const Color(0xFF166534),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.calendar_month_rounded, size: 18),
+                            ],
+                          ),
                         ),
                       ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _weightController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: TextStyle(color: AppTheme.textPrimary(ctx)),
-                      decoration: InputDecoration(
-                        labelText: 'Weight (kg)',
-                        hintText: 'e.g. 70.5',
-                        prefixIcon: Icon(
-                          Icons.monitor_weight_outlined,
-                          color: Theme.of(ctx).colorScheme.primary,
+                      const SizedBox(height: 14),
+
+                      // Health ID Field
+                      TextField(
+                        controller: _healthIdController,
+                        style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                        decoration: InputDecoration(
+                          labelText: 'Health ID / Medical Record #',
+                          hintText: 'e.g. National ID, NHS, Insurance #',
+                          prefixIcon: Icon(
+                            Icons.credit_card_rounded,
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
                         ),
+                        onChanged: (_) {
+                          setState(() {});
+                          setModalState(() {});
+                        },
                       ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                ],
-              ),
-              if (_calculatedBmi != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.20 : 0.10),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.favorite_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 14),
+
+                      // Height & Weight Fields with Live Dynamic BMI
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _heightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                              decoration: InputDecoration(
+                                labelText: 'Height (cm)',
+                                hintText: 'e.g. 175',
+                                prefixIcon: Icon(
+                                  Icons.height_rounded,
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                ),
+                              ),
+                              onChanged: (_) {
+                                setState(() {});
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: _weightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                              decoration: InputDecoration(
+                                labelText: 'Weight (kg)',
+                                hintText: 'e.g. 70.5',
+                                prefixIcon: Icon(
+                                  Icons.monitor_weight_outlined,
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                ),
+                              ),
+                              onChanged: (_) {
+                                setState(() {});
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_calculatedBmi != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.favorite_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Calculated BMI: ${_calculatedBmi!.toStringAsFixed(1)} • $_currentBmiCategory',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+
+                      // Biological Gender
                       Text(
-                        'Calculated BMI: ${_calculatedBmi!.toStringAsFixed(1)} • $_currentBmiCategory',
+                        'Biological Gender',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(ctx).colorScheme.primary,
+                          color: AppTheme.textPrimary(ctx),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        children: ['Male', 'Female', 'Other', 'Prefer not to say'].map((g) {
+                          final isSel = _gender == g;
+                          return ChoiceChip(
+                            label: Text(g),
+                            selected: isSel,
+                            selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
+                            labelStyle: TextStyle(
+                              color: isSel
+                                  ? (isDark ? const Color(0xFF042F2E) : Colors.white)
+                                  : AppTheme.textPrimary(ctx),
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (_) {
+                              setState(() => _gender = g);
+                              setModalState(() => _gender = g);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Blood Type Selector
+                      Row(
+                        children: [
+                          const Icon(Icons.bloodtype_rounded, size: 16, color: Color(0xFFDC2626)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Blood Type (Emergency ID)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(ctx),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: UserProfile.standardBloodTypes.map((bt) {
+                          final isSel = _bloodType == bt;
+                          return ChoiceChip(
+                            label: Text(bt),
+                            selected: isSel,
+                            selectedColor: const Color(0xFFDC2626),
+                            labelStyle: TextStyle(
+                              color: isSel ? Colors.white : AppTheme.textPrimary(ctx),
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (_) {
+                              setState(() => _bloodType = bt);
+                              setModalState(() => _bloodType = bt);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Chronic Conditions & Clinical Organ Risks
+                      Row(
+                        children: [
+                          const Icon(Icons.monitor_heart_outlined, size: 16, color: Color(0xFF0D9488)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Chronic Conditions & Organ Risks',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(ctx),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _commonChronicConditions.map((cond) {
+                          final tag = cond['tag'] as String;
+                          final title = cond['title'] as String;
+                          final isSel = _chronicConditions.contains(tag);
+                          return FilterChip(
+                            label: Text(title),
+                            selected: isSel,
+                            selectedColor: const Color(0xFFCCFBF1),
+                            checkmarkColor: const Color(0xFF0F766E),
+                            labelStyle: TextStyle(
+                              fontSize: 11,
+                              color: isSel ? const Color(0xFF0F766E) : AppTheme.textPrimary(ctx),
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (_) {
+                              setState(() => _toggleChronicCondition(tag));
+                              setModalState(() {});
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15),
+                          child: Icon(
+                            _getAvatarIcon(_avatarId),
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
+                        ),
+                        title: const Text('Change Avatar Icon'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _openAvatarPicker();
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                          );
+                        },
+                        icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
+                        label: const Text('Relaunch Full Setup Wizard'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _saveProfile();
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Save Details'),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 14),
-
-              // Biological Gender
-              Text(
-                'Biological Gender',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary(ctx),
-                ),
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                children: ['Male', 'Female', 'Other', 'Prefer not to say'].map((g) {
-                  final isSel = _gender == g;
-                  return ChoiceChip(
-                    label: Text(g),
-                    selected: isSel,
-                    selectedColor: isDark ? AppTheme.primaryTealLight : AppTheme.primaryTeal,
-                    labelStyle: TextStyle(
-                      color: isSel
-                          ? (isDark ? const Color(0xFF042F2E) : Colors.white)
-                          : AppTheme.textPrimary(ctx),
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    onSelected: (_) => setState(() => _gender = g),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-
-              // Blood Type Selector
-              Row(
-                children: [
-                  const Icon(Icons.bloodtype_rounded, size: 16, color: Color(0xFFDC2626)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Blood Type (Emergency ID)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary(ctx),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: UserProfile.standardBloodTypes.map((bt) {
-                  final isSel = _bloodType == bt;
-                  return ChoiceChip(
-                    label: Text(bt),
-                    selected: isSel,
-                    selectedColor: const Color(0xFFDC2626),
-                    labelStyle: TextStyle(
-                      color: isSel ? Colors.white : AppTheme.textPrimary(ctx),
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    onSelected: (_) => setState(() => _bloodType = bt),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-
-              // Chronic Conditions & Clinical Organ Risks
-              Row(
-                children: [
-                  const Icon(Icons.monitor_heart_outlined, size: 16, color: Color(0xFF0D9488)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Chronic Conditions & Organ Risks',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary(ctx),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _commonChronicConditions.map((cond) {
-                  final tag = cond['tag'] as String;
-                  final title = cond['title'] as String;
-                  final isSel = _chronicConditions.contains(tag);
-                  return FilterChip(
-                    label: Text(title),
-                    selected: isSel,
-                    selectedColor: const Color(0xFFCCFBF1),
-                    checkmarkColor: const Color(0xFF0F766E),
-                    labelStyle: TextStyle(
-                      fontSize: 11,
-                      color: isSel ? const Color(0xFF0F766E) : AppTheme.textPrimary(ctx),
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    onSelected: (_) => setState(() => _toggleChronicCondition(tag)),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(ctx).colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15),
-                  child: Icon(
-                    _getAvatarIcon(_avatarId),
-                    color: Theme.of(ctx).colorScheme.primary,
-                  ),
-                ),
-                title: const Text('Change Avatar Icon'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _openAvatarPicker();
-                },
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const OnboardingPage()),
-                  );
-                },
-                icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
-                label: const Text('Relaunch Full Setup Wizard'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _saveProfile();
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('Save Details'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+            );
+          },
+        );
       },
     );
   }
