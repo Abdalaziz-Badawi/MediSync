@@ -1,5 +1,6 @@
 package com.example.medisync
 
+import android.app.KeyguardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -40,11 +41,30 @@ class MainActivity : FlutterActivity() {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         }
+
+        // If opened while device is locked (e.g. from lockscreen corner shortcut or widget),
+        // immediately pop up the zero-PIN floating emergency medical card overlay!
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (km.isKeyguardLocked) {
+            val emergencyIntent = Intent(this, EmergencyCardActivity::class.java)
+            emergencyIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            startActivity(emergencyIntent)
+            finish()
+            return
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (km.isKeyguardLocked) {
+            val emergencyIntent = Intent(this, EmergencyCardActivity::class.java)
+            emergencyIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            startActivity(emergencyIntent)
+            finish()
+            return
+        }
         val fromWidget = intent.getBooleanExtra("from_lockscreen_widget", false)
         val isAction = intent.action == "com.example.medisync.OPEN_EMERGENCY_QUICK"
         if (fromWidget || isAction) {

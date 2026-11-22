@@ -18,11 +18,7 @@ class MediSyncEmergencyButtonWidgetProvider : AppWidgetProvider() {
 
     companion object {
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val prefs = context.getSharedPreferences(MediSyncWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
-            val bloodType = prefs.getString(MediSyncWidgetProvider.KEY_BLOOD_TYPE, "Unknown") ?: "Unknown"
-
             val views = RemoteViews(context.packageName, R.layout.widget_emergency_button)
-            views.setTextViewText(R.id.widget_button_blood_type, "BLOOD: $bloodType")
 
             // Intent to launch EmergencyCardActivity as floating pop-up over lockscreen with ZERO PIN
             val intent = Intent(context, EmergencyCardActivity::class.java).apply {

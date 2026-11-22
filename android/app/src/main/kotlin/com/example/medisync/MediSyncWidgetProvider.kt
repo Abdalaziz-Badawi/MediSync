@@ -33,7 +33,6 @@ class MediSyncWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_lockscreen_emergency)
             views.setTextViewText(R.id.widget_patient_name, patientName)
             views.setTextViewText(R.id.widget_blood_type, "BLOOD: $bloodType")
-            views.setTextViewText(R.id.widget_next_dose, nextDose)
 
             // Intent to launch EmergencyCardActivity on top of the lockscreen with ZERO PIN
             val intent = Intent(context, EmergencyCardActivity::class.java).apply {
@@ -51,7 +50,6 @@ class MediSyncWidgetProvider : AppWidgetProvider() {
             )
 
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_emergency_btn, pendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
