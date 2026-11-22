@@ -23,6 +23,11 @@
     <attr name="monotoneInitialLayoutTiny" format="reference" />
     <attr name="monotonePreviewLayoutTiny" format="reference" />
 
+    <attr name="initialLayoutSmall" format="reference" />
+    <attr name="previewLayoutSmall" format="reference" />
+    <attr name="monotoneInitialLayoutSmall" format="reference" />
+    <attr name="monotonePreviewLayoutSmall" format="reference" />
+
     <declare-styleable name="AppWidgetProviderInfo">
         <attr name="targetHost" />
         <attr name="widgetStyle" />
@@ -32,5 +37,9 @@
         <attr name="previewLayoutTiny" />
         <attr name="monotoneInitialLayoutTiny" />
         <attr name="monotonePreviewLayoutTiny" />
+        <attr name="initialLayoutSmall" />
+        <attr name="previewLayoutSmall" />
+        <attr name="monotoneInitialLayoutSmall" />
+        <attr name="monotonePreviewLayoutSmall" />
     </declare-styleable>
 </resources>

@@ -1,186 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/emergency_overlay_root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/emergency_card_dialog_bg"
-    android:padding="0dp">
+    android:layout_height="match_parent"
+    android:background="#D9000000"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="24dp">
 
-    <!-- Top Emergency Header Bar -->
+    <!-- Centered Emergency Medical ID Card -->
     <LinearLayout
+        android:id="@+id/emergency_card_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="#DC2626"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:gravity="center_vertical">
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:background="@drawable/emergency_card_white_bg"
+        android:elevation="12dp">
 
-        <ImageView
-            android:layout_width="26dp"
-            android:layout_height="26dp"
-            android:src="@drawable/ic_medical_emergency_logo"
-            android:contentDescription="Emergency Medical Logo" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="10dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="EMERGENCY MEDICAL ID"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Verified Offline Lifesaving Card • Zero PIN Access"
-                android:textColor="#FEE2E2"
-                android:textSize="10sp" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btn_close"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:text="✕"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
-    </LinearLayout>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="14dp">
-
+        <!-- 1. Red Header Banner with Medical Cross and Close Button -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            android:background="@drawable/emergency_card_header_bg"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:gravity="center_vertical">
 
-            <!-- High-Resolution Rendered Emergency Medical Card Image -->
             <ImageView
-                android:id="@+id/iv_emergency_card_image"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:adjustViewBounds="true"
-                android:scaleType="fitCenter"
-                android:visibility="gone"
-                android:layout_marginBottom="12dp"
-                android:contentDescription="Emergency Medical Card Picture" />
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@drawable/ic_medical_emergency_logo"
+                android:contentDescription="Emergency Medical Logo" />
 
-            <!-- Structured Details View -->
             <LinearLayout
-                android:id="@+id/layout_text_content"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="EMERGENCY MEDICAL ID"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="OFFLINE VERIFIED • ZERO PIN ACCESS"
+                    android:textColor="#FEE2E2"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OFFLINE"
+                android:textColor="#DC2626"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:background="#FFFFFF"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="3dp"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btn_close"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:text="✕"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="?android:attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+
+        <!-- 2. Scrollable Verified Patient Health Information -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fillViewport="false"
+            android:scrollbars="vertical">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <!-- Blood Type Hero Banner -->
+                <!-- Patient Full Name -->
+                <TextView
+                    android:id="@+id/tv_patient_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PATIENT NAME"
+                    android:textColor="#0F172A"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                <!-- Demographics (DOB, Age, Gender) -->
+                <TextView
+                    android:id="@+id/tv_demographics"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="BORN: --   •   GENDER: --"
+                    android:textColor="#475569"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- Badges Row: Blood Type and Health ID -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:background="#1E293B"
-                    android:padding="12dp"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:id="@+id/tv_blood_type"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="BLOOD: O+"
-                        android:textColor="#EF4444"
-                        android:textSize="20sp"
-                        android:textStyle="bold" />
-
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="26dp"
-                        android:layout_marginHorizontal="12dp"
-                        android:background="#334155" />
+                    android:layout_marginTop="12dp">
 
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:orientation="horizontal"
+                        android:background="@drawable/emergency_blood_badge_bg"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="7dp"
+                        android:gravity="center_vertical">
 
                         <TextView
-                            android:id="@+id/tv_patient_name"
+                            android:id="@+id/tv_blood_type"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Patient Name"
-                            android:textColor="#FFFFFF"
-                            android:textSize="15sp"
+                            android:text="BLOOD: Unknown"
+                            android:textColor="#DC2626"
+                            android:textSize="12.5sp"
                             android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layout_health_id_badge"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:orientation="horizontal"
+                        android:background="@drawable/emergency_health_id_badge_bg"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="7dp"
+                        android:gravity="center_vertical">
 
                         <TextView
-                            android:id="@+id/tv_demographics"
+                            android:id="@+id/tv_health_id"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Age: -- • Gender: --"
-                            android:textColor="#94A3B8"
-                            android:textSize="11.5sp" />
+                            android:text="ID: None"
+                            android:textColor="#1E293B"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:ellipsize="end"
+                            android:maxLines="1" />
                     </LinearLayout>
                 </LinearLayout>
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="8dp" />
-
-                <!-- Health ID / Record Number -->
+                <!-- Critical Drug Allergies & Contraindications -->
                 <LinearLayout
-                    android:id="@+id/section_health_id"
+                    android:id="@+id/layout_allergies_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:background="#1E293B"
-                    android:padding="10dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="HEALTH ID / MRN"
-                        android:textColor="#94A3B8"
-                        android:textSize="9sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tv_health_id"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Not Provided"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="8dp" />
-
-                <!-- Critical Allergies Section -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:background="#450A0A"
-                    android:padding="12dp">
+                    android:background="@drawable/emergency_allergies_box_bg"
+                    android:padding="12dp"
+                    android:layout_marginTop="10dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="⚠️ CRITICAL DRUG ALLERGIES &amp; CONTRAINDICATIONS"
-                        android:textColor="#FCA5A5"
+                        android:textColor="#BE123C"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
@@ -189,28 +189,27 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
-                        android:text="No known allergies recorded."
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp" />
+                        android:text="NO KNOWN DRUG ALLERGIES (NKDA)"
+                        android:textColor="#881337"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="8dp" />
-
-                <!-- Chronic Conditions Section -->
+                <!-- Chronic Conditions & Organ Risks -->
                 <LinearLayout
+                    android:id="@+id/layout_conditions_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:background="#064E3B"
-                    android:padding="12dp">
+                    android:background="@drawable/emergency_conditions_box_bg"
+                    android:padding="12dp"
+                    android:layout_marginTop="10dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🩺 CHRONIC CONDITIONS &amp; ORGAN RISKS"
-                        android:textColor="#A7F3D0"
+                        android:textColor="#0F766E"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
@@ -219,28 +218,27 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
-                        android:text="None recorded."
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp" />
+                        android:text="None reported."
+                        android:textColor="#134E4A"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="8dp" />
-
-                <!-- Active Medications Section -->
+                <!-- Current Active Medication Regimen -->
                 <LinearLayout
+                    android:id="@+id/layout_medications_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:background="#1E293B"
-                    android:padding="12dp">
+                    android:background="@drawable/emergency_medications_box_bg"
+                    android:padding="12dp"
+                    android:layout_marginTop="10dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="💊 CURRENT ACTIVE MEDICATIONS"
-                        android:textColor="#38BDF8"
+                        android:text="📋 CURRENT ACTIVE MEDICATIONS"
+                        android:textColor="#1E293B"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
@@ -249,48 +247,23 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
-                        android:text="None recorded."
-                        android:textColor="#E2E8F0"
-                        android:textSize="12sp"
-                        android:lineSpacingExtra="3dp" />
+                        android:text="No active regular medications recorded."
+                        android:textColor="#334155"
+                        android:textSize="12.5sp" />
                 </LinearLayout>
-            </LinearLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="12dp" />
-
-            <!-- Emergency Actions -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
+                <!-- Quick Call 112 Emergency Button -->
                 <Button
                     android:id="@+id/btn_call_emergency"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
-                    android:text="📞 Call 112 / Paramedics"
-                    android:backgroundTint="#DC2626"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/emergency_call_btn_bg"
+                    android:text="📞  CALL 112 (EMERGENCY)"
                     android:textColor="#FFFFFF"
-                    android:textSize="12sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold" />
-
-                <View
-                    android:layout_width="8dp"
-                    android:layout_height="match_parent" />
-
-                <Button
-                    android:id="@+id/btn_open_app"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
-                    android:text="Open MediSync"
-                    android:backgroundTint="#334155"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp" />
             </LinearLayout>
-        </LinearLayout>
-    </ScrollView>
-</LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>

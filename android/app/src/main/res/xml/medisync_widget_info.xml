@@ -15,5 +15,6 @@
     app:targetHost="home|lockAndAod"
     app:widgetStyle="colorful|monotone"
     app:lockWidgetSize="small"
+    app:initialLayoutSmall="@layout/widget_lockscreen_emergency"
     app:initialLayoutTiny="@layout/widget_lockscreen_emergency">
 </appwidget-provider>

@@ -37,7 +37,8 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         val fromWidget = intent.getBooleanExtra("from_lockscreen_widget", false)
-        val isAction = intent.action == "com.example.medisync.OPEN_EMERGENCY_QUICK"
+        val isAction = intent.action == "com.example.medisync.OPEN_EMERGENCY_QUICK" ||
+                       intent.action == "com.example.medisync.OPEN_EMERGENCY_CARD"
         if (fromWidget || isAction) {
             flutterEngine?.dartExecutor?.binaryMessenger?.let {
                 MethodChannel(it, CHANNEL).invokeMethod("onEmergencyCardRequested", null)
@@ -485,7 +486,8 @@ class MainActivity : FlutterActivity() {
                 }
                 "getInitialLockscreenAction" -> {
                     val fromWidget = intent?.getBooleanExtra("from_lockscreen_widget", false) ?: false
-                    val isAction = intent?.action == "com.example.medisync.OPEN_EMERGENCY_QUICK"
+                    val isAction = intent?.action == "com.example.medisync.OPEN_EMERGENCY_QUICK" ||
+                                   intent?.action == "com.example.medisync.OPEN_EMERGENCY_CARD"
                     if (fromWidget || isAction) {
                         val view = intent?.getStringExtra("lockscreen_view") ?: "dual"
                         result.success(view)

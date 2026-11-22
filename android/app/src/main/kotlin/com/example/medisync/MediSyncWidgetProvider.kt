@@ -36,10 +36,12 @@ class MediSyncWidgetProvider : AppWidgetProvider() {
 
             // Intent to launch EmergencyCardActivity on top of the lockscreen with ZERO PIN
             val intent = Intent(context, EmergencyCardActivity::class.java).apply {
-                action = "com.example.medisync.OPEN_EMERGENCY_QUICK"
+                action = "com.example.medisync.OPEN_EMERGENCY_CARD"
                 putExtra("from_lockscreen_widget", true)
                 putExtra("lockscreen_view", defaultView)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
             }
 
             val pendingIntent = PendingIntent.getActivity(
