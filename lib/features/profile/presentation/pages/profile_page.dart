@@ -3029,7 +3029,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'v1.6.2',
+                                'v1.8.11',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
                               ),
                             ),
@@ -3038,8 +3038,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         const SizedBox(height: 3),
                         Text(
                           _isAboutCardExpanded
-                              ? 'Abdalaziz Adil Badawi • Tap to collapse'
-                              : 'Abdalaziz Adil Badawi • Tap to expand',
+                              ? 'Abdalaziz Adil Badawi • Production Release • Tap to collapse'
+                              : 'Abdalaziz Adil Badawi • Production Release • Tap to expand',
                           style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
                         ),
                       ],
@@ -3104,7 +3104,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Dedicated to building clinical-grade, privacy-first mobile health utilities that respect personal autonomy and data ownership.',
+                                'Dedicated to building clinical-grade, privacy-first mobile health utilities that respect personal autonomy, data ownership, and physician-patient communication.',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: AppTheme.textSecondary(context),
@@ -3116,6 +3116,90 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Three Production Pillars Summary Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isDark ? const Color(0xFF059669) : const Color(0xFFA7F3D0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.shield_rounded, size: 14, color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '100% Offline',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Zero cloud leaks or telemetry. Stored solely in local Hive encrypted database.',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46),
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isDark ? const Color(0xFF2563EB) : const Color(0xFFBFDBFE)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.lock_open_rounded, size: 14, color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Zero-PIN ID',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Lockscreen notifications & Quick Settings shade tile for first-responders.',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: isDark ? const Color(0xFFBFDBFE) : const Color(0xFF1E40AF),
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
 
@@ -3138,7 +3222,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       label: const Text('GitHub: @Abdalaziz-Badawi / MediSync'),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
 
                   // Project Architecture & File Management Viewer
                   OutlinedButton.icon(
@@ -3153,7 +3237,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Project Architecture & Clean Organization',
+                            'Project Architecture & System Modules',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppTheme.textPrimary(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded, size: 18, color: AppTheme.textMuted(context)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Open Source Licenses Viewer
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppTheme.cardBorder(context)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _showOpenSourceLicensesDialog(context),
+                    icon: Icon(Icons.policy_rounded, color: primary, size: 18),
+                    label: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Open Source Licenses & Attributions',
                             style: TextStyle(
                               fontSize: 12.5,
                               color: AppTheme.textPrimary(context),
@@ -3232,18 +3343,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MediSync Modular Feature Architecture:',
+                'MediSync Production Architecture (v1.8.11):',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary(ctx)),
               ),
               const SizedBox(height: 10),
-              _buildArchItem(ctx, '📁 lib/core/models', 'Medication, Condition, SideEffect, UserProfile, SafetyFlag'),
-              _buildArchItem(ctx, '📁 lib/core/services', 'StorageService (Hive), SchedulerService, RoutineInferenceService, StreakService, DeviceIntegrationService'),
-              _buildArchItem(ctx, '📁 lib/core/theme', 'AppTheme with 10 clinical palettes, soft & elevated shadow hierarchy'),
-              _buildArchItem(ctx, '📁 lib/features/homeboard', 'Today schedule, NextDoseCountdownCard, Duolingo AdherenceStreakCard'),
-              _buildArchItem(ctx, '📁 lib/features/medications', 'CRUD, discontinuation lifecycle, debounced allergy checks'),
-              _buildArchItem(ctx, '📁 lib/features/records', 'Multi-format export (TXT, MD, HTML, XML, DOC, PDF), adherence analytics'),
-              _buildArchItem(ctx, '📁 lib/features/profile', 'Daily routine setup, phone calendar sync, developer about'),
-              _buildArchItem(ctx, '📁 lib/features/splash', 'Pulse cross logo animation, smooth start experience'),
+              _buildArchItem(ctx, '📁 lib/core/models', 'Medication, UserProfile, ClinicalCondition, SafetyFlag, NecessityLevel'),
+              _buildArchItem(ctx, '📁 lib/core/services', 'StorageService (Hive), SchedulerService, StreakService, RoutineInferenceService, DeviceIntegrationService'),
+              _buildArchItem(ctx, '📁 lib/core/theme', 'AppTheme (10 clinical palettes, dynamic font scaling 0.85x-1.30x, soft shadows)'),
+              _buildArchItem(ctx, '📁 lib/features/homeboard', 'Today schedule, early/late dose confirmation, PRN evening review, adherence streak flame'),
+              _buildArchItem(ctx, '📁 lib/features/medications', 'Prescription CRUD, discontinuation archive, debounced allergy checking, drug-drug warnings'),
+              _buildArchItem(ctx, '📁 lib/features/records', 'Multi-format continuity exporter (PDF, Markdown, TXT file sharing), interactive calendar'),
+              _buildArchItem(ctx, '📁 lib/features/profile', 'Daily routine scheduler, Samsung Health link, phone calendar sync, squarish Emergency Card'),
+              _buildArchItem(ctx, '📁 android/native', 'EmergencyCardActivity (lockscreen bypass), MediSyncWidgetProvider, MediSyncTileService (Quick Settings)'),
             ],
           ),
         ),
@@ -3252,6 +3363,77 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showOpenSourceLicensesDialog(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF151E2E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.verified_rounded, color: primary),
+            const SizedBox(width: 10),
+            const Text('Open Source Licenses', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MediSync is built with open source software:',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.textPrimary(ctx)),
+              ),
+              const SizedBox(height: 10),
+              _buildLicenseItem(ctx, 'Flutter SDK', 'Google LLC • BSD-3-Clause License'),
+              _buildLicenseItem(ctx, 'Flutter Riverpod', 'Remi Rousselet • MIT License'),
+              _buildLicenseItem(ctx, 'Hive & Hive Flutter', 'Simon Leier • Apache-2.0 License'),
+              _buildLicenseItem(ctx, 'GoRouter', 'Flutter Team • BSD-3-Clause License'),
+              _buildLicenseItem(ctx, 'Intl', 'Dart Team • BSD-3-Clause License'),
+              _buildLicenseItem(ctx, 'Flutter Local Notifications', 'Michael Bui • BSD-3-Clause License'),
+              _buildLicenseItem(ctx, 'Timezone', 'Dart Team • BSD-2-Clause License'),
+              _buildLicenseItem(ctx, 'UUID', 'Daegalus • MIT License'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              showLicensePage(
+                context: context,
+                applicationName: 'MediSync',
+                applicationVersion: 'v1.8.11+30',
+                applicationLegalese: 'Copyright © 2026 Abdalaziz Adil Badawi Mohamed.\nAll rights reserved.\nLicensed under MIT License.',
+              );
+            },
+            child: const Text('View Full Licenses'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLicenseItem(BuildContext ctx, String library, String license) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(library, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Theme.of(ctx).colorScheme.primary)),
+          Text(license, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(ctx))),
         ],
       ),
     );

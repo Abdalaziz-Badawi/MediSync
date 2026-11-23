@@ -1464,50 +1464,89 @@ class _HomePageState extends ConsumerState<HomePage> {
               final takenCount = takenLogs.length;
               final maxDoses = med.timesPerDay;
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppTheme.cardColor(context),
+              final isSettled = takenCount > 0 || isNotNeeded;
+
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isNotNeeded
-                        ? (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))
-                        : (takenCount > 0 ? (isDark ? const Color(0xFF047857) : const Color(0xFF6EE7B7)) : AppTheme.cardBorder(context)),
-                    width: (takenCount > 0 || isNotNeeded) ? 1.4 : 1,
-                  ),
-                  boxShadow: AppTheme.softShadow(context),
-                ),
+                  onTap: () {
+                    if (isNotNeeded) return;
+                    if (takenCount >= maxDoses) {
+                      _showPrnDailyLimitDialog(med, maxDoses, takenCount);
+                    } else if (takenCount > 0) {
+                      _showPrnRepeatDoseConfirmationDialog(med, selectedDate, takenCount, maxDoses, takenLogs);
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSettled
+                          ? (isDark ? const Color(0xFF1E293B).withValues(alpha: 0.50) : const Color(0xFFF1F5F9).withValues(alpha: 0.90))
+                          : AppTheme.cardColor(context),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isNotNeeded
+                            ? (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))
+                            : (takenCount > 0
+                                ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
+                                : AppTheme.cardBorder(context)),
+                        width: isSettled ? 1.2 : 1,
+                      ),
+                      boxShadow: isSettled ? [] : AppTheme.softShadow(context),
+                    ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: med.categoryColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                            borderRadius: BorderRadius.circular(10),
+                        Opacity(
+                          opacity: isSettled ? 0.65 : 1.0,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: med.categoryColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(med.icon, color: med.categoryColor, size: 22),
                           ),
-                          child: Icon(med.icon, color: med.categoryColor, size: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                med.name,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary(context),
-                                ),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      med.name,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSettled
+                                            ? AppTheme.textPrimary(context).withValues(alpha: 0.8)
+                                            : AppTheme.textPrimary(context),
+                                      ),
+                                    ),
+                                  ),
+                                  if (takenCount > 0) ...[
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 15,
+                                      color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                                    ),
+                                  ],
+                                ],
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${med.dosage} • ${med.form.name} • Max $maxDoses dose${maxDoses > 1 ? "s" : ""}/day',
+                                takenCount > 0
+                                    ? 'Dose taken at ${takenLogs.join(", ")} • Max $maxDoses dose${maxDoses > 1 ? "s" : ""}/day'
+                                    : '${med.dosage} • ${med.form.name} • Max $maxDoses dose${maxDoses > 1 ? "s" : ""}/day',
                                 style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary(context)),
                               ),
                             ],
@@ -1541,15 +1580,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.cardBorder(context)),
                             ),
                             child: Text(
-                              '$takenCount / $maxDoses Taken',
+                              takenCount >= maxDoses
+                                  ? '✓ Limit Reached ($takenCount/$maxDoses)'
+                                  : '✓ Settled ($takenCount/$maxDoses Taken)',
                               style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textSecondary(context),
                               ),
                             ),
                           ),
@@ -1589,34 +1631,186 @@ class _HomePageState extends ConsumerState<HomePage> {
                               label: const Text('Not Needed', style: TextStyle(fontSize: 11.5)),
                             ),
                             const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                _handleTakePrnDose(med, selectedDate, takenCount, maxDoses, takenLogs);
+                              },
+                              icon: const Icon(Icons.add_rounded, size: 16),
+                              label: const Text(
+                                'Take PRN Dose',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ] else if (takenCount > 0) ...[
+                            if (takenCount >= maxDoses) ...[
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  side: BorderSide(color: AppTheme.cardBorder(context)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () => _showPrnDailyLimitDialog(med, maxDoses, takenCount),
+                                icon: const Icon(Icons.info_outline_rounded, size: 14),
+                                label: Text(
+                                  'Daily Cap Reached ($takenCount/$maxDoses)',
+                                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                                ),
+                              ),
+                            ] else ...[
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  side: BorderSide(
+                                    color: isDark ? const Color(0xFFD97706).withValues(alpha: 0.5) : const Color(0xFFF59E0B),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () {
+                                  _showPrnRepeatDoseConfirmationDialog(med, selectedDate, takenCount, maxDoses, takenLogs);
+                                },
+                                icon: const Icon(Icons.add_circle_outline_rounded, size: 14, color: Color(0xFFD97706)),
+                                label: Text(
+                                  'Log Additional Dose ($takenCount/$maxDoses)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () {
-                              _handleTakePrnDose(med, selectedDate, takenCount, maxDoses, takenLogs);
-                            },
-                            icon: const Icon(Icons.add_rounded, size: 16),
-                            label: Text(
-                              takenCount == 0 ? 'Take PRN Dose' : 'Take Another Dose ($takenCount/$maxDoses)',
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                            ),
-                          ),
                         ],
                       ),
                     ],
                   ],
                 ),
-              );
+              ),
+            ),
+          );
             },
           ),
         ],
       ],
+    );
+  }
+
+  void _showPrnDailyLimitDialog(Medication med, int maxDoses, int takenCount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardColor(ctx),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEA580C), size: 24),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text('Daily Safe Limit Reached', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: Text(
+          'You have already logged $takenCount dose${takenCount > 1 ? "s" : ""} today, which is the maximum safe daily limit ($maxDoses dose${maxDoses > 1 ? "s" : ""} in 24 hours) for ${med.name}.\n\nTaking additional doses without physician approval carries severe risks of drug accumulation, toxicity, or organ stress.\n\nIf severe symptoms persist, please consult your physician or pharmacist.',
+          style: const TextStyle(fontSize: 12.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrnRepeatDoseConfirmationDialog(
+    Medication med,
+    DateTime date,
+    int takenCount,
+    int maxDoses,
+    List<String> takenLogs,
+  ) {
+    final isDark = AppTheme.isDark(context);
+    final lastTimeStr = takenLogs.isNotEmpty ? takenLogs.last : 'earlier today';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardColor(ctx),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 24),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text('Repeat Dose Caution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You already logged $takenCount dose${takenCount > 1 ? "s" : ""} of ${med.name} today (Last at $lastTimeStr).',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'As-needed (PRN) medications should only be taken when active, severe symptoms genuinely persist.\n\nTaking additional doses unnecessarily increases the danger of drug accumulation, elevated side effects, or organ stress.\n\nDo you still have active symptoms and need to take another dose now?',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppTheme.textPrimary(ctx),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Wait / Do Not Take'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _handleTakePrnDose(med, date, takenCount, maxDoses, takenLogs, bypassConfirmation: true);
+            },
+            child: const Text('Confirm Additional Dose'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1625,38 +1819,20 @@ class _HomePageState extends ConsumerState<HomePage> {
     DateTime date,
     int takenCount,
     int maxDoses,
-    List<String> takenLogs,
-  ) {
+    List<String> takenLogs, {
+    bool bypassConfirmation = false,
+  }) {
     final now = DateTime.now();
 
     // 1. Daily Cap Check
     if (takenCount >= maxDoses) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppTheme.cardColor(ctx),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFEA580C), size: 24),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text('Daily Limit Reached', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          content: Text(
-            'You have already logged $takenCount dose${takenCount > 1 ? "s" : ""} today, which is the maximum safe daily limit ($maxDoses dose${maxDoses > 1 ? "s" : ""} in 24 hours) for ${med.name}.\n\nTaking additional doses may lead to adverse effects or toxicity. Please contact your physician or pharmacist before taking more.',
-            style: const TextStyle(fontSize: 12.5, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showPrnDailyLimitDialog(med, maxDoses, takenCount);
+      return;
+    }
+
+    // 2. Repeat dose confirmation if not already confirmed
+    if (takenCount > 0 && !bypassConfirmation) {
+      _showPrnRepeatDoseConfirmationDialog(med, date, takenCount, maxDoses, takenLogs);
       return;
     }
 

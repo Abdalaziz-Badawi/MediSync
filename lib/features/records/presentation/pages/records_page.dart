@@ -1355,19 +1355,22 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               onPressed: () async {
+                                final cleanName = profile.name.replaceAll(' ', '_');
                                 if (currentFormat == ReportExportFormat.pdf) {
-                                  final title = 'MediSync_Continuity_Report_${profile.name}.pdf';
+                                  final title = 'MediSync_Continuity_Report_$cleanName.pdf';
                                   await integrationService.sharePdfReport(
                                     title: title,
                                     patientName: profile.name,
                                     content: reportContent,
+                                    filename: title,
                                   );
                                   return;
                                 }
-                                final title = 'MediSync_Continuity_Report_${profile.name}${currentFormat.fileExtension}';
-                                await integrationService.shareReport(
-                                  text: reportContent,
-                                  title: title,
+                                final filename = 'MediSync_Continuity_Report_$cleanName${currentFormat.fileExtension}';
+                                await integrationService.shareFileReport(
+                                  title: filename,
+                                  filename: filename,
+                                  content: reportContent,
                                   mimeType: currentFormat.mimeType,
                                 );
                               },

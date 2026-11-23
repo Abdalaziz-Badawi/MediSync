@@ -375,14 +375,68 @@ class MainActivity : FlutterActivity() {
                             putExtra(Intent.EXTRA_STREAM, uri)
                             putExtra(Intent.EXTRA_SUBJECT, title)
                             putExtra(Intent.EXTRA_TEXT, "$title\nVerified Patient Continuity Record for $patientName")
+                            clipData = android.content.ClipData.newRawUri("report", uri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                         val chooser = Intent.createChooser(shareIntent, "Share Continuity Report (PDF)")
                         chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         startActivity(chooser)
                         result.success(pdfFile.absolutePath)
                     } catch (e: Exception) {
                         result.error("PDF_SHARE_FAILED", e.message, null)
+                    }
+                }
+                "shareFileReport" -> {
+                    try {
+                        val title = call.argument<String>("title") ?: "MediSync Continuity Report"
+                        val filename = call.argument<String>("filename") ?: "MediSync_Continuity_Report_${System.currentTimeMillis()}.txt"
+                        val content = call.argument<String>("content") ?: ""
+                        val mimeType = call.argument<String>("mimeType") ?: "text/plain"
+
+                        val cacheDir = File(context.cacheDir, "reports")
+                        if (!cacheDir.exists()) cacheDir.mkdirs()
+                        val reportFile = File(cacheDir, filename)
+                        reportFile.writeText(content, Charsets.UTF_8)
+
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            reportFile
+                        )
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = mimeType
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            putExtra(Intent.EXTRA_SUBJECT, title)
+                            putExtra(Intent.EXTRA_TEXT, "$title\nVerified Patient Continuity Record")
+                            clipData = android.content.ClipData.newRawUri("report", uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        val chooser = Intent.createChooser(shareIntent, "Share Continuity Report ($filename)")
+                        chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        startActivity(chooser)
+                        result.success(reportFile.absolutePath)
+                    } catch (e: Exception) {
+                        result.error("FILE_SHARE_FAILED", e.message, null)
+                    }
+                }
+                "saveFileReport" -> {
+                    try {
+                        val filename = call.argument<String>("filename") ?: "MediSync_Continuity_Report_${System.currentTimeMillis()}.txt"
+                        val content = call.argument<String>("content") ?: ""
+                        val mimeType = call.argument<String>("mimeType") ?: "text/plain"
+
+                        val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+                        val medisyncDir = File(docsDir, "MediSync")
+                        if (!medisyncDir.exists()) medisyncDir.mkdirs()
+                        val reportFile = File(medisyncDir, filename)
+                        reportFile.writeText(content, Charsets.UTF_8)
+
+                        MediaScannerConnection.scanFile(context, arrayOf(reportFile.absolutePath), arrayOf(mimeType), null)
+                        result.success(reportFile.absolutePath)
+                    } catch (e: Exception) {
+                        result.error("FILE_SAVE_FAILED", e.message, null)
                     }
                 }
                 "savePdfReport" -> {

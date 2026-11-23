@@ -543,6 +543,44 @@ class DeviceIntegrationService {
     }
   }
 
+  /// Automatically creates a dedicated document file (.md, .txt) and shares it as an attached file via Android share sheet.
+  Future<String?> shareFileReport({
+    required String title,
+    required String filename,
+    required String content,
+    required String mimeType,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod<String>('shareFileReport', {
+        'title': title,
+        'filename': filename,
+        'content': content,
+        'mimeType': mimeType,
+      });
+      return res;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Saves a report file directly to public device storage under Documents/MediSync/.
+  Future<String?> saveFileReport({
+    required String filename,
+    required String content,
+    required String mimeType,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod<String>('saveFileReport', {
+        'filename': filename,
+        'content': content,
+        'mimeType': mimeType,
+      });
+      return res;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Shares the Emergency Medical ID Card in JPG format using native Android share sheet.
   Future<bool> shareEmergencyCardJpg({
     required Uint8List imageBytes,

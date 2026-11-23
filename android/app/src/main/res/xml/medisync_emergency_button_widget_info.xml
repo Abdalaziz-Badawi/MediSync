@@ -14,7 +14,7 @@
     android:initialKeyguardLayout="@layout/widget_emergency_button"
     android:description="@string/widget_emergency_btn_desc"
     android:widgetCategory="home_screen|keyguard"
-    app:targetHost="lockAndAod"
+    app:targetHost="home|lockAndAod"
     app:widgetStyle="colorful|monotone"
     app:lockWidgetSize="tiny"
     app:initialLayoutTiny="@layout/widget_emergency_button"
