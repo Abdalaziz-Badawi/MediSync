@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/pages/home_page.dart';
+import 'package:medisync/features/today/presentation/pages/home_page.dart';
 import 'package:medisync/features/medications/presentation/pages/medications_list_page.dart';
 import 'package:medisync/features/profile/presentation/pages/profile_page.dart';
 import 'package:medisync/features/records/presentation/pages/records_page.dart';

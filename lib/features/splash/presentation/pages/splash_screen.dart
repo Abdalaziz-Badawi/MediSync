@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/core/widgets/brand_shield_pill_logo.dart';
-import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
+import 'package:medisync/features/navigation/presentation/pages/main_navigation_page.dart';
 import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {

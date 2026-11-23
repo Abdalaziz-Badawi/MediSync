@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Renders the official MediSync brand mark:
-/// The Clinical Shield of Protection enclosing the Angled Healthcare Pill with Medical Cross.
+/// The Protective Clinical Teal Shield enclosing the Crisp White Healthcare Pill with Teal Crescent.
 class BrandShieldPillLogo extends StatelessWidget {
   final double size;
   final Color? shieldRimColor;
@@ -24,7 +24,7 @@ class BrandShieldPillLogo extends StatelessWidget {
       height: size,
       child: CustomPaint(
         painter: _BrandShieldPillPainter(
-          shieldRimColor: shieldRimColor ?? const Color(0xFF2DD4BF),
+          shieldRimColor: shieldRimColor ?? const Color(0xFF5EEAD4),
           pillTopColor: pillTopColor ?? const Color(0xFF0D9488),
           showShadow: showShadow,
         ),
@@ -65,6 +65,16 @@ class _BrandShieldPillPainter extends CustomPainter {
     shieldPath.cubicTo(72, 28.5, 63, 26.2, 54, 25.5);
     shieldPath.close();
 
+    // Faint ambient glow behind the shield
+    final glowPaint = Paint()
+      ..color = const Color(0xFF2DD4BF).withValues(alpha: 0.20)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
+    canvas.drawPath(shieldPath, glowPaint);
+
     // Shield shadow
     if (showShadow) {
       final shadowPath = Path();
@@ -88,45 +98,45 @@ class _BrandShieldPillPainter extends CustomPainter {
       );
     }
 
-    // Shield background translucent fill
+    // Shield body filled with Teal-to-Sapphire Gradient
+    final shieldShader = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFF14B8A6),
+        Color(0xFF0D9488),
+        Color(0xFF0284C7),
+      ],
+      stops: [0.0, 0.45, 1.0],
+    ).createShader(const Rect.fromLTWH(29.5, 25.5, 49, 55.5));
+
     canvas.drawPath(
       shieldPath,
       Paint()
-        ..color = pillTopColor.withValues(alpha: 0.38)
+        ..shader = shieldShader
         ..style = PaintingStyle.fill,
     );
 
-    // Shield outer rim glow
-    canvas.drawPath(
-      shieldPath,
-      Paint()
-        ..color = shieldRimColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-
-    // Shield inner hairline contour
+    // Shield delicate inner highlight rim
     final innerHairline = Path();
-    innerHairline.moveTo(54, 28);
-    innerHairline.cubicTo(46, 28.6, 38, 30.7, 33.8, 32.5);
-    innerHairline.cubicTo(32.7, 33.1, 32, 34.2, 32, 35.5);
-    innerHairline.lineTo(32, 51.5);
-    innerHairline.cubicTo(32, 63.5, 41.5, 72.5, 52.4, 77);
-    innerHairline.cubicTo(53.5, 77.4, 54.5, 77.4, 55.6, 77);
-    innerHairline.cubicTo(66.5, 72.5, 76, 63.5, 76, 51.5);
-    innerHairline.lineTo(76, 35.5);
-    innerHairline.cubicTo(76, 34.2, 75.3, 33.1, 74.2, 32.5);
-    innerHairline.cubicTo(70, 30.7, 62, 28.6, 54, 28);
+    innerHairline.moveTo(54, 26.5);
+    innerHairline.cubicTo(45.5, 27.2, 36.8, 29.4, 32.5, 31.3);
+    innerHairline.cubicTo(31.4, 31.9, 30.7, 33.1, 30.7, 34.4);
+    innerHairline.lineTo(30.7, 51.8);
+    innerHairline.cubicTo(30.7, 64.8, 40.8, 74.5, 52.5, 79.4);
+    innerHairline.cubicTo(53.5, 79.8, 54.5, 79.8, 55.5, 79.4);
+    innerHairline.cubicTo(67.2, 74.5, 77.3, 64.8, 77.3, 51.8);
+    innerHairline.lineTo(77.3, 34.4);
+    innerHairline.cubicTo(77.3, 33.1, 76.6, 31.9, 75.5, 31.3);
+    innerHairline.cubicTo(71.2, 29.4, 62.5, 27.2, 54, 26.5);
     innerHairline.close();
 
     canvas.drawPath(
       innerHairline,
       Paint()
-        ..color = const Color(0xFF38BDF8).withValues(alpha: 0.55)
+        ..color = shieldRimColor.withValues(alpha: 0.65)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
+        ..strokeWidth = 0.8,
     );
 
     // Top Crest Glint
@@ -137,19 +147,19 @@ class _BrandShieldPillPainter extends CustomPainter {
     canvas.drawPath(
       glint,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.85)
+        ..color = Colors.white.withValues(alpha: 0.55)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
+        ..strokeWidth = 1.0
         ..strokeCap = StrokeCap.round,
     );
 
-    // 2. Slender Capsule Pill (-35° rotation, centered around 54, 53)
+    // 2. Pure Crisp Medical White Capsule Pill (-35° rotation, centered around 54, 53)
     canvas.save();
     canvas.translate(54, 53);
     canvas.rotate(-35 * math.pi / 180);
     canvas.translate(-54, -53);
 
-    // Pill Upper Half (Teal)
+    // Pill Upper Half (Pure Crisp Medical White)
     final pillTop = Path();
     pillTop.moveTo(48, 42);
     pillTop.cubicTo(48, 38.5, 50.7, 35.5, 54, 35.5);
@@ -161,29 +171,17 @@ class _BrandShieldPillPainter extends CustomPainter {
     canvas.drawPath(
       pillTop,
       Paint()
-        ..color = pillTopColor
+        ..color = Colors.white
         ..style = PaintingStyle.fill,
     );
 
-    // Medical Cross (+) on Top Half
-    // Vertical Bar
+    // Center Hairline Divider Band
     canvas.drawRect(
-      const Rect.fromLTWH(53, 39, 2, 6.5),
-      Paint()..color = Colors.white,
-    );
-    // Horizontal Bar
-    canvas.drawRect(
-      const Rect.fromLTWH(50.5, 41.2, 7, 2.1),
-      Paint()..color = Colors.white,
+      const Rect.fromLTWH(47.7, 52, 12.6, 1.5),
+      Paint()..color = const Color(0xFFE2E8F0),
     );
 
-    // Center Cyan Divider Band
-    canvas.drawRect(
-      const Rect.fromLTWH(47.7, 52, 12.6, 1.8),
-      Paint()..color = const Color(0xFF38BDF8),
-    );
-
-    // Lower Half (Pure Medical White)
+    // Lower Half (Pure Medical White / Porcelain)
     final pillBottom = Path();
     pillBottom.moveTo(48, 53.5);
     pillBottom.lineTo(60, 53.5);
@@ -195,7 +193,21 @@ class _BrandShieldPillPainter extends CustomPainter {
     canvas.drawPath(
       pillBottom,
       Paint()
-        ..color = Colors.white
+        ..color = const Color(0xFFF8FAFC)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Crescent Symbol inside the Pill (Vibrant Clinical Teal extension from the shield)
+    final crescentPath = Path();
+    crescentPath.moveTo(54, 39.5);
+    crescentPath.cubicTo(51.2, 40.2, 50.8, 45.8, 54, 46.5);
+    crescentPath.cubicTo(52.4, 45.0, 52.4, 41.0, 54, 39.5);
+    crescentPath.close();
+
+    canvas.drawPath(
+      crescentPath,
+      Paint()
+        ..color = pillTopColor
         ..style = PaintingStyle.fill,
     );
 
@@ -212,20 +224,12 @@ class _BrandShieldPillPainter extends CustomPainter {
     canvas.drawPath(
       pillOuter,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.95)
+        ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.60)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+        ..strokeWidth = 0.7,
     );
 
     canvas.restore(); // Restore pill rotation
-
-    // 3. Sparkling Sapphire Gem on Shield Crest (Top Right)
-    canvas.drawCircle(
-      const Offset(72, 31.5),
-      1.8,
-      Paint()..color = const Color(0xFF38BDF8),
-    );
-
     canvas.restore(); // Restore canvas scale
   }
 

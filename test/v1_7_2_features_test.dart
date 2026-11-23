@@ -9,7 +9,7 @@ import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
-import 'package:medisync/features/homeboard/presentation/pages/home_page.dart';
+import 'package:medisync/features/today/presentation/pages/home_page.dart';
 
 class RecordingNotificationService implements NotificationService {
   final List<Map<String, dynamic>> dailyScheduled = [];

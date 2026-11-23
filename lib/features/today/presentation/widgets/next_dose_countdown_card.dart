@@ -7,7 +7,7 @@ import 'package:medisync/core/models/side_effect.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/missed_dose_guidance_sheet.dart';
+import 'package:medisync/features/today/presentation/widgets/missed_dose_guidance_sheet.dart';
 import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 
 class UpcomingDose {

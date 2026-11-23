@@ -7,7 +7,7 @@ import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
+import 'package:medisync/features/navigation/presentation/pages/main_navigation_page.dart';
 import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/allergy_selector_widget.dart';
 import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
@@ -3187,7 +3187,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'v1.8.13',
+                                'v1.8.14',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
                               ),
                             ),
@@ -3599,14 +3599,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MediSync Production Architecture (v1.8.13):',
+                'MediSync Production Architecture (v1.8.14):',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary(ctx)),
               ),
               const SizedBox(height: 10),
               _buildArchItem(ctx, '📁 lib/core/models', 'Medication, UserProfile, ClinicalCondition, SafetyFlag, NecessityLevel'),
               _buildArchItem(ctx, '📁 lib/core/services', 'StorageService (Hive), SchedulerService, StreakService, RoutineInferenceService, DeviceIntegrationService'),
               _buildArchItem(ctx, '📁 lib/core/theme', 'AppTheme (10 clinical palettes, dynamic font scaling 0.85x-1.30x, soft shadows)'),
-              _buildArchItem(ctx, '📁 lib/features/homeboard', 'Today schedule, early/late dose confirmation, PRN evening review, adherence streak flame'),
+              _buildArchItem(ctx, '📁 lib/features/navigation', 'MainNavigationPage (app tab host & root bottom navigation bar)'),
+              _buildArchItem(ctx, '📁 lib/features/today', 'Today schedule, early/late dose confirmation, PRN evening review, adherence streak flame'),
               _buildArchItem(ctx, '📁 lib/features/medications', 'Prescription CRUD, discontinuation archive, debounced allergy checking, drug-drug warnings'),
               _buildArchItem(ctx, '📁 lib/features/records', 'Multi-format continuity exporter (PDF, Markdown, TXT file sharing), interactive calendar'),
               _buildArchItem(ctx, '📁 lib/features/profile', 'Daily routine scheduler, Samsung Health link, phone calendar sync, squarish Emergency Card'),
@@ -3667,7 +3668,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               showLicensePage(
                 context: context,
                 applicationName: 'MediSync',
-                applicationVersion: 'v1.8.13+32',
+                applicationVersion: 'v1.8.14+33',
                 applicationLegalese: 'Copyright © 2026 Abdalaziz Adil Badawi Mohamed.\nAll rights reserved.\nLicensed under MIT License.',
               );
             },

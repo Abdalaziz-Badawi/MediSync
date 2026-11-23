@@ -6,7 +6,7 @@ import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/adherence_streak_card.dart';
+import 'package:medisync/features/today/presentation/widgets/adherence_streak_card.dart';
 
 class RecordsPage extends ConsumerStatefulWidget {
   const RecordsPage({super.key});

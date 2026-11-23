@@ -6,17 +6,20 @@ MediSync is designed following **Clean Architecture** and **Feature-Driven Devel
 
 ```
 lib/
-├── config/              # App routing, global flags, constants
 ├── core/                # Shared domain logic, infrastructure & models
-│   ├── data/            # Internal databases (MedicinesDatabase repository)
+│   ├── data/            # Internal databases (MedicinesDatabase, allergy taxonomy)
 │   ├── models/          # Core entity models (Medication, Condition, SideEffect, SafetyFlag, UserProfile)
-│   ├── services/        # StorageService (Hive), SchedulerService, NotificationService
-│   └── theme/           # AppTheme (Light & Dark mode palettes, ThemeNotifier)
-├── features/            # Feature-first modular layers
-│   ├── homeboard/       # Today's dose timeline, progress ring, next dose countdown card
-│   ├── medications/     # Add/Edit with DB autocomplete, list, and details
-│   ├── onboarding/      # Account setup wizard (profile, allergies, routine, alarm test)
-│   └── profile/         # User profile manager, theme switcher, routine time-pickers
+│   ├── services/        # StorageService (Hive), SchedulerService, NotificationService, StreakService
+│   ├── theme/           # AppTheme (Light & Dark mode palettes, ThemeNotifier)
+│   └── widgets/         # BrandShieldPillLogo & reusable brand widgets
+├── features/            # Feature-first modular layers (aligned 1-to-1 with app tabs & flows)
+│   ├── navigation/      # MainNavigationPage (bottom navigation tab scaffold)
+│   ├── today/           # Tab 1: Today's dose timeline, adherence streak, next dose countdown, PRN review
+│   ├── medications/     # Tab 2: Prescription CRUD, clinical drug details, allergy screening
+│   ├── records/         # Tab 3: Clinical records exporter (PDF, Markdown, TXT) & history
+│   ├── profile/         # Tab 4: User profile, emergency ID, routine hours, settings
+│   ├── onboarding/      # First-launch account setup wizard
+│   └── splash/          # Animated launch screen with brand mark
 └── main.dart            # Dependency injection entry point & ProviderScope
 ```
 

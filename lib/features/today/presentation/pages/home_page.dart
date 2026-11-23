@@ -15,8 +15,8 @@ import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/services/streak_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/expandable_add_medication_fab.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/missed_dose_guidance_sheet.dart';
+import 'package:medisync/features/today/presentation/widgets/expandable_add_medication_fab.dart';
+import 'package:medisync/features/today/presentation/widgets/missed_dose_guidance_sheet.dart';
 import 'package:medisync/features/medications/presentation/pages/add_edit_medication_page.dart';
 import 'package:medisync/features/medications/presentation/widgets/medication_clinical_guide_modal.dart';
 import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
@@ -1401,7 +1401,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  /// As-Needed (PRN) Medications Section on Homeboard
+  /// As-Needed (PRN) Medications Section on Today Page
   Widget _buildPrnMedicationsSection(
     BuildContext context,
     List<Medication> prnMeds,

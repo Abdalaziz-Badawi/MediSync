@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/expandable_add_medication_fab.dart';
-import 'package:medisync/features/homeboard/presentation/widgets/missed_dose_guidance_sheet.dart';
+import 'package:medisync/features/today/presentation/widgets/expandable_add_medication_fab.dart';
+import 'package:medisync/features/today/presentation/widgets/missed_dose_guidance_sheet.dart';
 
 void main() {
   group('v1.7.1 Enhancements & Bug Fixes Tests', () {

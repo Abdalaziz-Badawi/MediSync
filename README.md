@@ -1,6 +1,6 @@
 # MediSync
 
-[![Version](https://img.shields.io/badge/version-1.8.13--gold-teal.svg)](pubspec.yaml)
+[![Version](https://img.shields.io/badge/version-1.8.14--gold-teal.svg)](pubspec.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform: Android](https://img.shields.io/badge/platform-Android-green.svg)](android)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B.svg)](https://flutter.dev)
@@ -9,7 +9,7 @@
 
 ### 📥 Direct APK Download
 Ready-to-install Android release package for immediate sideloading:
-👉 **[Download MediSync v1.8.13 Release APK (medisync-v1.8.13-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.13/medisync-v1.8.13-release.apk)**
+👉 **[Download MediSync v1.8.14 Release APK (medisync-v1.8.14-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.14/medisync-v1.8.14-release.apk)**
 
 All historical and current releases are available on the [GitHub Releases Page](https://github.com/Abdalaziz-Badawi/MediSync/releases).
 
@@ -82,12 +82,13 @@ lib/
 │   ├── theme/                # AppTheme (10 clinical palettes, soft shadows, font scaling)
 │   └── widgets/              # Common UI widgets (emergency cards, status badges, chips)
 ├── features/
-│   ├── homeboard/            # Today schedule, timeline cards, PRN settled view, next dose countdown
+│   ├── navigation/           # MainNavigationPage (bottom navigation tab host)
+│   ├── today/                # Today schedule, timeline cards, PRN settled view, next dose countdown
 │   ├── medications/          # Medication CRUD, discontinuation archive, allergy/DDI warnings
 │   ├── onboarding/           # First-run clinical routine setup wizard
 │   ├── profile/              # Daily routine schedule, Emergency ID, Samsung Health, calendar sync, About
 │   ├── records/              # Clinical continuity export (PDF, MD, TXT), interactive calendar
-│   └── splash/               # Medical pulse cross logo animation
+│   └── splash/               # Medical pulse brand logo animation
 └── main.dart                 # Application entry point, Hive initialization & deep links
 ```
 

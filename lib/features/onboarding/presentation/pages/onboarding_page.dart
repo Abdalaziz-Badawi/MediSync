@@ -6,7 +6,7 @@ import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
-import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
+import 'package:medisync/features/navigation/presentation/pages/main_navigation_page.dart';
 import 'package:medisync/features/profile/presentation/widgets/allergy_selector_widget.dart';
 
 class OnboardingPage extends ConsumerStatefulWidget {

@@ -1,85 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Scaled Medical Emblem: 75% scale (+30% increase for bold visibility) -->
+    <!-- Scaled Medical Emblem: 79% scale (+5% increase over 75% for commanding, polished balance) -->
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.75"
-        android:scaleY="0.75">
+        android:scaleX="0.79"
+        android:scaleY="0.79">
 
-        <!-- 1. Shield Elevation Soft Drop Shadow -->
+        <!-- 1. Faint Luminous Ambient Glow Aura behind the Shield -->
+        <!-- Outer Diffuse Aura -->
         <path
-            android:fillColor="#000000"
-            android:fillAlpha="0.15"
-            android:pathData="M 54,28 C 45,28.7 36,31 31.5,33 C 30.2,33.7 29.5,35 29.5,36.5 L 29.5,54.5 C 29.5,68 40,78 52.2,83 C 53.4,83.5 54.6,83.5 55.8,83 C 68,78 78.5,68 78.5,54.5 L 78.5,36.5 C 78.5,35 77.8,33.7 76.5,33 C 72,31 63,28.7 54,28 Z" />
-
-        <!-- 2. Pure Crisp Medical White Shield Body -->
-        <path
-            android:fillColor="#FFFFFF"
+            android:strokeColor="#2DD4BF"
+            android:strokeWidth="6.5"
+            android:strokeAlpha="0.14"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
             android:pathData="M 54,25.5 C 45,26.2 36,28.5 31.5,30.5 C 30.2,31.2 29.5,32.5 29.5,34 L 29.5,52 C 29.5,65.5 40,75.5 52.2,80.5 C 53.4,81 54.6,81 55.8,80.5 C 68,75.5 78.5,65.5 78.5,52 L 78.5,34 C 78.5,32.5 77.8,31.2 76.5,30.5 C 72,28.5 63,26.2 54,25.5 Z" />
 
-        <!-- 3. Shield Delicate Inner Edge Definition -->
+        <!-- Inner Focused Glow Ring -->
         <path
-            android:strokeColor="#E2E8F0"
+            android:strokeColor="#14B8A6"
+            android:strokeWidth="3.2"
+            android:strokeAlpha="0.25"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 54,25.5 C 45,26.2 36,28.5 31.5,30.5 C 30.2,31.2 29.5,32.5 29.5,34 L 29.5,52 C 29.5,65.5 40,75.5 52.2,80.5 C 53.4,81 54.6,81 55.8,80.5 C 68,75.5 78.5,65.5 78.5,52 L 78.5,34 C 78.5,32.5 77.8,31.2 76.5,30.5 C 72,28.5 63,26.2 54,25.5 Z" />
+
+        <!-- Soft Translucent Backing Fill Glow -->
+        <path
+            android:fillColor="#0D9488"
+            android:fillAlpha="0.12"
+            android:pathData="M 54,24 C 44,24.8 34,27.3 29,29.5 C 27.5,30.3 26.5,31.8 26.5,33.5 L 26.5,53 C 26.5,68 38.5,79 51.8,84.5 C 53.2,85 54.8,85 56.2,84.5 C 69.5,79 81.5,68 81.5,53 L 81.5,33.5 C 81.5,31.8 80.5,30.3 79,29.5 C 74,27.3 64,24.8 54,24 Z" />
+
+        <!-- 2. Shield Soft Ground Elevation Drop Shadow -->
+        <path
+            android:fillColor="#000000"
+            android:fillAlpha="0.25"
+            android:pathData="M 54,28 C 45,28.7 36,31 31.5,33 C 30.2,33.7 29.5,35 29.5,36.5 L 29.5,54.5 C 29.5,68 40,78 52.2,83 C 53.4,83.5 54.6,83.5 55.8,83 C 68,78 78.5,68 78.5,54.5 L 78.5,36.5 C 78.5,35 77.8,33.7 76.5,33 C 72,31 63,28.7 54,28 Z" />
+
+        <!-- 3. Protective Clinical Shield Body with Healthcare Teal-to-Sapphire Gradient -->
+        <path
+            android:pathData="M 54,25.5 C 45,26.2 36,28.5 31.5,30.5 C 30.2,31.2 29.5,32.5 29.5,34 L 29.5,52 C 29.5,65.5 40,75.5 52.2,80.5 C 53.4,81 54.6,81 55.8,80.5 C 68,75.5 78.5,65.5 78.5,52 L 78.5,34 C 78.5,32.5 77.8,31.2 76.5,30.5 C 72,28.5 63,26.2 54,25.5 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="54"
+                    android:startY="25.5"
+                    android:endX="54"
+                    android:endY="81"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#14B8A6" />
+                    <item android:offset="0.45" android:color="#0D9488" />
+                    <item android:offset="1.0" android:color="#0284C7" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 4. Shield Crisp Inner Highlight Rim -->
+        <path
+            android:strokeColor="#5EEAD4"
             android:strokeWidth="0.8"
-            android:strokeAlpha="0.60"
+            android:strokeAlpha="0.65"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
             android:pathData="M 54,26.5 C 45.5,27.2 36.8,29.4 32.5,31.3 C 31.4,31.9 30.7,33.1 30.7,34.4 L 30.7,51.8 C 30.7,64.8 40.8,74.5 52.5,79.4 C 53.5,79.8 54.5,79.8 55.5,79.4 C 67.2,74.5 77.3,64.8 77.3,51.8 L 77.3,34.4 C 77.3,33.1 76.6,31.9 75.5,31.3 C 71.2,29.4 62.5,27.2 54,26.5 Z" />
 
-        <!-- 4. Slender Capsule Pill (-35° rotation, centered at 54, 53) -->
+        <!-- 5. Shield Top Crest Delicate Specular Glint -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.0"
+            android:strokeAlpha="0.55"
+            android:strokeLineCap="round"
+            android:pathData="M 35,31.5 C 43,29.2 49,27.8 54,27.5 C 59,27.8 65,29.2 73,31.5" />
+
+        <!-- 6. Pure Crisp Medical White Capsule Pill (-35° rotation, centered at 54, 53) -->
         <group
             android:pivotX="54"
             android:pivotY="53"
             android:rotation="-35">
 
-            <!-- Capsule Soft Shadow -->
+            <!-- Pill Soft Shadow against the Teal Shield -->
             <path
                 android:fillColor="#000000"
-                android:fillAlpha="0.10"
+                android:fillAlpha="0.25"
                 android:pathData="M 49.5,43 C 49.5,39 52,36 55.5,36 C 59,36 61.5,39 61.5,43 L 61.5,59 C 61.5,63 59,66 55.5,66 C 52,66 49.5,63 49.5,59 Z" />
 
-            <!-- Upper Half: Healthcare Clinical Teal -->
+            <!-- Upper Half: Pure Crisp Medical White -->
             <path
-                android:fillColor="#0D9488"
+                android:fillColor="#FFFFFF"
                 android:pathData="M 48,42 C 48,38.5 50.7,35.5 54,35.5 C 57.3,35.5 60,38.5 60,42 L 60,53 L 48,53 Z" />
 
-            <!-- Medical Cross on Upper Half (Pure White) -->
-            <!-- Vertical Bar -->
+            <!-- Center Hairline Divider Band -->
             <path
-                android:fillColor="#FFFFFF"
-                android:pathData="M 53,39 L 55,39 L 55,45.5 L 53,45.5 Z" />
-            <!-- Horizontal Bar -->
-            <path
-                android:fillColor="#FFFFFF"
-                android:pathData="M 50.5,41.2 L 57.5,41.2 L 57.5,43.3 L 50.5,43.3 Z" />
+                android:fillColor="#E2E8F0"
+                android:pathData="M 47.7,52 L 60.3,52 L 60.3,53.5 L 47.7,53.5 Z" />
 
-            <!-- Center Vibrant Cyan Divider Band -->
+            <!-- Lower Half: Pure Medical White / Soft Porcelain -->
             <path
-                android:fillColor="#38BDF8"
-                android:pathData="M 47.7,52 L 60.3,52 L 60.3,53.8 L 47.7,53.8 Z" />
-
-            <!-- Lower Half: Deep Ocean Sapphire Blue -->
-            <path
-                android:fillColor="#0284C7"
+                android:fillColor="#F8FAFC"
                 android:pathData="M 48,53.5 L 60,53.5 L 60,60 C 60,63.5 57.3,66.5 54,66.5 C 50.7,66.5 48,63.5 48,60 Z" />
 
-            <!-- Specular Glint on Lower Half -->
+            <!-- Crescent Symbol inside the Pill (Vibrant Clinical Teal extension from the shield) -->
             <path
-                android:fillColor="#38BDF8"
-                android:fillAlpha="0.45"
-                android:pathData="M 49.5,56 L 52,56 C 52,61 53,63 54,64 C 52,63.5 50.5,61.5 49.5,59 Z" />
+                android:fillColor="#0D9488"
+                android:pathData="M 54,39.5 C 51.2,40.2 50.8,45.8 54,46.5 C 52.4,45.0 52.4,41.0 54,39.5 Z" />
 
-            <!-- Capsule Perimeter Contour Line -->
+            <!-- Specular Highlight Curve on Pill Edge -->
             <path
-                android:strokeColor="#0F766E"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="0.8"
+                android:strokeAlpha="0.80"
+                android:strokeLineCap="round"
+                android:pathData="M 49.5,42 C 49.5,39.5 51.5,37 54,37" />
+
+            <!-- Capsule Perimeter Precision Contour Line -->
+            <path
+                android:strokeColor="#CBD5E1"
                 android:strokeWidth="0.7"
-                android:strokeAlpha="0.30"
+                android:strokeAlpha="0.60"
                 android:pathData="M 48,42 C 48,38.5 50.7,35.5 54,35.5 C 57.3,35.5 60,38.5 60,42 L 60,60 C 60,63.5 57.3,66.5 54,66.5 C 50.7,66.5 48,63.5 48,60 Z" />
         </group>
     </group>
