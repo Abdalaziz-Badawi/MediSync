@@ -652,6 +652,12 @@ class MainActivity : FlutterActivity() {
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
+        fun sanitizePdfText(input: String): String {
+            return input.replace(Regex("[\\p{So}\\p{Cn}\\uD83C-\\uDBFF\\uDC00-\\uDFFF]+"), "")
+                .replace(Regex("[\uFE00-\uFE0F]"), "")
+                .trim()
+        }
+
         val textPaint = Paint().apply {
             color = Color.parseColor("#0F172A")
             textSize = 9.5f
@@ -715,7 +721,8 @@ class MainActivity : FlutterActivity() {
 
         val lines = content.split("\n")
         for (line in lines) {
-            val trimmed = line.trim()
+            val rawTrimmed = line.trim()
+            val trimmed = sanitizePdfText(rawTrimmed)
 
             if (curY > 770f) {
                 pdfDocument.finishPage(page)
@@ -764,7 +771,7 @@ class MainActivity : FlutterActivity() {
             // Tables / Pipe rows
             if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
                 if (trimmed.contains("---")) continue
-                val cells = trimmed.split("|").filter { it.isNotBlank() }.map { it.trim().replace("**", "") }
+                val cells = trimmed.split("|").filter { it.isNotBlank() }.map { sanitizePdfText(it.trim().replace("**", "")) }
                 val colWidth = (520f / cells.size.coerceAtLeast(1))
                 val isHeader = trimmed.contains("Medication") || trimmed.contains("Clinical Tier")
                 for (idx in cells.indices) {

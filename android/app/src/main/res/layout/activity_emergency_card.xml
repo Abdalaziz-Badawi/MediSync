@@ -138,7 +138,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🩸 BLOOD TYPE"
+                            android:text="BLOOD TYPE"
                             android:textColor="#B91C1C"
                             android:textSize="10.5sp"
                             android:textStyle="bold" />
@@ -179,7 +179,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🫀 ORGAN DONOR"
+                            android:text="ORGAN DONOR"
                             android:textColor="#475569"
                             android:textSize="10.5sp"
                             android:textStyle="bold" />
@@ -221,7 +221,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🆔 NATIONAL HEALTH ID: "
+                        android:text="NATIONAL HEALTH ID: "
                         android:textColor="#475569"
                         android:textSize="11.5sp"
                         android:textStyle="bold" />
@@ -250,7 +250,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="⚠️ CRITICAL ALLERGIES &amp; CONTRAINDICATIONS"
+                        android:text="CRITICAL ALLERGIES &amp; CONTRAINDICATIONS"
                         android:textColor="#991B1B"
                         android:textSize="11.5sp"
                         android:textStyle="bold" />
@@ -297,7 +297,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🩺 CHRONIC CONDITIONS &amp; ORGAN RISKS:"
+                            android:text="CHRONIC CONDITIONS &amp; ORGAN RISKS:"
                             android:textColor="#0F766E"
                             android:textSize="10.5sp"
                             android:textStyle="bold" />
@@ -325,7 +325,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🏥 PAST SURGERIES &amp; PROCEDURES:"
+                            android:text="PAST SURGERIES &amp; PROCEDURES:"
                             android:textColor="#4338CA"
                             android:textSize="10.5sp"
                             android:textStyle="bold" />
@@ -353,7 +353,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="📑 PAST MEDICAL HISTORY / DISEASES:"
+                            android:text="PAST MEDICAL HISTORY / DISEASES:"
                             android:textColor="#0369A1"
                             android:textSize="10.5sp"
                             android:textStyle="bold" />
@@ -383,7 +383,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📋 CURRENT ACTIVE MEDICATIONS"
+                        android:text="CURRENT ACTIVE MEDICATIONS"
                         android:textColor="#1E293B"
                         android:textSize="11sp"
                         android:textStyle="bold" />
@@ -412,7 +412,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="⚠️ DISCONTINUED HIGH-RISK MEDICATIONS"
+                        android:text="DISCONTINUED HIGH-RISK MEDICATIONS"
                         android:textColor="#B45309"
                         android:textSize="11sp"
                         android:textStyle="bold" />
@@ -435,7 +435,7 @@
                     android:layout_height="46dp"
                     android:layout_marginTop="12dp"
                     android:background="@drawable/emergency_call_btn_bg"
-                    android:text="📞  CALL 112 (EMERGENCY)"
+                    android:text="CALL 112 (EMERGENCY)"
                     android:textColor="#FFFFFF"
                     android:textSize="13.5sp"
                     android:textStyle="bold" />

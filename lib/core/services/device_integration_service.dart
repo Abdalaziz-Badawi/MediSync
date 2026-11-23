@@ -577,13 +577,13 @@ class DeviceIntegrationService {
     }
   }
 
-  /// Programmatically renders a high-resolution (800x1100, 300 DPI) Emergency Health Card
+  /// Programmatically renders a high-resolution, squarish (1000x1050, 300 DPI) Emergency Health Card
   /// using Flutter Canvas & TextPainter, returning raw PNG/image bytes.
   Future<Uint8List> renderEmergencyCardBytes({
     required UserProfile profile,
     required List<Medication> medications,
-    double width = 800,
-    double height = 1100,
+    double width = 1000,
+    double height = 1050,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
@@ -592,6 +592,9 @@ class DeviceIntegrationService {
       Rect.fromLTWH(12, 12, width - 24, height - 24),
       const Radius.circular(24),
     );
+
+    final usableWidth = width - 80;
+    final boxWidth = (usableWidth - 20) / 2;
 
     // 1. Background (White Card Canvas)
     final bgPaint = Paint()..color = const Color(0xFFFFFFFF);
@@ -603,18 +606,18 @@ class DeviceIntegrationService {
 
     // 2. Emergency Header Banner (Red)
     final headerPaint = Paint()..color = const Color(0xFFDC2626);
-    canvas.drawRect(Rect.fromLTWH(12, 12, width - 24, 110), headerPaint);
+    canvas.drawRect(Rect.fromLTWH(12, 12, width - 24, 85), headerPaint);
 
     // Header Text
     _drawCanvasText(
       canvas: canvas,
-      text: '🚨 EMERGENCY MEDICAL ID & HEALTH PROFILE',
+      text: 'EMERGENCY MEDICAL ID & CLINICAL PROFILE',
       x: 36,
-      y: 32,
+      y: 22,
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 22,
-        fontWeight: FontWeight.w900,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
       ),
     );
@@ -622,17 +625,17 @@ class DeviceIntegrationService {
       canvas: canvas,
       text: 'OFFLINE VERIFIED • LIFESAVING CLINICAL DATA',
       x: 36,
-      y: 68,
+      y: 52,
       style: const TextStyle(
         color: Color(0xFFFEE2E2),
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.0,
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.8,
       ),
     );
 
     // 3. Patient Name & Primary Identity Grid
-    double curY = 145;
+    double curY = 114;
     _drawCanvasText(
       canvas: canvas,
       text: profile.name.toUpperCase(),
@@ -640,12 +643,13 @@ class DeviceIntegrationService {
       y: curY,
       style: const TextStyle(
         color: Color(0xFF0F172A),
-        fontSize: 28,
-        fontWeight: FontWeight.w900,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
       ),
     );
 
-    curY += 46;
+    curY += 34;
     final dobStr = profile.dateOfBirth != null
         ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
         : 'Not Specified';
@@ -659,154 +663,155 @@ class DeviceIntegrationService {
       y: curY,
       style: const TextStyle(
         color: Color(0xFF475569),
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
       ),
     );
 
-    curY += 34;
+    curY += 28;
 
     // Badges Row 1: Blood Type (Hero Box) & Organ Donor (Hero Box) (50/50 split)
     final bloodType = profile.bloodType ?? 'Unknown';
     final healthId = profile.healthId ?? 'None';
 
-    // Blood Type Hero Badge (Left 350px, Height 96px)
+    // Blood Type Hero Badge
     final bloodBgPaint = Paint()..color = const Color(0xFFFEF2F2);
     final bloodBorderPaint = Paint()
       ..color = const Color(0xFFDC2626)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 1.2;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 350, 96), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, boxWidth, 76), const Radius.circular(10)),
       bloodBgPaint,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 350, 96), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, boxWidth, 76), const Radius.circular(10)),
       bloodBorderPaint,
     );
     _drawCanvasText(
       canvas: canvas,
-      text: '🩸 BLOOD: $bloodType',
+      text: 'BLOOD GROUP: $bloodType',
       x: 54,
-      y: curY + 10,
+      y: curY + 8,
       style: const TextStyle(
         color: Color(0xFFB91C1C),
-        fontSize: 13,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
+        fontSize: 10.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.4,
       ),
     );
     _drawCanvasText(
       canvas: canvas,
       text: bloodType,
       x: 54,
-      y: curY + 32,
+      y: curY + 24,
       style: const TextStyle(
         color: Color(0xFFDC2626),
-        fontSize: 36,
-        fontWeight: FontWeight.w900,
-        letterSpacing: -0.5,
+        fontSize: 26,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
       ),
     );
     _drawCanvasText(
       canvas: canvas,
       text: 'TRANSFUSION VITAL',
       x: 54,
-      y: curY + 74,
+      y: curY + 56,
       style: const TextStyle(
         color: Color(0xFF991B1B),
-        fontSize: 10.5,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.5,
+        fontSize: 9,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.3,
       ),
     );
 
-    // Organ Donor Hero Badge (Right 350px, Height 96px)
+    // Organ Donor Hero Badge
+    final donorX = 40 + boxWidth + 20;
     final donorBgPaint = Paint()
       ..color = profile.isOrganDonor ? const Color(0xFFECFDF5) : const Color(0xFFF8FAFC);
     final donorBorderPaint = Paint()
       ..color = profile.isOrganDonor ? const Color(0xFF059669) : const Color(0xFFCBD5E1)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 1.2;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(410, curY, 350, 96), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(donorX, curY, boxWidth, 76), const Radius.circular(10)),
       donorBgPaint,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(410, curY, 350, 96), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(donorX, curY, boxWidth, 76), const Radius.circular(10)),
       donorBorderPaint,
     );
     _drawCanvasText(
       canvas: canvas,
-      text: '🫀 ORGAN DONOR',
-      x: 424,
-      y: curY + 10,
+      text: 'ORGAN DONOR STATUS',
+      x: donorX + 14,
+      y: curY + 8,
       style: const TextStyle(
         color: Color(0xFF475569),
-        fontSize: 13,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
+        fontSize: 10.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.4,
       ),
     );
     _drawCanvasText(
       canvas: canvas,
       text: profile.isOrganDonor ? 'YES' : 'NO',
-      x: 424,
-      y: curY + 34,
+      x: donorX + 14,
+      y: curY + 24,
       style: TextStyle(
         color: profile.isOrganDonor ? const Color(0xFF059669) : const Color(0xFF475569),
-        fontSize: 30,
-        fontWeight: FontWeight.w900,
-        letterSpacing: -0.5,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
       ),
     );
     _drawCanvasText(
       canvas: canvas,
       text: profile.isOrganDonor ? 'REGISTERED DONOR' : 'NOT REGISTERED',
-      x: 424,
-      y: curY + 74,
+      x: donorX + 14,
+      y: curY + 56,
       style: TextStyle(
         color: profile.isOrganDonor ? const Color(0xFF047857) : const Color(0xFF94A3B8),
-        fontSize: 10.5,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.5,
+        fontSize: 9,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.3,
       ),
     );
 
-    curY += 108;
+    curY += 88;
 
-    // Badges Row 2: Full-Width National Health ID Bar (720px wide, ZERO truncation)
+    // Badges Row 2: Full-Width National Health ID Bar
     final idBgPaint = Paint()..color = const Color(0xFFF1F5F9);
     final idBorderPaint = Paint()
-      ..color = const Color(0xFF94A3B8)
+      ..color = const Color(0xFFCBD5E1)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
+      ..strokeWidth = 1.0;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 720, 48), const Radius.circular(12)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, usableWidth, 40), const Radius.circular(10)),
       idBgPaint,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 720, 48), const Radius.circular(12)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, usableWidth, 40), const Radius.circular(10)),
       idBorderPaint,
     );
     _drawCanvasText(
       canvas: canvas,
-      text: '🆔 NATIONAL HEALTH ID: $healthId',
+      text: 'NATIONAL HEALTH ID: $healthId',
       x: 54,
-      y: curY + 14,
+      y: curY + 11,
       style: const TextStyle(
         color: Color(0xFF0F172A),
-        fontSize: 15,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.3,
       ),
     );
 
-    curY += 60;
+    curY += 50;
 
     // 4. Critical Red Flag Box (Allergies & Triggers)
     final allergiesStr = profile.allergies.isNotEmpty
-        ? profile.allergies.join('   ⚠️   ')
+        ? profile.allergies.join('   •   ')
         : 'NO KNOWN DRUG ALLERGIES (NKDA)';
     final hasAllergies = profile.allergies.isNotEmpty;
 
@@ -814,57 +819,58 @@ class DeviceIntegrationService {
     final alertBorder = Paint()
       ..color = hasAllergies ? const Color(0xFFDC2626) : const Color(0xFF16A34A)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2;
+      ..strokeWidth = 1.2;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 84), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, usableWidth, 74), const Radius.circular(11)),
       alertBg,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 84), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, usableWidth, 74), const Radius.circular(11)),
       alertBorder,
     );
 
     _drawCanvasText(
       canvas: canvas,
-      text: '⚠️ CRITICAL DRUG ALLERGIES & CONTRAINDICATIONS:',
-      x: 58,
-      y: curY + 12,
+      text: 'CRITICAL DRUG ALLERGIES & CONTRAINDICATIONS:',
+      x: 54,
+      y: curY + 10,
       style: TextStyle(
         color: hasAllergies ? const Color(0xFF991B1B) : const Color(0xFF166534),
-        fontSize: 12.5,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
       ),
     );
 
     _drawCanvasText(
       canvas: canvas,
       text: allergiesStr,
-      x: 58,
-      y: curY + 34,
+      x: 54,
+      y: curY + 30,
       style: TextStyle(
         color: hasAllergies ? const Color(0xFF7F1D1D) : const Color(0xFF14532D),
-        fontSize: 16,
-        fontWeight: FontWeight.w900,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
       ),
     );
 
     _drawCanvasText(
       canvas: canvas,
       text: hasAllergies
-          ? 'STOP • SEVERE ANAPHYLAXIS RISK • VERIFY BEFORE DRUG ADMINISTRATION'
-          : 'CONFIRMED CLEAR • NO ADVERSE DRUG REACTIONS REPORTED',
-      x: 58,
-      y: curY + 62,
+          ? 'Verify before administering medications'
+          : 'Confirmed Clear  •  No adverse drug reactions reported',
+      x: 54,
+      y: curY + 52,
       style: TextStyle(
         color: hasAllergies ? const Color(0xFFB91C1C) : const Color(0xFF15803D),
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.4,
+        fontSize: 9.5,
+        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.2,
       ),
     );
 
-    curY += 98;
+    curY += 86;
 
     // Chronic Conditions Box
     final conditionsStr = profile.chronicConditions.isNotEmpty
@@ -874,57 +880,57 @@ class DeviceIntegrationService {
     final condBorder = Paint()
       ..color = const Color(0xFFCBD5E1)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+      ..strokeWidth = 1.0;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 68), const Radius.circular(12)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, usableWidth, 60), const Radius.circular(10)),
       condBg,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 68), const Radius.circular(12)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, usableWidth, 60), const Radius.circular(10)),
       condBorder,
     );
 
     _drawCanvasText(
       canvas: canvas,
-      text: '🩺 CHRONIC CONDITIONS & ORGAN RISKS:',
-      x: 58,
-      y: curY + 12,
+      text: 'CHRONIC CONDITIONS & ORGAN RISKS:',
+      x: 54,
+      y: curY + 10,
       style: const TextStyle(
         color: Color(0xFF0F766E),
-        fontSize: 12,
-        fontWeight: FontWeight.w900,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
       ),
     );
 
     _drawCanvasText(
       canvas: canvas,
       text: conditionsStr,
-      x: 58,
-      y: curY + 36,
+      x: 54,
+      y: curY + 32,
       style: const TextStyle(
         color: Color(0xFF134E4A),
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
       ),
     );
 
-    curY += 86;
+    curY += 72;
 
     // 5. Active Medication Regimen Table
     _drawCanvasText(
       canvas: canvas,
-      text: '📋 ACTIVE MEDICATION REGIMEN',
+      text: 'ACTIVE PHARMACOTHERAPY & MEDICATION REGIMEN',
       x: 40,
       y: curY,
       style: const TextStyle(
         color: Color(0xFF0F172A),
-        fontSize: 17,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
       ),
     );
 
-    curY += 32;
+    curY += 26;
 
     final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
     if (activeMeds.isEmpty) {
@@ -935,11 +941,11 @@ class DeviceIntegrationService {
         y: curY,
         style: const TextStyle(
           color: Color(0xFF64748B),
-          fontSize: 14,
+          fontSize: 12,
           fontStyle: FontStyle.italic,
         ),
       );
-      curY += 40;
+      curY += 32;
     } else {
       for (int i = 0; i < activeMeds.length && i < 8; i++) {
         final med = activeMeds[i];
@@ -956,40 +962,40 @@ class DeviceIntegrationService {
           y: curY,
           style: const TextStyle(
             color: Color(0xFF1E293B),
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
         );
-        curY += 28;
+        curY += 24;
       }
     }
 
     // 6. Emergency Instructions & Footer
-    final footerY = height - 100;
-    final dividerPaint = Paint()..color = const Color(0xFFCBD5E1)..strokeWidth = 1.5;
+    final footerY = height - 80;
+    final dividerPaint = Paint()..color = const Color(0xFFE2E8F0)..strokeWidth = 1.0;
     canvas.drawLine(Offset(40, footerY), Offset(width - 40, footerY), dividerPaint);
 
     final nowStr = DateFormat('d MMM yyyy, HH:mm').format(DateTime.now());
     _drawCanvasText(
       canvas: canvas,
-      text: '⚕️ MediSync 100% Offline Medical Emergency Card  •  Verified on Device',
+      text: 'MediSync 100% Offline Medical Emergency Card  •  Verified on Device',
       x: 40,
-      y: footerY + 16,
+      y: footerY + 12,
       style: const TextStyle(
         color: Color(0xFF0D9488),
-        fontSize: 13,
-        fontWeight: FontWeight.w800,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
       ),
     );
     _drawCanvasText(
       canvas: canvas,
       text: 'Generated: $nowStr  •  Confidential Medical Record. In emergency, cross-reference allergies.',
       x: 40,
-      y: footerY + 40,
+      y: footerY + 32,
       style: const TextStyle(
         color: Color(0xFF64748B),
-        fontSize: 11.5,
-        fontWeight: FontWeight.w500,
+        fontSize: 10,
+        fontWeight: FontWeight.w400,
       ),
     );
 
@@ -999,7 +1005,7 @@ class DeviceIntegrationService {
     final borderPaint = Paint()
       ..color = const Color(0xFFCBD5E1)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 1.5;
     canvas.drawRRect(cardRRect, borderPaint);
 
     final picture = recorder.endRecording();
@@ -1035,8 +1041,163 @@ class DeviceIntegrationService {
       case ReportExportFormat.markdown:
         return generateContinuityReportMarkdown(medications: medications, profile: profile);
       case ReportExportFormat.pdf:
-        return generateContinuityReportMarkdown(medications: medications, profile: profile);
+        return generateContinuityReportFormalPdf(medications: medications, profile: profile);
     }
+  }
+
+  /// Generates a formal, hospital-grade printable continuity report for PDF export
+  /// with ZERO emojis, strict authoritative clinical headings, and structured tables.
+  String generateContinuityReportFormalPdf({
+    required List<Medication> medications,
+    required UserProfile profile,
+  }) {
+    final now = DateTime.now();
+    final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
+    final dayFmt = DateFormat('yyyy-MM-dd');
+
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    final discontinuedMeds = medications.where((m) => m.isDiscontinued).toList();
+    final significantDiscontinued = discontinuedMeds.where((m) => m.necessityLevel != NecessityLevel.low).toList();
+
+    final dobStr = profile.dateOfBirth != null
+        ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
+        : (profile.age != null ? 'Age ${profile.age}' : 'Not specified');
+    final ageStr = profile.age != null ? ' (${profile.age} yrs)' : '';
+    final bloodType = profile.bloodType ?? 'Unknown';
+    final healthId = profile.healthId ?? 'Not Registered';
+    final organDonorStr = profile.isOrganDonor ? 'YES (Registered Organ Donor)' : 'NO';
+
+    final buf = StringBuffer();
+    buf.writeln('# CLINICAL CONTINUITY RECORD & PATIENT HEALTH SUMMARY\n');
+    buf.writeln('> Patient Name: ${profile.name.toUpperCase()}  |  DOB: $dobStr$ageStr  |  Gender: ${profile.gender ?? "Not Recorded"}');
+    buf.writeln('> Blood Group: $bloodType  |  Organ Donor Status: $organDonorStr  |  National Health ID: $healthId');
+    buf.writeln('> Generated: ${dateFmt.format(now)}  |  Architecture: 100% On-Device Local Encrypted Storage (Offline Verified)\n');
+    buf.writeln('---\n');
+
+    // Section 1: Allergies & Contraindications
+    buf.writeln('## SECTION 1: ALLERGIES & ADVERSE DRUG CONTRAINDICATIONS\n');
+    if (profile.allergies.isEmpty) {
+      buf.writeln('* Confirmed Clear: No Known Drug Allergies (NKDA) reported by patient.\n');
+    } else {
+      for (final a in profile.allergies) {
+        buf.writeln('* [CRITICAL CONTRAINDICATION] ALLERGY TRIGGER: $a (Severe adverse risk)');
+      }
+      buf.writeln();
+    }
+
+    // Section 2: Surgeries & Medical History
+    buf.writeln('## SECTION 2: SURGICAL HISTORY & DIAGNOSED CHRONIC CONDITIONS\n');
+    if (profile.pastSurgeries.isEmpty && profile.medicalHistory.isEmpty && profile.chronicConditions.isEmpty) {
+      buf.writeln('* No previous surgeries, chronic diseases, or medical conditions recorded.\n');
+    } else {
+      if (profile.pastSurgeries.isNotEmpty) {
+        buf.writeln('### Previous Surgical Procedures & Operations:');
+        for (final s in profile.pastSurgeries) {
+          buf.writeln('* [PROCEDURE] $s');
+        }
+        buf.writeln();
+      }
+      if (profile.medicalHistory.isNotEmpty) {
+        buf.writeln('### Past Medical History & Resolved Conditions:');
+        for (final h in profile.medicalHistory) {
+          buf.writeln('* [PAST DIAGNOSIS] $h');
+        }
+        buf.writeln();
+      }
+      if (profile.chronicConditions.isNotEmpty) {
+        buf.writeln('### Active Diagnosed Chronic Conditions & Organ Risks:');
+        for (final c in profile.chronicConditions) {
+          buf.writeln('* [CHRONIC CONDITION] $c');
+        }
+        buf.writeln();
+      }
+    }
+
+    // Section 3: Active Medications Table
+    buf.writeln('## SECTION 3: ACTIVE PHARMACOTHERAPY & MEDICATION SCHEDULE\n');
+    if (activeMeds.isEmpty) {
+      buf.writeln('*No active regularly scheduled medications recorded.*\n');
+    } else {
+      buf.writeln('| Medication | Dosage | Form | Clinical Tier | Schedule | Started | Adherence |');
+      buf.writeln('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
+
+      for (final med in activeMeds) {
+        final stats = med.continuityStats;
+        final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
+        final onTimePct = totalDoses > 0
+            ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
+            : 'N/A';
+        final tier = med.necessityLevel.label.toUpperCase();
+        buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | $tier | ${med.frequencyDisplay} | ${dayFmt.format(med.startDate)} | $onTimePct% |');
+      }
+      buf.writeln();
+
+      buf.writeln('### Regimen Clinical Profiles & Intake Parameters:\n');
+      for (final med in activeMeds) {
+        final stats = med.continuityStats;
+        final lastTaken = med.lastTakenDateTime != null ? dateFmt.format(med.lastTakenDateTime!) : 'No dose recorded';
+
+        buf.writeln('#### ${med.name} (${med.dosage}, ${med.form.name.toUpperCase()})');
+        buf.writeln('- Clinical Necessity Tier: ${med.necessityLevel.label} (${med.necessityLevel.description})');
+        buf.writeln('- Administration Schedule: ${med.frequencyDisplay} (Scheduled at: ${med.scheduledTimes.join(", ")})');
+        buf.writeln('- Treatment Started: ${dayFmt.format(med.startDate)}  |  Last Dose Taken: $lastTaken');
+        buf.writeln('- Intake History Breakdown: Taken On Time: ${stats["taken"]} | Taken Delayed: ${stats["delayed"]} | Missed Window: ${stats["missed"]} | PRN Not Needed: ${stats["notNeeded"]}');
+
+        if (med.foodRestrictions.isNotEmpty) {
+          buf.writeln('- Dietary & Food Restrictions: ${med.foodRestrictions.join("; ")}');
+        }
+        if (med.doctorNotes != null && med.doctorNotes!.isNotEmpty) {
+          buf.writeln('- Attending Physician Orders: ${med.doctorNotes}');
+        }
+        buf.writeln();
+      }
+    }
+
+    // Section 4: Discontinued Medications (Clinically Significant)
+    buf.writeln('## SECTION 4: DISCONTINUED MEDICATIONS (WASHOUT & WITHDRAWAL EVALUATION)\n');
+    if (significantDiscontinued.isEmpty) {
+      buf.writeln('*No clinically significant discontinued medications recorded.*\n');
+    } else {
+      buf.writeln('CLINICAL ADVISORY: The following medications were previously prescribed and discontinued. Attending clinical teams must evaluate drug elimination half-lives, drug-drug washout periods, and withdrawal rebound risks.\n');
+
+      buf.writeln('| Medication | Dosage | Form | Clinical Tier | Discontinued On | Time Elapsed | Last Dose Taken | Warning / Clinical Reason |');
+      buf.writeln('| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
+
+      for (final med in significantDiscontinued) {
+        final discDate = med.discontinuedDate != null ? dayFmt.format(med.discontinuedDate!) : 'Recorded';
+        String timeAgo = '';
+        if (med.discontinuedDate != null) {
+          final days = now.difference(med.discontinuedDate!).inDays;
+          timeAgo = days <= 0 ? 'Today' : (days == 1 ? '1 day ago' : '$days days ago');
+        }
+        final lastTaken = med.lastTakenDateTime != null ? dateFmt.format(med.lastTakenDateTime!) : 'No dose recorded';
+        final reason = med.skipConsequences ?? med.discontinuationReason ?? 'Discontinued by patient';
+
+        buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | ${med.necessityLevel.label.toUpperCase()} | $discDate | $timeAgo | $lastTaken | $reason |');
+      }
+      buf.writeln();
+    }
+
+    // Section 5: Detailed Chronological Intake Logs
+    buf.writeln('## SECTION 5: CHRONOLOGICAL MEDICATION INTAKE AUDIT LOG\n');
+    final allMedsWithLogs = medications.where((m) => m.doseLog.isNotEmpty).toList();
+    if (allMedsWithLogs.isEmpty) {
+      buf.writeln('*No individual dose timestamps recorded yet.*\n');
+    } else {
+      for (final med in allMedsWithLogs) {
+        buf.writeln('### ${med.name} (${med.dosage}) ${med.isDiscontinued ? "[DISCONTINUED]" : ""}');
+        final sortedKeys = med.doseLog.keys.toList()..sort((a, b) => b.compareTo(a));
+        for (final dateKey in sortedKeys.take(7)) {
+          final entries = med.doseLog[dateKey]!.map((e) => formatDoseLogEntry(e, formal: true)).join(', ');
+          buf.writeln('- $dateKey: $entries');
+        }
+        buf.writeln();
+      }
+    }
+
+    buf.writeln('---\n');
+    buf.writeln('Confidential Medical Record: Generated 100% on-device by MediSync with zero external network transmission.');
+    return buf.toString();
   }
 
   /// Generates a Markdown (.md) formatted Clinical Continuity Record with GFM styling.
@@ -1418,7 +1579,7 @@ class DeviceIntegrationService {
   }
 
   /// Formats raw dose log entries (e.g. "08:00:taken") into human-friendly clinical labels
-  static String formatDoseLogEntry(String raw) {
+  static String formatDoseLogEntry(String raw, {bool formal = false}) {
     final parts = raw.split(':');
     if (parts.length < 3) return raw;
     final timeStr = '${parts[0]}:${parts[1]}';
@@ -1427,16 +1588,16 @@ class DeviceIntegrationService {
     switch (statusStr) {
       case 'taken':
       case 'takenearly':
-        label = 'Taken On Time ✅';
+        label = formal ? 'Taken On Time' : 'Taken On Time ✅';
         break;
       case 'delayed':
-        label = 'Taken Delayed ⏰';
+        label = formal ? 'Taken Delayed' : 'Taken Delayed ⏰';
         break;
       case 'missed':
-        label = 'Missed Window ❌';
+        label = formal ? 'Missed Window' : 'Missed Window ❌';
         break;
       case 'notneeded':
-        label = 'Not Needed (PRN) ⚪';
+        label = formal ? 'Not Needed (PRN)' : 'Not Needed (PRN) ⚪';
         break;
       default:
         label = statusStr;

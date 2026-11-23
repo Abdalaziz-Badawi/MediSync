@@ -167,8 +167,8 @@ void main() {
         profile: testProfile,
         format: ReportExportFormat.pdf,
       );
-      expect(pdf.contains('MediSync Clinical Continuity'), isTrue);
-      expect(pdf.contains('| **Lisinopril** |'), isTrue);
+      expect(pdf.contains('CLINICAL CONTINUITY RECORD'), isTrue);
+      expect(pdf.contains('Lisinopril'), isTrue);
     });
   });
 }

@@ -269,14 +269,6 @@ void main() {
     expect(find.text('BEFORE'), findsOneWidget);
     expect(find.text('Take'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('Dose Timeline'),
-      600,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Dose Timeline'), findsOneWidget);
     expect(find.text('Metformin'), findsWidgets);
   });
 

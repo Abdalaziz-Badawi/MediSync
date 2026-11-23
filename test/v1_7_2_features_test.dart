@@ -312,15 +312,13 @@ void main() {
       expect(find.text('Drink full glass of water'), findsOneWidget);
       expect(find.text('Take'), findsOneWidget);
 
-      // Tap Take button to verify that interactive status options sheet opens seamlessly
+      // Tap Take button to verify that interactive timing verification reminder appears
       await tester.tap(find.text('Take').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Record Dose: Lisinopril (23:59)'), findsOneWidget);
-      expect(find.text('Taken On Time'), findsOneWidget);
-      expect(find.text('Taken Early'), findsOneWidget);
-      expect(find.text('Taken Delayed / Late'), findsOneWidget);
-      expect(find.text('Missed Window'), findsOneWidget);
+      expect(find.text('Early Dose Reminder'), findsOneWidget);
+      expect(find.text('Take Early Now'), findsOneWidget);
+      expect(find.text('Wait Until Time'), findsOneWidget);
     });
 
     test('Zero-PIN persistent lockscreen notification is dispatched with patient emergency data', () async {

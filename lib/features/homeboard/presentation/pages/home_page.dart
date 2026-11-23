@@ -405,12 +405,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     final selectedDayDoses = <DoseItem>[];
     for (final med in medications) {
       if (!med.isDiscontinued && med.isActiveOn(_selectedDate)) {
-        for (final time in med.scheduledTimes) {
-          selectedDayDoses.add(DoseItem(
-            medication: med,
-            time: time,
-            status: med.getDoseStatus(_selectedDate, time),
-          ));
+        if (med.scheduleFrequency != ScheduleFrequency.asNeeded) {
+          for (final time in med.scheduledTimes) {
+            selectedDayDoses.add(DoseItem(
+              medication: med,
+              time: time,
+              status: med.getDoseStatus(_selectedDate, time),
+            ));
+          }
         }
       } else if (med.isDiscontinued) {
         // Discontinued medication: NEVER show pending or delayed doses on the schedule.
@@ -431,12 +433,29 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Sort chronologically by time
     selectedDayDoses.sort((a, b) => a.time.compareTo(b.time));
 
-    final totalDoses = selectedDayDoses.length;
-    final takenCount = selectedDayDoses.where((d) => d.status == DoseStatus.taken || d.status == DoseStatus.takenEarly).length;
+    final prnMeds = medications.where((m) => m.scheduleFrequency == ScheduleFrequency.asNeeded && !m.isDiscontinued).toList();
+    final todayKey = "${_selectedDate.year.toString().padLeft(4, '0')}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    final unloggedPrnMeds = prnMeds.where((m) {
+      final logs = m.doseLog[todayKey] ?? [];
+      return logs.isEmpty;
+    }).toList();
+
+    int prnTakenCount = 0;
+    int prnNotNeededCount = 0;
+    for (final med in prnMeds) {
+      final logs = med.doseLog[todayKey] ?? [];
+      prnTakenCount += logs.where((e) => !e.endsWith(':missed') && !e.endsWith(':notNeeded') && !e.endsWith(':not_needed')).length;
+      if (logs.any((e) => e.endsWith(':notNeeded') || e.endsWith(':not_needed'))) {
+        prnNotNeededCount++;
+      }
+    }
+
+    final totalDoses = selectedDayDoses.length + prnMeds.length;
+    final takenCount = selectedDayDoses.where((d) => d.status == DoseStatus.taken || d.status == DoseStatus.takenEarly).length + prnTakenCount;
     final delayedCount = selectedDayDoses.where((d) => d.status == DoseStatus.delayed).length;
     final missedCount = selectedDayDoses.where((d) => d.status == DoseStatus.missed).length;
-    final notNeededCount = selectedDayDoses.where((d) => d.status == DoseStatus.notNeeded).length;
-    final pendingCount = selectedDayDoses.where((d) => d.status == DoseStatus.pending).length;
+    final notNeededCount = selectedDayDoses.where((d) => d.status == DoseStatus.notNeeded).length + prnNotNeededCount;
+    final pendingCount = selectedDayDoses.where((d) => d.status == DoseStatus.pending).length + unloggedPrnMeds.length;
     final progress = totalDoses == 0 ? 0.0 : ((takenCount + delayedCount + notNeededCount) / totalDoses).clamp(0.0, 1.0);
     final nextPendingDose = selectedDayDoses.where((d) => !d.medication.isDiscontinued && d.status == DoseStatus.pending).firstOrNull;
 
@@ -604,7 +623,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             profile: profile,
           ),
           const SizedBox(height: 20),
-          const SizedBox(height: 20),
+
+          // 4. End-of-Day As-Needed (PRN) Check Banner (Triggered in evening/night for unlogged PRNs)
+          if (isToday && unloggedPrnMeds.isNotEmpty && (now.hour >= 17 || now.hour < 4)) ...[
+            _buildEndOfDayPrnCheckBanner(context, unloggedPrnMeds),
+            const SizedBox(height: 20),
+          ],
 
           // 5. Smart Companion Meal Coordination Banner
           if (mealLinkedDoses.isNotEmpty) ...[
@@ -612,13 +636,19 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 20),
           ],
 
-          // 6. Timeline Header
+          // 6. As-Needed (PRN) Medications Section
+          if (prnMeds.isNotEmpty) ...[
+            _buildPrnMedicationsSection(context, prnMeds, isToday, _selectedDate),
+            const SizedBox(height: 20),
+          ],
+
+          // 7. Scheduled Routine Timeline Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
-                  'Dose Timeline',
+                  'Scheduled Routine Timeline',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -806,6 +836,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   newStatus,
                                 );
                           },
+                          onEvaluateIntake: (status) {
+                            _evaluateDoseIntakeTiming(
+                              context: context,
+                              dose: dose,
+                              date: _selectedDate,
+                              onUpdateStatus: (newStatus) {
+                                ref
+                                    .read(medicationsNotifierProvider.notifier)
+                                    .setDoseStatus(
+                                      dose.medication.id,
+                                      _selectedDate,
+                                      dose.time,
+                                      newStatus,
+                                    );
+                              },
+                            );
+                          },
                         ),
                       const SizedBox(height: 8),
                     ],
@@ -873,6 +920,847 @@ class _HomePageState extends ConsumerState<HomePage> {
       final days = diff.inDays;
       final hours = diff.inHours % 24;
       return 'In ${days}d ${hours}h';
+    }
+  }
+
+  void _showLockedToast(BuildContext context, bool isFuture) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isFuture
+                    ? 'Future dates are locked. Doses can only be logged on today\'s schedule.'
+                    : 'Past records are locked. Historical records are view-only.',
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppTheme.textPrimary(context),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Evaluates clinical dosing timing when marking a dose:
+  /// - Too early (>45m ahead): reminds user of premature peak plasma levels / overlap risk.
+  /// - Conflict window with next dose: warns against dangerous double-dosing / dose stacking.
+  /// - Delayed (>45m late): confirms whether taken delayed now or taken earlier on time.
+  void _evaluateDoseIntakeTiming({
+    required BuildContext context,
+    required DoseItem dose,
+    required DateTime date,
+    required ValueChanged<DoseStatus> onUpdateStatus,
+  }) {
+    final now = DateTime.now();
+    final isToday = _isSameDay(date, now);
+
+    if (!isToday) {
+      _showLockedToast(context, date.isAfter(now));
+      return;
+    }
+
+    final doseDateTime = _parseDoseDateTime(date, dose.time);
+    final diffMinutes = now.difference(doseDateTime).inMinutes;
+
+    // 1. Too Early Check (More than 45 minutes early)
+    if (diffMinutes < -45) {
+      final earlyDuration = doseDateTime.difference(now);
+      final h = earlyDuration.inHours;
+      final m = earlyDuration.inMinutes % 60;
+      final earlyStr = h > 0
+          ? '$h hour${h > 1 ? "s" : ""}${m > 0 ? " $m min" : ""}'
+          : '$m minutes';
+
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            backgroundColor: AppTheme.cardColor(ctx),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(Icons.alarm_on_rounded, color: Theme.of(ctx).colorScheme.primary, size: 24),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Early Dose Reminder',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'It is currently $earlyStr earlier than scheduled (scheduled at ${dose.time}).',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                    color: AppTheme.textPrimary(ctx),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Taking doses significantly ahead of schedule may cause premature drug concentration spikes and shorten the safe separation interval from your previous dose.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary(ctx),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Do you still want to take this medication now, or wait until its scheduled time?',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary(ctx),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Wait Until Time'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  onUpdateStatus(DoseStatus.takenEarly);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✓ ${dose.medication.name} recorded as Taken Early!'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const Text('Take Early Now'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    // 2. Delayed Check (> 45 minutes late)
+    if (diffMinutes > 45) {
+      // Check for conflict with next dose of this medication
+      final allTimes = List<String>.from(dose.medication.scheduledTimes)..sort();
+      final idx = allTimes.indexOf(dose.time);
+      String? nextDoseTime;
+      if (idx != -1 && idx + 1 < allTimes.length) {
+        nextDoseTime = allTimes[idx + 1];
+      }
+
+      int minutesToNext = 9999;
+      if (nextDoseTime != null) {
+        final nextDoseDt = _parseDoseDateTime(date, nextDoseTime);
+        minutesToNext = nextDoseDt.difference(now).inMinutes;
+      }
+
+      // If conflicting window with next dose (< 3 hours / 180 minutes to next dose)
+      if (nextDoseTime != null && minutesToNext <= 180 && minutesToNext > 0) {
+        final remainingHoursStr = (minutesToNext / 60).toStringAsFixed(1);
+        showDialog(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              backgroundColor: AppTheme.cardColor(ctx),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.dangerous_rounded, color: Color(0xFFDC2626), size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Dose Conflict Warning',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFEF4444)),
+                    ),
+                    child: Text(
+                      'Warning: Taking this dose now is dangerously close to your next scheduled dose at $nextDoseTime (only $remainingHoursStr hours away).',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF991B1B),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Clinical safety guidelines advise against double-dosing or taking doses in close proximity to prevent toxicity and dose stacking.\n\nDid you take this earlier near ${dose.time} and are just recording it now, or did you miss the intake window?',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary(ctx),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    onUpdateStatus(DoseStatus.taken);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✓ Recorded ${dose.medication.name} as Taken Earlier near ${dose.time}'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Text('Took Earlier Near ${dose.time}'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    onUpdateStatus(DoseStatus.missed);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Recorded as Missed Window (Avoided double-dose risk)'),
+                        backgroundColor: Color(0xFFDC2626),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: const Text('Missed Window (Skip)'),
+                ),
+              ],
+            );
+          },
+        );
+        return;
+      }
+
+      // Normal Delayed check (> 45 mins late, but safe spacing from next dose)
+      final delayedHours = (diffMinutes / 60).floor();
+      final delayedMins = diffMinutes % 60;
+      final delayedStr = delayedHours > 0
+          ? '$delayedHours hour${delayedHours > 1 ? "s" : ""}${delayedMins > 0 ? " $delayedMins min" : ""}'
+          : '$delayedMins minutes';
+
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            backgroundColor: AppTheme.cardColor(ctx),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.schedule_rounded, color: Color(0xFFD97706), size: 24),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Delayed Dose Confirmation',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Scheduled for ${dose.time} ($delayedStr ago).',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                    color: AppTheme.textPrimary(ctx),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Did you take it just now, or did you take it earlier near ${dose.time} and are just recording it now?',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary(ctx),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  onUpdateStatus(DoseStatus.taken);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✓ Recorded ${dose.medication.name} as Taken Earlier near ${dose.time}'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const Text('Took Earlier (On Time)'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD97706),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  onUpdateStatus(DoseStatus.delayed);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('⏱ Recorded ${dose.medication.name} as Taken Delayed'),
+                      backgroundColor: const Color(0xFFD97706),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const Text('Took Just Now (Delayed)'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    // 3. On-Time Normal Intake (-45 <= diffMinutes <= 45)
+    onUpdateStatus(DoseStatus.taken);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✓ Marked ${dose.medication.name} as Taken On Time!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// As-Needed (PRN) End-of-Day Check Banner (Displayed in evening/night for unlogged PRNs)
+  Widget _buildEndOfDayPrnCheckBanner(BuildContext context, List<Medication> unloggedPrns) {
+    final isDark = AppTheme.isDark(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? const Color(0xFF0D9488) : const Color(0xFF14B8A6),
+          width: 1.4,
+        ),
+        boxShadow: AppTheme.glowShadow(const Color(0xFF0D9488), opacity: 0.15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.nightlight_round, color: Color(0xFF0D9488), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'End-of-Day As-Needed (PRN) Check',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Evening Review',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D9488),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Did you need to take any of your as-needed medications today, or were you symptom-free?',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context), height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          for (final med in unloggedPrns) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.cardBorder(context)),
+              ),
+              child: Row(
+                children: [
+                  Icon(med.icon, size: 20, color: med.categoryColor),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          med.name,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary(context),
+                          ),
+                        ),
+                        Text(
+                          '${med.dosage} • Up to ${med.timesPerDay} dose${med.timesPerDay > 1 ? "s" : ""}/day',
+                          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      _logPrnDose(med, DateTime.now(), DoseStatus.notNeeded);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✓ ${med.name} logged as Not Needed today (Symptom-free)'),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: const Text('Not Needed', style: TextStyle(fontSize: 11.5)),
+                  ),
+                  const SizedBox(width: 6),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      _promptPrnDoseTime(med, DateTime.now());
+                    },
+                    child: const Text('Took Dose', style: TextStyle(fontSize: 11.5)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// As-Needed (PRN) Medications Section on Homeboard
+  Widget _buildPrnMedicationsSection(
+    BuildContext context,
+    List<Medication> prnMeds,
+    bool isToday,
+    DateTime selectedDate,
+  ) {
+    final isDark = AppTheme.isDark(context);
+    final dateKey = "${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.healing_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'As-Needed (PRN) Medications',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceVariant(context),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.cardBorder(context)),
+              ),
+              child: Text(
+                'Symptom-Driven',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textSecondary(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Taken on-demand when symptoms arise. Not restricted by rigid clock times.',
+          style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary(context)),
+        ),
+        const SizedBox(height: 10),
+        for (final med in prnMeds) ...[
+          Builder(
+            builder: (ctx) {
+              final logs = med.doseLog[dateKey] ?? [];
+              final takenLogs = logs.where((e) => !e.endsWith(':missed') && !e.endsWith(':notNeeded') && !e.endsWith(':not_needed')).toList();
+              final isNotNeeded = logs.any((e) => e.endsWith(':notNeeded') || e.endsWith(':not_needed'));
+              final takenCount = takenLogs.length;
+              final maxDoses = med.timesPerDay;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardColor(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isNotNeeded
+                        ? (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))
+                        : (takenCount > 0 ? (isDark ? const Color(0xFF047857) : const Color(0xFF6EE7B7)) : AppTheme.cardBorder(context)),
+                    width: (takenCount > 0 || isNotNeeded) ? 1.4 : 1,
+                  ),
+                  boxShadow: AppTheme.softShadow(context),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: med.categoryColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(med.icon, color: med.categoryColor, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                med.name,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary(context),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${med.dosage} • ${med.form.name} • Max $maxDoses dose${maxDoses > 1 ? "s" : ""}/day',
+                                style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary(context)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isNotNeeded) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.cardBorder(context)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_rounded, size: 12, color: AppTheme.textSecondary(context)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Not Needed Today',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textSecondary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else if (takenCount > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$takenCount / $maxDoses Taken',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (med.doctorNotes != null && med.doctorNotes!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Indication: ${med.doctorNotes}',
+                        style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.textMuted(context)),
+                      ),
+                    ],
+                    if (isToday) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (!isNotNeeded && takenCount == 0) ...[
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                _logPrnDose(med, selectedDate, DoseStatus.notNeeded);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('✓ Marked ${med.name} as Not Needed today (Symptom-free)'),
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.remove_circle_outline_rounded, size: 14),
+                              label: const Text('Not Needed', style: TextStyle(fontSize: 11.5)),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () {
+                              _handleTakePrnDose(med, selectedDate, takenCount, maxDoses, takenLogs);
+                            },
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: Text(
+                              takenCount == 0 ? 'Take PRN Dose' : 'Take Another Dose ($takenCount/$maxDoses)',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _handleTakePrnDose(
+    Medication med,
+    DateTime date,
+    int takenCount,
+    int maxDoses,
+    List<String> takenLogs,
+  ) {
+    final now = DateTime.now();
+
+    // 1. Daily Cap Check
+    if (takenCount >= maxDoses) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.cardColor(ctx),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFEA580C), size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Daily Limit Reached', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          content: Text(
+            'You have already logged $takenCount dose${takenCount > 1 ? "s" : ""} today, which is the maximum safe daily limit ($maxDoses dose${maxDoses > 1 ? "s" : ""} in 24 hours) for ${med.name}.\n\nTaking additional doses may lead to adverse effects or toxicity. Please contact your physician or pharmacist before taking more.',
+            style: const TextStyle(fontSize: 12.5, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // 2. Minimum Spacing Interval Check (if taken within last 4 hours)
+    if (takenLogs.isNotEmpty) {
+      final lastLog = takenLogs.last;
+      final parts = lastLog.split(':');
+      if (parts.length >= 2) {
+        final lastH = int.tryParse(parts[0]) ?? 0;
+        final lastM = int.tryParse(parts[1]) ?? 0;
+        final lastTime = DateTime(date.year, date.month, date.day, lastH, lastM);
+        final diffHours = now.difference(lastTime).inMinutes / 60.0;
+        if (diffHours < 4.0 && diffHours >= 0) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: AppTheme.cardColor(ctx),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.schedule_rounded, color: Color(0xFFD97706), size: 24),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Interval Separation Warning', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              content: Text(
+                'Your previous dose of ${med.name} was logged at ${parts[0]}:${parts[1]} (${diffHours.toStringAsFixed(1)} hours ago).\n\nClinical guidelines recommend spacing PRN doses at least 4 to 6 hours apart to prevent drug accumulation.\n\nDo you still need to log this dose now?',
+                style: const TextStyle(fontSize: 12.5, height: 1.4),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel / Wait'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _logPrnDose(med, date, DoseStatus.taken);
+                  },
+                  child: const Text('Confirm Intake Now'),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    // Normal PRN intake
+    _logPrnDose(med, date, DoseStatus.taken);
+  }
+
+  void _logPrnDose(Medication med, DateTime date, DoseStatus status) {
+    final now = DateTime.now();
+    final timeStr = status == DoseStatus.notNeeded ? 'PRN' : DateFormat('HH:mm').format(now);
+    ref.read(medicationsNotifierProvider.notifier).setDoseStatus(
+      med.id,
+      date,
+      timeStr,
+      status,
+    );
+    if (status == DoseStatus.taken) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✓ Logged ${med.name} dose at $timeStr'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _promptPrnDoseTime(Medication med, DateTime date) async {
+    final now = DateTime.now();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+    );
+    if (pickedTime != null) {
+      final hh = pickedTime.hour.toString().padLeft(2, '0');
+      final mm = pickedTime.minute.toString().padLeft(2, '0');
+      final timeStr = '$hh:$mm';
+      ref.read(medicationsNotifierProvider.notifier).setDoseStatus(
+        med.id,
+        date,
+        timeStr,
+        DoseStatus.taken,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Logged ${med.name} dose at $timeStr'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -1158,9 +2046,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () {
-                    showDoseIntakeStatusPicker(
+                    _evaluateDoseIntakeTiming(
                       context: context,
                       dose: nextPendingDose,
+                      date: _selectedDate,
                       onUpdateStatus: (newStatus) {
                         ref
                             .read(medicationsNotifierProvider.notifier)
@@ -1843,6 +2732,7 @@ void showDoseIntakeStatusPicker({
   required BuildContext context,
   required DoseItem dose,
   required ValueChanged<DoseStatus> onUpdateStatus,
+  void Function(DoseStatus)? onEvaluateIntake,
 }) {
   final isDark = AppTheme.isDark(context);
   final med = dose.medication;
@@ -1896,6 +2786,7 @@ void showDoseIntakeStatusPicker({
                 icon: Icons.check_circle_rounded,
                 color: isDark ? AppTheme.successGreenLight : AppTheme.successGreen,
                 onUpdateStatus: onUpdateStatus,
+                onEvaluateIntake: onEvaluateIntake,
                 dose: dose,
               ),
               const SizedBox(height: 8),
@@ -1977,6 +2868,7 @@ Widget _buildIntakeStatusOption({
   required IconData icon,
   required Color color,
   required ValueChanged<DoseStatus> onUpdateStatus,
+  void Function(DoseStatus)? onEvaluateIntake,
   required DoseItem dose,
 }) {
   final isSelected = currentStatus == status;
@@ -1991,6 +2883,9 @@ Widget _buildIntakeStatusOption({
           scheduledTime: dose.time,
           onSelectStatus: onUpdateStatus,
         );
+      } else if (status == DoseStatus.taken && onEvaluateIntake != null) {
+        Navigator.pop(ctx);
+        onEvaluateIntake(DoseStatus.taken);
       } else {
         onUpdateStatus(status);
         Navigator.pop(ctx);
@@ -2228,12 +3123,14 @@ class _DoseTimelineCard extends ConsumerWidget {
   final DateTime date;
   final bool isLocked;
   final ValueChanged<DoseStatus> onUpdateStatus;
+  final void Function(DoseStatus)? onEvaluateIntake;
 
   const _DoseTimelineCard({
     required this.dose,
     required this.date,
     this.isLocked = false,
     required this.onUpdateStatus,
+    this.onEvaluateIntake,
   });
 
   void _showStatusPicker(BuildContext context) {
@@ -2241,6 +3138,7 @@ class _DoseTimelineCard extends ConsumerWidget {
       context: context,
       dose: dose,
       onUpdateStatus: onUpdateStatus,
+      onEvaluateIntake: onEvaluateIntake,
     );
   }
 
@@ -2337,14 +3235,18 @@ class _DoseTimelineCard extends ConsumerWidget {
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Swipe Right: Mark Taken
-          onUpdateStatus(DoseStatus.taken);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✓ ${med.name} marked as Taken!'),
-              duration: const Duration(seconds: 2),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-          );
+          if (onEvaluateIntake != null) {
+            onEvaluateIntake!(DoseStatus.taken);
+          } else {
+            onUpdateStatus(DoseStatus.taken);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✓ ${med.name} marked as Taken!'),
+                duration: const Duration(seconds: 2),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          }
         } else {
           // Swipe Left: Show status options (Missed / Delayed)
           _showStatusPicker(context);

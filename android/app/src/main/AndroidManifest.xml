@@ -74,6 +74,9 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/medisync_widget_info" />
+            <meta-data
+                android:name="com.samsung.android.appwidget.provider"
+                android:resource="@xml/medisync_widget_info" />
         </receiver>
 
         <receiver
@@ -85,6 +88,9 @@
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
+                android:resource="@xml/medisync_emergency_button_widget_info" />
+            <meta-data
+                android:name="com.samsung.android.appwidget.provider"
                 android:resource="@xml/medisync_emergency_button_widget_info" />
         </receiver>
 

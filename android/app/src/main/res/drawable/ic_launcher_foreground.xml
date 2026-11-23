@@ -5,6 +5,13 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- Scaled Central Medical Emblem (72% scale with generous background padding mirroring WhatsApp, Google Messages, Bluesky) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+
     <!-- 1. Shield Drop Shadow for 3D Depth (Layered Offset) -->
     <path
         android:fillColor="#000000"
@@ -106,4 +113,5 @@
     <path
         android:fillColor="#38BDF8"
         android:pathData="M 72,31.5 m -1.8,0 a 1.8,1.8 0 1,0 3.6,0 a 1.8,1.8 0 1,0 -3.6,0" />
+    </group>
 </vector>
