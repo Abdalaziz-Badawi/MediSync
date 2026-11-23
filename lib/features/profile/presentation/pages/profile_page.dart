@@ -25,6 +25,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late TextEditingController _healthIdController;
   late TextEditingController _weightController;
   late TextEditingController _heightController;
+  late TextEditingController _addressController;
+  late TextEditingController _emergencyContactNameController;
+  late TextEditingController _emergencyContactPhoneController;
+  late TextEditingController _emergencyContactRelationController;
   DateTime? _dateOfBirth;
 
   late String _avatarId;
@@ -127,6 +131,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         TextEditingController(text: profile.weightKg?.toString() ?? '');
     _heightController =
         TextEditingController(text: profile.heightCm?.toString() ?? '');
+    _addressController = TextEditingController(text: profile.address ?? '');
+    _emergencyContactNameController =
+        TextEditingController(text: profile.emergencyContactName ?? '');
+    _emergencyContactPhoneController =
+        TextEditingController(text: profile.emergencyContactPhone ?? '');
+    _emergencyContactRelationController =
+        TextEditingController(text: profile.emergencyContactRelation ?? '');
     _profileImagePath = profile.profileImagePath;
     _lockscreenDefaultView = profile.lockscreenDefaultView;
     _dateOfBirth = profile.dateOfBirth;
@@ -153,6 +164,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _healthIdController.dispose();
     _weightController.dispose();
     _heightController.dispose();
+    _addressController.dispose();
+    _emergencyContactNameController.dispose();
+    _emergencyContactPhoneController.dispose();
+    _emergencyContactRelationController.dispose();
     _customConditionController.dispose();
     _customSurgeryController.dispose();
     _customHistoryController.dispose();
@@ -165,6 +180,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (_healthIdController.text.trim() != (profile.healthId ?? '')) return true;
     if (_weightController.text.trim() != (profile.weightKg?.toString() ?? '')) return true;
     if (_heightController.text.trim() != (profile.heightCm?.toString() ?? '')) return true;
+    if (_addressController.text.trim() != (profile.address ?? '')) return true;
+    if (_emergencyContactNameController.text.trim() != (profile.emergencyContactName ?? '')) return true;
+    if (_emergencyContactPhoneController.text.trim() != (profile.emergencyContactPhone ?? '')) return true;
+    if (_emergencyContactRelationController.text.trim() != (profile.emergencyContactRelation ?? '')) return true;
     if (_profileImagePath != profile.profileImagePath) return true;
     if (_lockscreenDefaultView != profile.lockscreenDefaultView) return true;
     if (_dateOfBirth != profile.dateOfBirth) return true;
@@ -334,6 +353,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       breakfastTime: _breakfastTime,
       lunchTime: _lunchTime,
       dinnerTime: _dinnerTime,
+      address: _addressController.text.trim().isNotEmpty
+          ? _addressController.text.trim()
+          : null,
+      emergencyContactName: _emergencyContactNameController.text.trim().isNotEmpty
+          ? _emergencyContactNameController.text.trim()
+          : null,
+      emergencyContactPhone: _emergencyContactPhoneController.text.trim().isNotEmpty
+          ? _emergencyContactPhoneController.text.trim()
+          : null,
+      emergencyContactRelation: _emergencyContactRelationController.text.trim().isNotEmpty
+          ? _emergencyContactRelationController.text.trim()
+          : null,
       useHealthApp: _useHealthApp,
       weightKg: _currentWeight,
       heightCm: _currentHeight,
@@ -823,6 +854,119 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             },
                           );
                         }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Emergency Contact Section
+                      Row(
+                        children: [
+                          Icon(Icons.contact_phone_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Emergency Contact (Next of Kin)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(ctx),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _emergencyContactNameController,
+                        style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                        decoration: InputDecoration(
+                          labelText: 'Contact Full Name',
+                          hintText: 'e.g. Sarah Smith',
+                          prefixIcon: Icon(
+                            Icons.person_rounded,
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
+                        ),
+                        onChanged: (_) {
+                          setState(() {});
+                          setModalState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              controller: _emergencyContactPhoneController,
+                              keyboardType: TextInputType.phone,
+                              style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                              decoration: InputDecoration(
+                                labelText: 'Emergency Phone',
+                                hintText: 'e.g. +1 555-0199',
+                                prefixIcon: Icon(
+                                  Icons.phone_rounded,
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                ),
+                              ),
+                              onChanged: (_) {
+                                setState(() {});
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _emergencyContactRelationController,
+                              style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                              decoration: InputDecoration(
+                                labelText: 'Relationship',
+                                hintText: 'e.g. Spouse',
+                                prefixIcon: Icon(
+                                  Icons.family_restroom_rounded,
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                ),
+                              ),
+                              onChanged: (_) {
+                                setState(() {});
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Residential Address Section
+                      Row(
+                        children: [
+                          Icon(Icons.home_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Residential Home Address',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary(ctx),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _addressController,
+                        style: TextStyle(color: AppTheme.textPrimary(ctx)),
+                        decoration: InputDecoration(
+                          labelText: 'Home Address',
+                          hintText: 'e.g. 123 Healthcare Ave, Apt 4B, City, Country',
+                          prefixIcon: Icon(
+                            Icons.location_on_rounded,
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
+                        ),
+                        onChanged: (_) {
+                          setState(() {});
+                          setModalState(() {});
+                        },
                       ),
                       const SizedBox(height: 14),
 
@@ -2565,16 +2709,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                        color: const Color(0xFFD97706).withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: const Color(0xFF2563EB), width: 0.8),
+                                        border: Border.all(color: const Color(0xFFD97706), width: 0.8),
                                       ),
                                       child: const Text(
-                                        'ONE UI & AOD',
+                                        'EXPERIMENTAL',
                                         style: TextStyle(
                                           fontSize: 9.5,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF2563EB),
+                                          color: Color(0xFFD97706),
                                           letterSpacing: 0.5,
                                         ),
                                       ),
@@ -2636,61 +2780,71 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             final profile = ref.read(profileNotifierProvider);
                             final medications = ref.read(medicationsNotifierProvider);
                             await ref.read(deviceIntegrationServiceProvider).syncEmergencyData(
-                              profile: profile.copyWith(lockscreenDefaultView: _lockscreenDefaultView),
+                              profile: profile.copyWith(
+                                lockscreenDefaultView: _lockscreenDefaultView,
+                                address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
+                                emergencyContactName: _emergencyContactNameController.text.trim().isNotEmpty ? _emergencyContactNameController.text.trim() : null,
+                                emergencyContactPhone: _emergencyContactPhoneController.text.trim().isNotEmpty ? _emergencyContactPhoneController.text.trim() : null,
+                                emergencyContactRelation: _emergencyContactRelationController.text.trim().isNotEmpty ? _emergencyContactRelationController.text.trim() : null,
+                              ),
                               medications: medications,
                             );
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('✓ Samsung Lock Screen Widget updated: ${_lockscreenDefaultView == "card" ? "Emergency Card" : (_lockscreenDefaultView == "medications" ? "Next Dose" : "Dual View")}'),
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  content: Text('⚠️ [Experimental] Samsung Lock Screen sync requested: ${_lockscreenDefaultView == "card" ? "Emergency Card" : (_lockscreenDefaultView == "medications" ? "Next Dose" : "Dual View")}'),
+                                  backgroundColor: const Color(0xFFD97706),
                                 ),
                               );
                             }
                           },
                           icon: const Icon(Icons.sync_lock_rounded, size: 18),
-                          label: const Text('Sync Lock Screen & AOD Widget'),
+                          label: const Text('Sync Lock Screen & AOD Widget (Experimental)'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Theme.of(context).colorScheme.primary,
+                            foregroundColor: const Color(0xFFD97706),
+                            side: const BorderSide(color: Color(0xFFD97706), width: 1.2),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceVariant(context),
-                          borderRadius: BorderRadius.circular(8),
+                          color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.25) : const Color(0xFFFFFBEB),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.tips_and_updates_outlined, size: 14, color: Color(0xFF2563EB)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Galaxy S25 FE Tip: Long-press lock screen → tap Widgets below clock → add MediSync.',
-                                style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary(context)),
-                              ),
+                            Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFD97706)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Samsung Lock Screen & AOD Widget Notice',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceVariant(context),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.touch_app_outlined, size: 14, color: Color(0xFF059669)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Quick Settings Tile: Swipe down notification shade → tap ✏️ (Edit) → drag "MediSync Emergency ID" into active tiles for instant 1-tap card access!',
-                                style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary(context)),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Samsung One UI 6.1+ restricts native under-the-clock lock screen widgets exclusively to Samsung system apps. For instant, zero-swipe emergency access, choose one of these options:\n\n'
+                              '• Instant Lock Screen Corner Shortcut (Recommended):\n'
+                              '  Go to Settings → Lock screen and AOD → Edit Lock Screen → tap the bottom Corner Shortcut (left or right) → choose "Emergency Medical ID" or "MediSync". This places an instant emergency button directly on your lock screen!\n\n'
+                              '• Under-the-Clock Widget (Via Samsung Good Lock):\n'
+                              '  Open Galaxy Store → install Good Lock → open LockStar module → tap Lock Screen preview → Add Widget → choose MediSync Emergency Button to place it directly below your clock.\n\n'
+                              '• Quick Settings Shade Tile:\n'
+                              '  Swipe down status bar twice → tap ✏️ (Edit) → drag "MediSync Emergency ID" into active tiles.',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                                height: 1.35,
                               ),
                             ),
                           ],
@@ -2844,6 +2998,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             heightCm: _currentHeight,
                             profileImagePath: _profileImagePath,
                             lockscreenDefaultView: _lockscreenDefaultView,
+                            address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
+                            emergencyContactName: _emergencyContactNameController.text.trim().isNotEmpty ? _emergencyContactNameController.text.trim() : null,
+                            emergencyContactPhone: _emergencyContactPhoneController.text.trim().isNotEmpty ? _emergencyContactPhoneController.text.trim() : null,
+                            emergencyContactRelation: _emergencyContactRelationController.text.trim().isNotEmpty ? _emergencyContactRelationController.text.trim() : null,
                           ),
                           medications: medications,
                         );
@@ -3029,7 +3187,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'v1.8.11',
+                                'v1.8.12',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
                               ),
                             ),
@@ -3203,23 +3361,121 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // GitHub Repository Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
-                        ref.read(deviceIntegrationServiceProvider).openBrowserUrl(
-                          'https://github.com/Abdalaziz-Badawi/MediSync',
-                        );
-                      },
-                      icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                      label: const Text('GitHub: @Abdalaziz-Badawi / MediSync'),
+                  // Developer Contact Information Section
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.cardBorder(context)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.contact_mail_rounded, size: 16, color: primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Developer & Contact Information',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Email Contact Action
+                        InkWell(
+                          onTap: () {
+                            ref.read(deviceIntegrationServiceProvider).openBrowserUrl(
+                              'mailto:abdalaziz.badawi02@gmail.com?subject=MediSync%20Inquiry',
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Opening email app (abdalaziz.badawi02@gmail.com)...'),
+                                backgroundColor: primary,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.cardBorder(context)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.email_outlined, size: 16, color: primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Email Address',
+                                        style: TextStyle(fontSize: 10, color: AppTheme.textSecondary(context)),
+                                      ),
+                                      Text(
+                                        'abdalaziz.badawi02@gmail.com',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.textPrimary(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.send_rounded, size: 14, color: primary),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // GitHub Profile & Repository Actions
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: AppTheme.cardBorder(context)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () {
+                                  ref.read(deviceIntegrationServiceProvider).openBrowserUrl(
+                                    'https://github.com/Abdalaziz-Badawi',
+                                  );
+                                },
+                                icon: const Icon(Icons.person_outline_rounded, size: 15),
+                                label: const Text('GitHub Profile', style: TextStyle(fontSize: 11)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: AppTheme.cardBorder(context)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () {
+                                  ref.read(deviceIntegrationServiceProvider).openBrowserUrl(
+                                    'https://github.com/Abdalaziz-Badawi/MediSync',
+                                  );
+                                },
+                                icon: const Icon(Icons.code_rounded, size: 15),
+                                label: const Text('MediSync Repo', style: TextStyle(fontSize: 11)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -3343,7 +3599,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MediSync Production Architecture (v1.8.11):',
+                'MediSync Production Architecture (v1.8.12):',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary(ctx)),
               ),
               const SizedBox(height: 10),
@@ -3411,7 +3667,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               showLicensePage(
                 context: context,
                 applicationName: 'MediSync',
-                applicationVersion: 'v1.8.11+30',
+                applicationVersion: 'v1.8.12+31',
                 applicationLegalese: 'Copyright © 2026 Abdalaziz Adil Badawi Mohamed.\nAll rights reserved.\nLicensed under MIT License.',
               );
             },

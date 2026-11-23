@@ -7,4 +7,6 @@
     <string name="widget_emergency_id_desc">Glanceable patient blood type and emergency ID for lock screen and home screen</string>
     <string name="qs_tile_medisync_label">MediSync Emergency ID</string>
     <string name="qs_tile_medisync_desc">Instant emergency medical overview and dose tracker in notification shade</string>
+    <string name="shortcut_emergency_card_short">Emergency Medical ID</string>
+    <string name="shortcut_emergency_card_long">Open Offline Emergency Medical ID Card</string>
 </resources>

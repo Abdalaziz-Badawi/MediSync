@@ -621,6 +621,10 @@ class MainActivity : FlutterActivity() {
                         val pastSurgeries = call.argument<String>("pastSurgeries") ?: ""
                         val medicalHistory = call.argument<String>("medicalHistory") ?: ""
                         val discontinuedMeds = call.argument<String>("discontinuedMeds") ?: ""
+                        val address = call.argument<String>("address") ?: ""
+                        val emergencyContactName = call.argument<String>("emergencyContactName") ?: ""
+                        val emergencyContactPhone = call.argument<String>("emergencyContactPhone") ?: ""
+                        val emergencyContactRelation = call.argument<String>("emergencyContactRelation") ?: ""
 
                         val prefs = getSharedPreferences(MediSyncWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
                         prefs.edit()
@@ -637,6 +641,10 @@ class MainActivity : FlutterActivity() {
                             .putString("past_surgeries", pastSurgeries)
                             .putString("medical_history", medicalHistory)
                             .putString("discontinued_meds", discontinuedMeds)
+                            .putString("address", address)
+                            .putString("emergency_contact_name", emergencyContactName)
+                            .putString("emergency_contact_phone", emergencyContactPhone)
+                            .putString("emergency_contact_relation", emergencyContactRelation)
                             .apply()
 
                         MediSyncWidgetProvider.updateAllWidgets(this)

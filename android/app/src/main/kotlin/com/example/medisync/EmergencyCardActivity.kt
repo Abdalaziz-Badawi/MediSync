@@ -55,11 +55,58 @@ class EmergencyCardActivity : Activity() {
         val pastSurgeries = prefs.getString("past_surgeries", "") ?: ""
         val medicalHistory = prefs.getString("medical_history", "") ?: ""
         val discontinuedMeds = prefs.getString("discontinued_meds", "") ?: ""
+        val address = prefs.getString("address", "") ?: ""
+        val emergencyContactName = prefs.getString("emergency_contact_name", "") ?: ""
+        val emergencyContactPhone = prefs.getString("emergency_contact_phone", "") ?: ""
+        val emergencyContactRelation = prefs.getString("emergency_contact_relation", "") ?: ""
 
         findViewById<TextView>(R.id.tv_patient_name)?.text = patientName.uppercase()
         findViewById<TextView>(R.id.tv_blood_type)?.text = bloodType
         findViewById<TextView>(R.id.tv_demographics)?.text = demographics.uppercase()
         findViewById<TextView>(R.id.tv_health_id)?.text = healthId
+
+        // Emergency Contact & Next of Kin
+        val layoutEmergencyContact = findViewById<View>(R.id.layout_emergency_contact_section)
+        val tvContactLabel = findViewById<TextView>(R.id.tv_emergency_contact_label)
+        val tvContactName = findViewById<TextView>(R.id.tv_emergency_contact_name)
+        val tvContactPhone = findViewById<TextView>(R.id.tv_emergency_contact_phone)
+        val btnCallContact = findViewById<Button>(R.id.btn_call_emergency_contact)
+
+        val hasContact = emergencyContactName.isNotBlank() || emergencyContactPhone.isNotBlank()
+        if (hasContact) {
+            layoutEmergencyContact?.visibility = View.VISIBLE
+            val relationLabel = if (emergencyContactRelation.isNotBlank()) " • ${emergencyContactRelation.uppercase()}" else " • NEXT OF KIN"
+            tvContactLabel?.text = "EMERGENCY CONTACT$relationLabel"
+            tvContactName?.text = if (emergencyContactName.isNotBlank()) emergencyContactName else "Emergency Contact"
+            tvContactPhone?.text = if (emergencyContactPhone.isNotBlank()) emergencyContactPhone else "No phone recorded"
+
+            if (emergencyContactPhone.isNotBlank()) {
+                btnCallContact?.visibility = View.VISIBLE
+                btnCallContact?.setOnClickListener {
+                    try {
+                        val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                            data = Uri.parse("tel:${emergencyContactPhone.trim()}")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(dialIntent)
+                    } catch (_: Exception) {}
+                }
+            } else {
+                btnCallContact?.visibility = View.GONE
+            }
+        } else {
+            layoutEmergencyContact?.visibility = View.GONE
+        }
+
+        // Residential Address
+        val layoutAddress = findViewById<View>(R.id.layout_address_section)
+        val tvAddress = findViewById<TextView>(R.id.tv_address)
+        if (address.isNotBlank()) {
+            layoutAddress?.visibility = View.VISIBLE
+            tvAddress?.text = address
+        } else {
+            layoutAddress?.visibility = View.GONE
+        }
 
         // Organ Donor Hero Badge
         val isDonor = organDonor.equals("YES", ignoreCase = true)

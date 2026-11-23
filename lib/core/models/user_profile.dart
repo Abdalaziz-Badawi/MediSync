@@ -20,6 +20,10 @@ class UserProfile {
   final String breakfastTime; // "HH:mm" e.g. "08:30"
   final String lunchTime;     // "HH:mm" e.g. "13:30"
   final String dinnerTime;    // "HH:mm" e.g. "20:00"
+  final String? address;
+  final String? emergencyContactName;
+  final String? emergencyContactPhone;
+  final String? emergencyContactRelation;
   final bool useHealthApp;
 
   static const List<String> standardBloodTypes = [
@@ -55,6 +59,10 @@ class UserProfile {
     this.breakfastTime = '08:30',
     this.lunchTime = '13:30',
     this.dinnerTime = '20:00',
+    this.address,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
+    this.emergencyContactRelation,
     this.useHealthApp = false,
   }) : _explicitAge = age;
 
@@ -113,6 +121,10 @@ class UserProfile {
     String? breakfastTime,
     String? lunchTime,
     String? dinnerTime,
+    String? address,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
+    String? emergencyContactRelation,
     bool? useHealthApp,
   }) {
     return UserProfile(
@@ -137,6 +149,10 @@ class UserProfile {
       breakfastTime: breakfastTime ?? this.breakfastTime,
       lunchTime: lunchTime ?? this.lunchTime,
       dinnerTime: dinnerTime ?? this.dinnerTime,
+      address: address ?? this.address,
+      emergencyContactName: emergencyContactName ?? this.emergencyContactName,
+      emergencyContactPhone: emergencyContactPhone ?? this.emergencyContactPhone,
+      emergencyContactRelation: emergencyContactRelation ?? this.emergencyContactRelation,
       useHealthApp: useHealthApp ?? this.useHealthApp,
     );
   }
@@ -164,6 +180,10 @@ class UserProfile {
       'breakfastTime': breakfastTime,
       'lunchTime': lunchTime,
       'dinnerTime': dinnerTime,
+      'address': address,
+      'emergencyContactName': emergencyContactName,
+      'emergencyContactPhone': emergencyContactPhone,
+      'emergencyContactRelation': emergencyContactRelation,
       'useHealthApp': useHealthApp,
     };
   }
@@ -208,6 +228,10 @@ class UserProfile {
       breakfastTime: json['breakfastTime'] as String? ?? '08:30',
       lunchTime: json['lunchTime'] as String? ?? '13:30',
       dinnerTime: json['dinnerTime'] as String? ?? '20:00',
+      address: json['address'] as String?,
+      emergencyContactName: json['emergencyContactName'] as String?,
+      emergencyContactPhone: json['emergencyContactPhone'] as String?,
+      emergencyContactRelation: json['emergencyContactRelation'] as String?,
       useHealthApp: json['useHealthApp'] as bool? ?? false,
     );
   }

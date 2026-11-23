@@ -44,6 +44,9 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <activity
@@ -60,9 +63,24 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="com.example.medisync.OPEN_EMERGENCY_CARD" />
+                <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.INFO" />
             </intent-filter>
         </activity>
+
+        <!-- Quick Access Lock Screen Bottom Shortcut Alias for Samsung & Android Keyguard -->
+        <activity-alias
+            android:name=".EmergencyCardShortcutActivity"
+            android:targetActivity=".EmergencyCardActivity"
+            android:label="@string/shortcut_emergency_card_short"
+            android:icon="@drawable/ic_medical_emergency_logo"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <receiver
             android:name=".MediSyncWidgetProvider"
@@ -70,6 +88,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.samsung.android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -85,6 +104,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.samsung.android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

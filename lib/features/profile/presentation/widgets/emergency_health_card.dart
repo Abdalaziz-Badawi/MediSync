@@ -308,6 +308,96 @@ class EmergencyHealthCardWidget extends StatelessWidget {
                       ),
                     ),
 
+                    // Emergency Contact Card
+                    if (profile.emergencyContactName != null || profile.emergencyContactPhone != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF86EFAC), width: 1.0),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.contact_phone_rounded, color: Color(0xFF047857), size: 17),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'EMERGENCY CONTACT${profile.emergencyContactRelation != null && profile.emergencyContactRelation!.isNotEmpty ? " • ${profile.emergencyContactRelation!.toUpperCase()}" : " • NEXT OF KIN"}:',
+                                    style: const TextStyle(
+                                      color: Color(0xFF047857),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    '${profile.emergencyContactName ?? "Emergency Contact"}${profile.emergencyContactPhone != null ? "  (${profile.emergencyContactPhone})" : ""}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF065F46),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Residential Address Card
+                    if (profile.address != null && profile.address!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.home_rounded, color: Color(0xFF475569), size: 17),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'RESIDENTIAL ADDRESS:',
+                                    style: TextStyle(
+                                      color: Color(0xFF475569),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    profile.address!,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     // Physical Metrics Row (Height, Weight & Dynamic BMI Badges)
                     if (profile.heightCm != null || profile.weightKg != null || profile.bmi != null) ...[
                       const SizedBox(height: 8),

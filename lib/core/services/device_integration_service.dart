@@ -273,6 +273,10 @@ class DeviceIntegrationService {
     String? pastSurgeries,
     String? medicalHistory,
     String? discontinuedMeds,
+    String? address,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
+    String? emergencyContactRelation,
   }) async {
     try {
       await _channel.invokeMethod('updateWidgetData', {
@@ -291,6 +295,10 @@ class DeviceIntegrationService {
         'pastSurgeries': pastSurgeries ?? '',
         'medicalHistory': medicalHistory ?? '',
         'discontinuedMeds': discontinuedMeds ?? '',
+        'address': address ?? '',
+        'emergencyContactName': emergencyContactName ?? '',
+        'emergencyContactPhone': emergencyContactPhone ?? '',
+        'emergencyContactRelation': emergencyContactRelation ?? '',
       });
     } catch (_) {}
   }
@@ -413,6 +421,10 @@ class DeviceIntegrationService {
       pastSurgeries: surgeriesStr,
       medicalHistory: historyStr,
       discontinuedMeds: discontinuedStr,
+      address: profile.address,
+      emergencyContactName: profile.emergencyContactName,
+      emergencyContactPhone: profile.emergencyContactPhone,
+      emergencyContactRelation: profile.emergencyContactRelation,
     );
 
     // 2. Render and save the high-res emergency card picture

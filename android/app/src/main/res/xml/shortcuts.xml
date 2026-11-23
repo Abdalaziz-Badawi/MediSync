@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="emergency_medical_id"
+        android:enabled="true"
+        android:icon="@drawable/ic_medical_emergency_logo"
+        android:shortcutShortLabel="@string/shortcut_emergency_card_short"
+        android:shortcutLongLabel="@string/shortcut_emergency_card_long">
+        <intent
+            android:action="com.example.medisync.OPEN_EMERGENCY_CARD"
+            android:targetPackage="com.example.medisync"
+            android:targetClass="com.example.medisync.EmergencyCardActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

@@ -237,6 +237,101 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
+                <!-- Emergency Contact Section (Next of Kin / Primary Contact) -->
+                <LinearLayout
+                    android:id="@+id/layout_emergency_contact_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/emergency_contact_box_bg"
+                    android:padding="11dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tv_emergency_contact_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="EMERGENCY CONTACT • NEXT OF KIN"
+                        android:textColor="#047857"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_emergency_contact_name"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Contact Name"
+                                android:textColor="#065F46"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_emergency_contact_phone"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="+1 (555) 000-0000"
+                                android:textColor="#047857"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <Button
+                            android:id="@+id/btn_call_emergency_contact"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:background="@drawable/emergency_contact_call_btn_bg"
+                            android:paddingHorizontal="12dp"
+                            android:text="CALL"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11.5sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Residential Home Address Section -->
+                <LinearLayout
+                    android:id="@+id/layout_address_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/emergency_address_box_bg"
+                    android:padding="10dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="RESIDENTIAL ADDRESS"
+                        android:textColor="#475569"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_address"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="123 Street Name, City, Country"
+                        android:textColor="#1E293B"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
                 <!-- Priority 1: Critical Drug Allergies & Contraindications (High-Alert Red Box) -->
                 <LinearLayout
                     android:id="@+id/layout_allergies_section"
