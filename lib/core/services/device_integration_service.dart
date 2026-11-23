@@ -13,11 +13,7 @@ final deviceIntegrationServiceProvider = Provider<DeviceIntegrationService>((ref
 enum ReportExportFormat {
   text('Plain Text (.txt)', 'text/plain', '.txt'),
   markdown('Markdown (.md)', 'text/markdown', '.md'),
-  html('Web HTML (.html)', 'text/html', '.html'),
-  xml('Standard XML (.xml)', 'application/xml', '.xml'),
-  doc('Microsoft Word (.doc)', 'application/msword', '.doc'),
-  pdf('Printable PDF Layout', 'text/html', '.pdf'),
-  jpg('Emergency ID Card (.jpg)', 'image/jpeg', '.jpg');
+  pdf('Printable PDF (.pdf)', 'application/pdf', '.pdf');
 
   final String label;
   final String mimeType;
@@ -273,6 +269,10 @@ class DeviceIntegrationService {
     String? allergies,
     String? conditions,
     String? medications,
+    String? organDonor,
+    String? pastSurgeries,
+    String? medicalHistory,
+    String? discontinuedMeds,
   }) async {
     try {
       await _channel.invokeMethod('updateWidgetData', {
@@ -287,6 +287,10 @@ class DeviceIntegrationService {
         'allergies': allergies ?? '',
         'conditions': conditions ?? '',
         'medications': medications ?? '',
+        'organDonor': organDonor ?? 'NO',
+        'pastSurgeries': pastSurgeries ?? '',
+        'medicalHistory': medicalHistory ?? '',
+        'discontinuedMeds': discontinuedMeds ?? '',
       });
     } catch (_) {}
   }
@@ -325,6 +329,28 @@ class DeviceIntegrationService {
         ? profile.chronicConditions.join(', ')
         : 'No chronic conditions or organ risks recorded.';
 
+    final significantDiscontinued = medications
+        .where((m) => m.isDiscontinued && m.necessityLevel != NecessityLevel.low)
+        .toList();
+    final discontinuedStr = significantDiscontinued.map((m) {
+      String timeAgo = '';
+      if (m.discontinuedDate != null) {
+        final days = DateTime.now().difference(m.discontinuedDate!).inDays;
+        timeAgo = days <= 0 ? 'Today' : (days == 1 ? '1 day ago' : '$days days ago');
+      }
+      final lastTaken = m.lastTakenDateTime != null
+          ? 'Last: ${DateFormat('d MMM, HH:mm').format(m.lastTakenDateTime!)}'
+          : 'No dose logged';
+      return '• ${m.name} ${m.dosage} [${m.necessityLevel.badgeText}] — Stopped $timeAgo ($lastTaken)';
+    }).join('\n');
+
+    final surgeriesStr = profile.pastSurgeries.isNotEmpty
+        ? profile.pastSurgeries.join(', ')
+        : 'None recorded.';
+    final historyStr = profile.medicalHistory.isNotEmpty
+        ? profile.medicalHistory.join(', ')
+        : 'None recorded.';
+
     // 1. Update native lockscreen widgets & SharedPreferences
     await updateLockscreenWidget(
       patientName: profile.name,
@@ -336,6 +362,10 @@ class DeviceIntegrationService {
       allergies: allergiesStr,
       conditions: conditionsStr,
       medications: activeMedNames.isNotEmpty ? activeMedNames : 'No active medications.',
+      organDonor: profile.isOrganDonor ? 'YES' : 'NO',
+      pastSurgeries: surgeriesStr,
+      medicalHistory: historyStr,
+      discontinuedMeds: discontinuedStr,
     );
 
     // 2. Render and save the high-res emergency card picture
@@ -347,6 +377,12 @@ class DeviceIntegrationService {
       await saveEmergencyCardImage(cardBytes);
     } catch (_) {}
   }
+
+  /// Alias for syncEmergencyData for semantic consistency across emergency card widgets.
+  Future<void> updateEmergencyCard({
+    required UserProfile profile,
+    required List<Medication> medications,
+  }) => syncEmergencyData(profile: profile, medications: medications);
 
   /// Checks if the app was launched from the lockscreen widget or corner shortcut.
   Future<String?> getInitialLockscreenAction() async {
@@ -388,7 +424,7 @@ class DeviceIntegrationService {
 
     final nowStr = DateFormat("yyyyMMdd'T'HHmmss'Z'").format(DateTime.now().toUtc());
 
-    for (final med in medications) {
+    for (final med in medications.where((m) => !m.isDiscontinued)) {
       for (final time in med.scheduledTimes) {
         final timeParts = time.split(':');
         final hour = timeParts.isNotEmpty ? (int.tryParse(timeParts[0]) ?? 8) : 8;
@@ -437,6 +473,26 @@ class DeviceIntegrationService {
       return res ?? false;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Automatically generates an authentic .pdf file from the report and shares it via native Android share sheet.
+  Future<String?> sharePdfReport({
+    required String title,
+    required String patientName,
+    required String content,
+    String? filename,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod<String>('sharePdfReport', {
+        'title': title,
+        'patientName': patientName,
+        'content': content,
+        'filename': filename ?? 'MediSync_Continuity_Report_${patientName.replaceAll(' ', '_')}.pdf',
+      });
+      return res;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -563,76 +619,161 @@ class DeviceIntegrationService {
 
     curY += 34;
 
-    // Badges Row: Blood Type (Red Box) & Health ID
+    // Badges Row 1: Blood Type (Hero Box) & Organ Donor (Hero Box) (50/50 split)
     final bloodType = profile.bloodType ?? 'Unknown';
     final healthId = profile.healthId ?? 'None';
 
-    // Blood Type Badge
+    // Blood Type Hero Badge (Left 350px, Height 96px)
     final bloodBgPaint = Paint()..color = const Color(0xFFFEF2F2);
     final bloodBorderPaint = Paint()
       ..color = const Color(0xFFDC2626)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 2.5;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 260, 48), const Radius.circular(10)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 350, 96), const Radius.circular(14)),
       bloodBgPaint,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 260, 48), const Radius.circular(10)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 350, 96), const Radius.circular(14)),
       bloodBorderPaint,
     );
     _drawCanvasText(
       canvas: canvas,
-      text: '🩸 BLOOD TYPE: $bloodType',
+      text: '🩸 BLOOD: $bloodType',
       x: 54,
-      y: curY + 12,
+      y: curY + 10,
+      style: const TextStyle(
+        color: Color(0xFFB91C1C),
+        fontSize: 13,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: bloodType,
+      x: 54,
+      y: curY + 32,
       style: const TextStyle(
         color: Color(0xFFDC2626),
-        fontSize: 15,
+        fontSize: 36,
         fontWeight: FontWeight.w900,
+        letterSpacing: -0.5,
+      ),
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: 'TRANSFUSION VITAL',
+      x: 54,
+      y: curY + 74,
+      style: const TextStyle(
+        color: Color(0xFF991B1B),
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
       ),
     );
 
-    // Health ID Badge
+    // Organ Donor Hero Badge (Right 350px, Height 96px)
+    final donorBgPaint = Paint()
+      ..color = profile.isOrganDonor ? const Color(0xFFECFDF5) : const Color(0xFFF8FAFC);
+    final donorBorderPaint = Paint()
+      ..color = profile.isOrganDonor ? const Color(0xFF059669) : const Color(0xFFCBD5E1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(410, curY, 350, 96), const Radius.circular(14)),
+      donorBgPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(410, curY, 350, 96), const Radius.circular(14)),
+      donorBorderPaint,
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: '🫀 ORGAN DONOR',
+      x: 424,
+      y: curY + 10,
+      style: const TextStyle(
+        color: Color(0xFF475569),
+        fontSize: 13,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: profile.isOrganDonor ? 'YES' : 'NO',
+      x: 424,
+      y: curY + 34,
+      style: TextStyle(
+        color: profile.isOrganDonor ? const Color(0xFF059669) : const Color(0xFF475569),
+        fontSize: 30,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.5,
+      ),
+    );
+    _drawCanvasText(
+      canvas: canvas,
+      text: profile.isOrganDonor ? 'REGISTERED DONOR' : 'NOT REGISTERED',
+      x: 424,
+      y: curY + 74,
+      style: TextStyle(
+        color: profile.isOrganDonor ? const Color(0xFF047857) : const Color(0xFF94A3B8),
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
+      ),
+    );
+
+    curY += 108;
+
+    // Badges Row 2: Full-Width National Health ID Bar (720px wide, ZERO truncation)
     final idBgPaint = Paint()..color = const Color(0xFFF1F5F9);
     final idBorderPaint = Paint()
       ..color = const Color(0xFF94A3B8)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.6;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(318, curY, 442, 48), const Radius.circular(10)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 720, 48), const Radius.circular(12)),
       idBgPaint,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(318, curY, 442, 48), const Radius.circular(10)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, 720, 48), const Radius.circular(12)),
       idBorderPaint,
     );
     _drawCanvasText(
       canvas: canvas,
-      text: '🆔 HEALTH ID: $healthId',
-      x: 332,
+      text: '🆔 NATIONAL HEALTH ID: $healthId',
+      x: 54,
       y: curY + 14,
       style: const TextStyle(
-        color: Color(0xFF1E293B),
-        fontSize: 14,
-        fontWeight: FontWeight.w800,
+        color: Color(0xFF0F172A),
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
       ),
     );
 
-    curY += 72;
+    curY += 60;
 
     // 4. Critical Red Flag Box (Allergies & Triggers)
-    final alertBg = Paint()..color = const Color(0xFFFFF1F2);
+    final allergiesStr = profile.allergies.isNotEmpty
+        ? profile.allergies.join('   ⚠️   ')
+        : 'NO KNOWN DRUG ALLERGIES (NKDA)';
+    final hasAllergies = profile.allergies.isNotEmpty;
+
+    final alertBg = Paint()..color = hasAllergies ? const Color(0xFFFFF1F2) : const Color(0xFFF0FDF4);
     final alertBorder = Paint()
-      ..color = const Color(0xFFE11D48)
+      ..color = hasAllergies ? const Color(0xFFDC2626) : const Color(0xFF16A34A)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 2.2;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 140), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 84), const Radius.circular(14)),
       alertBg,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 140), const Radius.circular(14)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 84), const Radius.circular(14)),
       alertBorder,
     );
 
@@ -640,58 +781,87 @@ class DeviceIntegrationService {
       canvas: canvas,
       text: '⚠️ CRITICAL DRUG ALLERGIES & CONTRAINDICATIONS:',
       x: 58,
-      y: curY + 16,
-      style: const TextStyle(
-        color: Color(0xFFBE123C),
-        fontSize: 14,
+      y: curY + 12,
+      style: TextStyle(
+        color: hasAllergies ? const Color(0xFF991B1B) : const Color(0xFF166534),
+        fontSize: 12.5,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.5,
       ),
     );
 
-    final allergiesStr = profile.allergies.isNotEmpty
-        ? profile.allergies.join('  •  ')
-        : 'NO KNOWN DRUG ALLERGIES (NKDA)';
     _drawCanvasText(
       canvas: canvas,
       text: allergiesStr,
       x: 58,
-      y: curY + 44,
-      style: const TextStyle(
-        color: Color(0xFF881337),
+      y: curY + 34,
+      style: TextStyle(
+        color: hasAllergies ? const Color(0xFF7F1D1D) : const Color(0xFF14532D),
         fontSize: 16,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w900,
       ),
     );
 
     _drawCanvasText(
       canvas: canvas,
-      text: 'CHRONIC CONDITIONS & ORGAN RISKS:',
+      text: hasAllergies
+          ? 'STOP • SEVERE ANAPHYLAXIS RISK • VERIFY BEFORE DRUG ADMINISTRATION'
+          : 'CONFIRMED CLEAR • NO ADVERSE DRUG REACTIONS REPORTED',
       x: 58,
-      y: curY + 80,
-      style: const TextStyle(
-        color: Color(0xFF475569),
-        fontSize: 12,
+      y: curY + 62,
+      style: TextStyle(
+        color: hasAllergies ? const Color(0xFFB91C1C) : const Color(0xFF15803D),
+        fontSize: 10,
         fontWeight: FontWeight.w800,
+        letterSpacing: 0.4,
       ),
     );
 
+    curY += 98;
+
+    // Chronic Conditions Box
     final conditionsStr = profile.chronicConditions.isNotEmpty
         ? profile.chronicConditions.join('  •  ')
         : 'None Reported';
+    final condBg = Paint()..color = const Color(0xFFF8FAFC);
+    final condBorder = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 68), const Radius.circular(12)),
+      condBg,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(40, curY, width - 80, 68), const Radius.circular(12)),
+      condBorder,
+    );
+
+    _drawCanvasText(
+      canvas: canvas,
+      text: '🩺 CHRONIC CONDITIONS & ORGAN RISKS:',
+      x: 58,
+      y: curY + 12,
+      style: const TextStyle(
+        color: Color(0xFF0F766E),
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+
     _drawCanvasText(
       canvas: canvas,
       text: conditionsStr,
       x: 58,
-      y: curY + 104,
+      y: curY + 36,
       style: const TextStyle(
-        color: Color(0xFF0F172A),
+        color: Color(0xFF134E4A),
         fontSize: 14,
         fontWeight: FontWeight.w700,
       ),
     );
 
-    curY += 165;
+    curY += 86;
 
     // 5. Active Medication Regimen Table
     _drawCanvasText(
@@ -814,17 +984,11 @@ class DeviceIntegrationService {
   }) {
     switch (format) {
       case ReportExportFormat.text:
-      case ReportExportFormat.jpg:
         return generateContinuityReport(medications: medications, profile: profile);
       case ReportExportFormat.markdown:
         return generateContinuityReportMarkdown(medications: medications, profile: profile);
-      case ReportExportFormat.html:
       case ReportExportFormat.pdf:
-        return generateContinuityReportHtml(medications: medications, profile: profile, isPrintablePdf: format == ReportExportFormat.pdf);
-      case ReportExportFormat.xml:
-        return generateContinuityReportXml(medications: medications, profile: profile);
-      case ReportExportFormat.doc:
-        return generateContinuityReportDoc(medications: medications, profile: profile);
+        return generateContinuityReportMarkdown(medications: medications, profile: profile);
     }
   }
 
@@ -837,72 +1001,156 @@ class DeviceIntegrationService {
     final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
     final dayFmt = DateFormat('yyyy-MM-dd');
 
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    final discontinuedMeds = medications.where((m) => m.isDiscontinued).toList();
+    final significantDiscontinued = discontinuedMeds.where((m) => m.necessityLevel != NecessityLevel.low).toList();
+
+    final dobStr = profile.dateOfBirth != null
+        ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
+        : (profile.age != null ? 'Age ${profile.age}' : 'Not specified');
+    final ageStr = profile.age != null ? ' (${profile.age} yrs)' : '';
+    final bloodType = profile.bloodType ?? 'Unknown';
+    final healthId = profile.healthId ?? 'Not Registered';
+    final organDonorStr = profile.isOrganDonor ? '🫀 **Registered Organ Donor (YES)**' : 'Not Registered';
+
     final buf = StringBuffer();
     buf.writeln('# 📋 MediSync Clinical Continuity & Intake Record\n');
-    buf.writeln('> **Generated on:** ${dateFmt.format(now)}  ');
-    buf.writeln('> **Patient Identifier:** ${profile.name}  ');
-    buf.writeln('> **Storage Mode:** 100% On-Device Local Encrypted Storage  \n');
+    buf.writeln('> **Patient:** ${profile.name.toUpperCase()} &nbsp;|&nbsp; **DOB:** $dobStr$ageStr &nbsp;|&nbsp; **Gender:** ${profile.gender ?? 'Not recorded'}  ');
+    buf.writeln('> **Blood Type:** `$bloodType` &nbsp;|&nbsp; **Organ Donor Status:** $organDonorStr &nbsp;|&nbsp; **Health ID:** `$healthId`  ');
+    buf.writeln('> **Generated on:** ${dateFmt.format(now)} &nbsp;|&nbsp; **Privacy Architecture:** 100% On-Device Local Encrypted Storage  \n');
+    buf.writeln('---\n');
 
-    buf.writeln('## 🛡️ 1. Allergies & Safety Triggers\n');
+    // 1. Allergies
+    buf.writeln('## 🛡️ 1. Allergies & Critical Contraindications\n');
     if (profile.allergies.isEmpty) {
-      buf.writeln('* No known drug allergies (NKDA) reported.\n');
+      buf.writeln('* ✅ No known drug allergies (NKDA) reported by patient.\n');
     } else {
       for (final a in profile.allergies) {
-        buf.writeln('* 🚩 **Allergy Conflict:** `$a`');
+        buf.writeln('* 🚩 **CRITICAL ALLERGY TRIGGER:** `$a`');
       }
       buf.writeln();
     }
 
-    buf.writeln('## 💊 2. Active Medications & Regimen Summary\n');
-    buf.writeln('| Medication | Dosage | Form | Frequency | Scheduled Times | Adherence |');
-    buf.writeln('| :--- | :--- | :--- | :--- | :--- | :--- |');
-
-    for (final med in medications) {
-      final stats = med.continuityStats;
-      final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
-      final onTimePct = totalDoses > 0
-          ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
-          : 'N/A';
-      buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | ${med.frequencyDisplay} | ${med.scheduledTimes.join(", ")} | $onTimePct% |');
-    }
-    buf.writeln();
-
-    buf.writeln('## 📊 3. Detailed Intake Records & History\n');
-    for (final med in medications) {
-      final stats = med.continuityStats;
-      final lastTaken = med.lastTakenDateTime != null ? dateFmt.format(med.lastTakenDateTime!) : 'No doses logged yet';
-
-      buf.writeln('### ${med.name} (${med.dosage})');
-      buf.writeln('- **Started:** ${dayFmt.format(med.startDate)}');
-      buf.writeln('- **Last Dose Taken:** $lastTaken');
-      buf.writeln('- **Schedule Frequency:** ${med.frequencyDisplay}');
-      buf.writeln('- **Intake Breakdown:**');
-      buf.writeln('  - ✅ Taken On Time: `${stats["taken"]}`');
-      buf.writeln('  - ⏰ Taken Delayed: `${stats["delayed"]}`');
-      buf.writeln('  - ❌ Missed Window: `${stats["missed"]}`');
-      buf.writeln('  - ⚪ Not Needed (PRN): `${stats["notNeeded"]}`');
-
-      if (med.foodRestrictions.isNotEmpty) {
-        buf.writeln('- **Dietary Advisories:** ${med.foodRestrictions.join("; ")}');
+    // 2. Surgeries & Medical History
+    buf.writeln('## 🏥 2. Past Surgeries & Medical History\n');
+    if (profile.pastSurgeries.isEmpty && profile.medicalHistory.isEmpty && profile.chronicConditions.isEmpty) {
+      buf.writeln('* No previous surgeries, chronic diseases, or medical conditions recorded.\n');
+    } else {
+      if (profile.pastSurgeries.isNotEmpty) {
+        buf.writeln('### Previous Surgeries & Clinical Procedures:');
+        for (final s in profile.pastSurgeries) {
+          buf.writeln('* 🩺 **Surgery/Procedure:** $s');
+        }
+        buf.writeln();
       }
+      if (profile.medicalHistory.isNotEmpty) {
+        buf.writeln('### Past Diseases & Medical History:');
+        for (final h in profile.medicalHistory) {
+          buf.writeln('* 📑 **Past Condition:** $h');
+        }
+        buf.writeln();
+      }
+      if (profile.chronicConditions.isNotEmpty) {
+        buf.writeln('### Active Chronic Conditions & Organ Risks:');
+        for (final c in profile.chronicConditions) {
+          buf.writeln('* ⚠️ **Chronic Condition:** $c');
+        }
+        buf.writeln();
+      }
+    }
 
-      if (med.doseLog.isNotEmpty) {
-        buf.writeln('\n**Chronological Intake Log:**');
+    // 3. Active Medications Table
+    buf.writeln('## 💊 3. Active Medications & Regimen Summary\n');
+    if (activeMeds.isEmpty) {
+      buf.writeln('*No active regularly scheduled medications recorded.*\n');
+    } else {
+      buf.writeln('| Medication | Dosage | Form | Clinical Tier | Frequency | Scheduled Times | Adherence |');
+      buf.writeln('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
+
+      for (final med in activeMeds) {
+        final stats = med.continuityStats;
+        final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
+        final onTimePct = totalDoses > 0
+            ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
+            : 'N/A';
+        final tier = med.necessityLevel.badgeText;
+        buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | $tier | ${med.frequencyDisplay} | ${med.scheduledTimes.join(", ")} | $onTimePct% |');
+      }
+      buf.writeln();
+
+      buf.writeln('### Active Regimen Intake Profiles:\n');
+      for (final med in activeMeds) {
+        final stats = med.continuityStats;
+        final lastTaken = med.lastTakenDateTime != null ? dateFmt.format(med.lastTakenDateTime!) : 'No doses logged yet';
+
+        buf.writeln('#### ${med.name} (${med.dosage}, ${med.form.name.toUpperCase()})');
+        buf.writeln('- **Clinical Necessity Tier:** ${med.necessityLevel.label} (${med.necessityLevel.badgeText})');
+        buf.writeln('- **Schedule:** ${med.frequencyDisplay} at `${med.scheduledTimes.join(", ")}`');
+        buf.writeln('- **Date Started:** ${dayFmt.format(med.startDate)} &nbsp;|&nbsp; **Last Dose Taken:** $lastTaken');
+        buf.writeln('- **Intake Breakdown:** ✅ Taken On Time: `${stats["taken"]}` | ⏰ Delayed: `${stats["delayed"]}` | ❌ Missed: `${stats["missed"]}` | ⚪ PRN Not Needed: `${stats["notNeeded"]}`');
+
+        if (med.foodRestrictions.isNotEmpty) {
+          buf.writeln('- **Dietary Advisories:** ${med.foodRestrictions.join("; ")}');
+        }
+        if (med.doctorNotes != null && med.doctorNotes!.isNotEmpty) {
+          buf.writeln('- **Physician Notes:** ${med.doctorNotes}');
+        }
+        buf.writeln();
+      }
+    }
+
+    // 4. Discontinued Medications (Clinically Significant)
+    buf.writeln('## ⚠️ 4. Discontinued Medications (Clinically Significant)\n');
+    if (significantDiscontinued.isEmpty) {
+      buf.writeln('*No clinically significant discontinued medications recorded.*\n');
+    } else {
+      buf.writeln('> [!IMPORTANT]');
+      buf.writeln('> The following medications were previously prescribed and discontinued. Attending physicians and healthcare teams must evaluate clearance half-lives, drug-drug washouts, and potential withdrawal risks.\n');
+
+      buf.writeln('| Medication | Dosage | Form | Clinical Tier | Discontinued On | Time Elapsed | Last Dose Taken | Reason / Clinical Warning |');
+      buf.writeln('| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
+
+      for (final med in significantDiscontinued) {
+        final discDate = med.discontinuedDate != null ? dayFmt.format(med.discontinuedDate!) : 'Recorded';
+        String timeAgo = '';
+        if (med.discontinuedDate != null) {
+          final days = now.difference(med.discontinuedDate!).inDays;
+          timeAgo = days <= 0 ? 'Today' : (days == 1 ? '1 day ago' : '$days days ago');
+        }
+        final lastTaken = med.lastTakenDateTime != null ? dateFmt.format(med.lastTakenDateTime!) : 'No dose recorded';
+        final reason = med.discontinuationReason ?? 'Discontinued by patient';
+        final warning = med.skipConsequences != null && med.skipConsequences!.isNotEmpty
+            ? '⚠️ ${med.skipConsequences}'
+            : reason;
+
+        buf.writeln('| **${med.name}** | ${med.dosage} | ${med.form.name.toUpperCase()} | ${med.necessityLevel.badgeText} | $discDate | $timeAgo | $lastTaken | $warning |');
+      }
+      buf.writeln();
+    }
+
+    // 5. Detailed Chronological Intake Logs
+    buf.writeln('## 📊 5. Chronological Dose Intake History\n');
+    final allMedsWithLogs = medications.where((m) => m.doseLog.isNotEmpty).toList();
+    if (allMedsWithLogs.isEmpty) {
+      buf.writeln('*No individual dose timestamps recorded yet.*\n');
+    } else {
+      for (final med in allMedsWithLogs) {
+        buf.writeln('### ${med.name} (${med.dosage}) ${med.isDiscontinued ? "[DISCONTINUED]" : ""}');
         final sortedKeys = med.doseLog.keys.toList()..sort((a, b) => b.compareTo(a));
         for (final dateKey in sortedKeys) {
           final entries = med.doseLog[dateKey]!.map(formatDoseLogEntry).join(', ');
           buf.writeln('- `$dateKey`: $entries');
         }
+        buf.writeln();
       }
-      buf.writeln();
     }
 
-    buf.writeln('---');
-    buf.writeln('*Confidentiality Notice: This document was produced strictly on-device by MediSync.*');
+    buf.writeln('---\n');
+    buf.writeln('*Confidentiality Notice: This medical document was generated 100% on-device by MediSync with zero external network transmission.*');
     return buf.toString();
   }
 
-  /// Generates a rich HTML document with responsive CSS and optional print-to-PDF formatting.
+  /// Generates a hospital-grade HTML document with responsive CSS and clean print-to-PDF formatting.
   String generateContinuityReportHtml({
     required List<Medication> medications,
     required UserProfile profile,
@@ -910,155 +1158,216 @@ class DeviceIntegrationService {
   }) {
     final now = DateTime.now();
     final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
+    final dayFmt = DateFormat('yyyy-MM-dd');
+
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    final discontinuedMeds = medications.where((m) => m.isDiscontinued).toList();
+    final significantDiscontinued = discontinuedMeds.where((m) => m.necessityLevel != NecessityLevel.low).toList();
+
+    final dobStr = profile.dateOfBirth != null
+        ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
+        : (profile.age != null ? 'Age ${profile.age}' : 'Not specified');
+    final ageStr = profile.age != null ? ' (${profile.age} yrs)' : '';
+    final bloodType = profile.bloodType ?? 'Unknown';
+    final healthId = profile.healthId ?? 'Not Registered';
+    final organDonorBadge = profile.isOrganDonor
+        ? '<span class="badge badge-organ">🫀 REGISTERED ORGAN DONOR</span>'
+        : '<span class="badge badge-muted">ORGAN DONOR: NO</span>';
 
     final buf = StringBuffer();
     buf.writeln('<!DOCTYPE html>');
     buf.writeln('<html lang="en">');
     buf.writeln('<head>');
     buf.writeln('  <meta charset="UTF-8">');
-    buf.writeln('  <title>MediSync Continuity Report - ${profile.name}</title>');
+    buf.writeln('  <title>MediSync Clinical Continuity Record - ${profile.name}</title>');
     buf.writeln('  <style>');
-    buf.writeln('    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; padding: 24px; max-width: 860px; margin: 0 auto; background: #f8fafc; }');
-    buf.writeln('    .card { background: #ffffff; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }');
-    buf.writeln('    h1 { color: #0f766e; font-size: 24px; margin-top: 0; }');
-    buf.writeln('    h2 { color: #1e293b; font-size: 18px; border-bottom: 2px solid #0f766e; padding-bottom: 6px; }');
-    buf.writeln('    table { width: 100%; border-collapse: collapse; margin-top: 12px; }');
-    buf.writeln('    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }');
-    buf.writeln('    th { background: #f1f5f9; font-weight: 600; color: #334155; }');
-    buf.writeln('    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #e0f2fe; color: #0369a1; }');
-    buf.writeln('    .badge-danger { background: #fee2e2; color: #b91c1c; }');
+    buf.writeln('    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 24px; max-width: 900px; margin: 0 auto; background: #f8fafc; font-size: 13px; }');
+    buf.writeln('    .header-card { background: #ffffff; border-radius: 12px; padding: 22px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-top: 5px solid #0d9488; }');
+    buf.writeln('    .card { background: #ffffff; border-radius: 12px; padding: 20px; margin-bottom: 18px; border: 1px solid #e2e8f0; }');
+    buf.writeln('    h1 { color: #0d9488; font-size: 22px; margin: 0 0 8px 0; font-weight: 800; letter-spacing: -0.3px; }');
+    buf.writeln('    h2 { color: #1e293b; font-size: 15px; border-bottom: 2px solid #0d9488; padding-bottom: 6px; margin: 0 0 12px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }');
+    buf.writeln('    .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }');
+    buf.writeln('    .demo-item { background: #f1f5f9; padding: 8px 12px; border-radius: 8px; font-size: 12px; }');
+    buf.writeln('    .demo-label { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 10px; display: block; margin-bottom: 2px; }');
+    buf.writeln('    .demo-value { color: #0f172a; font-weight: 700; font-size: 13px; }');
+    buf.writeln('    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }');
+    buf.writeln('    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }');
+    buf.writeln('    th { background: #f1f5f9; font-weight: 700; color: #334155; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }');
+    buf.writeln('    tr:nth-child(even) td { background: #f8fafc; }');
+    buf.writeln('    .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }');
+    buf.writeln('    .badge-critical { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }');
+    buf.writeln('    .badge-vital { background: #ffedd5; color: #c2410c; border: 1px solid #fb923c; }');
+    buf.writeln('    .badge-blood { background: #fef2f2; color: #dc2626; border: 1px solid #ef4444; }');
+    buf.writeln('    .badge-organ { background: #fdf2f8; color: #be185d; border: 1px solid #f472b6; }');
+    buf.writeln('    .badge-muted { background: #f1f5f9; color: #64748b; }');
     buf.writeln('    .badge-success { background: #dcfce7; color: #15803d; }');
+    buf.writeln('    .alert-box { background: #fff1f2; border: 1.5px solid #e11d48; border-radius: 10px; padding: 14px; margin-bottom: 18px; }');
+    buf.writeln('    .warning-box { background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 10px; padding: 14px; margin-bottom: 18px; }');
+    buf.writeln('    .footer-sign { margin-top: 30px; padding-top: 15px; border-top: 1.5px dashed #cbd5e1; display: flex; justify-content: space-between; }');
+    buf.writeln('    .sign-line { width: 240px; border-top: 1px solid #0f172a; margin-top: 35px; text-align: center; font-size: 11px; color: #64748b; }');
     if (isPrintablePdf) {
-      buf.writeln('    @page { size: A4; margin: 15mm; }');
-      buf.writeln('    @media print { body { background: #fff; padding: 0; } .card { box-shadow: none; border: 1px solid #ccc; } }');
+      buf.writeln('    @page { size: A4; margin: 12mm; }');
+      buf.writeln('    @media print { body { background: #fff; padding: 0; } .card, .header-card { box-shadow: none; border: 1px solid #cbd5e1; page-break-inside: avoid; } }');
     }
     buf.writeln('  </style>');
     buf.writeln('</head>');
     buf.writeln('<body>');
-    buf.writeln('  <div class="card">');
-    buf.writeln('    <h1>🏥 MediSync Clinical Continuity & Intake Record</h1>');
-    buf.writeln('    <p><strong>Patient:</strong> ${profile.name} &nbsp;|&nbsp; <strong>Generated:</strong> ${dateFmt.format(now)} &nbsp;|&nbsp; <strong>Mode:</strong> 100% On-Device Local</p>');
+
+    // Header Card
+    buf.writeln('  <div class="header-card">');
+    buf.writeln('    <div style="display: flex; justify-content: space-between; align-items: flex-start;">');
+    buf.writeln('      <div>');
+    buf.writeln('        <h1>📋 MediSync Clinical Continuity & Intake Record</h1>');
+    buf.writeln('        <p style="margin: 0; color: #64748b; font-size: 12px;">Offline Verified Electronic Patient Continuity File &nbsp;|&nbsp; Generated: ${dateFmt.format(now)}</p>');
+    buf.writeln('      </div>');
+    buf.writeln('      <div>$organDonorBadge &nbsp; <span class="badge badge-blood">🩸 $bloodType</span></div>');
+    buf.writeln('    </div>');
+
+    buf.writeln('    <div class="demo-grid">');
+    buf.writeln('      <div class="demo-item"><span class="demo-label">Patient Name</span><span class="demo-value">${profile.name.toUpperCase()}</span></div>');
+    buf.writeln('      <div class="demo-item"><span class="demo-label">Date of Birth / Age</span><span class="demo-value">$dobStr$ageStr</span></div>');
+    buf.writeln('      <div class="demo-item"><span class="demo-label">Gender</span><span class="demo-value">${profile.gender ?? "Not Recorded"}</span></div>');
+    buf.writeln('      <div class="demo-item"><span class="demo-label">Health ID</span><span class="demo-value">$healthId</span></div>');
+    buf.writeln('    </div>');
     buf.writeln('  </div>');
 
-    buf.writeln('  <div class="card">');
-    buf.writeln('    <h2>🛡️ Known Allergies & Safety Flags</h2>');
+    // Allergies Card
+    buf.writeln('  <div class="alert-box">');
+    buf.writeln('    <h3 style="color: #be123c; margin: 0 0 6px 0; font-size: 14px;">⚠️ CRITICAL DRUG ALLERGIES & CONTRAINDICATIONS</h3>');
     if (profile.allergies.isEmpty) {
-      buf.writeln('    <p>No known drug allergies (NKDA) reported by patient.</p>');
+      buf.writeln('    <p style="margin: 0; color: #881337; font-weight: 600;">No known drug allergies (NKDA) reported by patient.</p>');
     } else {
-      buf.writeln('    <ul>');
-      for (final a in profile.allergies) {
-        buf.writeln('      <li><span class="badge badge-danger">ALLERGY TRIGGER</span> <strong>$a</strong></li>');
+      buf.writeln('    <p style="margin: 0; color: #881337; font-weight: 700; font-size: 13px;">${profile.allergies.map((a) => '• $a').join(' &nbsp;&nbsp; ')}</p>');
+    }
+    buf.writeln('  </div>');
+
+    // Past Surgeries & Medical History Card
+    buf.writeln('  <div class="card">');
+    buf.writeln('    <h2>🏥 Past Surgeries & Clinical Medical History</h2>');
+    buf.writeln('    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">');
+    buf.writeln('      <div>');
+    buf.writeln('        <strong style="color: #475569; font-size: 11px; text-transform: uppercase;">Previous Surgeries & Procedures:</strong>');
+    if (profile.pastSurgeries.isEmpty) {
+      buf.writeln('        <p style="margin: 4px 0 0 0; color: #64748b; font-style: italic;">None recorded.</p>');
+    } else {
+      buf.writeln('        <ul style="margin: 4px 0 0 0; padding-left: 18px;">');
+      for (final s in profile.pastSurgeries) {
+        buf.writeln('          <li><strong>$s</strong></li>');
       }
-      buf.writeln('    </ul>');
+      buf.writeln('        </ul>');
+    }
+    buf.writeln('      </div>');
+    buf.writeln('      <div>');
+    buf.writeln('        <strong style="color: #475569; font-size: 11px; text-transform: uppercase;">Medical History & Chronic Conditions:</strong>');
+    final combinedHistory = [...profile.medicalHistory, ...profile.chronicConditions];
+    if (combinedHistory.isEmpty) {
+      buf.writeln('        <p style="margin: 4px 0 0 0; color: #64748b; font-style: italic;">None recorded.</p>');
+    } else {
+      buf.writeln('        <ul style="margin: 4px 0 0 0; padding-left: 18px;">');
+      for (final h in combinedHistory) {
+        buf.writeln('          <li><strong>$h</strong></li>');
+      }
+      buf.writeln('        </ul>');
+    }
+    buf.writeln('      </div>');
+    buf.writeln('    </div>');
+    buf.writeln('  </div>');
+
+    // Active Medications Card
+    buf.writeln('  <div class="card">');
+    buf.writeln('    <h2>💊 Active Medications Regimen</h2>');
+    if (activeMeds.isEmpty) {
+      buf.writeln('    <p style="color: #64748b; font-style: italic;">No active regularly scheduled medications recorded.</p>');
+    } else {
+      buf.writeln('    <table>');
+      buf.writeln('      <thead><tr><th>Medication</th><th>Dosage</th><th>Form</th><th>Clinical Tier</th><th>Schedule</th><th>Started</th><th>Adherence</th></tr></thead>');
+      buf.writeln('      <tbody>');
+      for (final med in activeMeds) {
+        final stats = med.continuityStats;
+        final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
+        final onTimePct = totalDoses > 0
+            ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
+            : 'N/A';
+        final tierClass = med.necessityLevel == NecessityLevel.critical
+            ? 'badge-critical'
+            : (med.necessityLevel == NecessityLevel.vital ? 'badge-vital' : 'badge-muted');
+
+        buf.writeln('        <tr>');
+        buf.writeln('          <td><strong>${med.name}</strong></td>');
+        buf.writeln('          <td>${med.dosage}</td>');
+        buf.writeln('          <td><span class="badge badge-muted">${med.form.name.toUpperCase()}</span></td>');
+        buf.writeln('          <td><span class="badge $tierClass">${med.necessityLevel.badgeText}</span></td>');
+        buf.writeln('          <td>${med.frequencyDisplay} (${med.scheduledTimes.join(", ")})</td>');
+        buf.writeln('          <td>${dayFmt.format(med.startDate)}</td>');
+        buf.writeln('          <td><span class="badge badge-success">$onTimePct%</span></td>');
+        buf.writeln('        </tr>');
+      }
+      buf.writeln('      </tbody>');
+      buf.writeln('    </table>');
     }
     buf.writeln('  </div>');
 
-    buf.writeln('  <div class="card">');
-    buf.writeln('    <h2>💊 Active Medications & Regimen Summary</h2>');
-    buf.writeln('    <table>');
-    buf.writeln('      <thead><tr><th>Medication</th><th>Dosage</th><th>Form</th><th>Frequency</th><th>Schedule</th><th>Adherence</th></tr></thead>');
-    buf.writeln('      <tbody>');
-    for (final med in medications) {
-      final stats = med.continuityStats;
-      final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
-      final onTimePct = totalDoses > 0
-          ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
-          : 'N/A';
-      buf.writeln('        <tr>');
-      buf.writeln('          <td><strong>${med.name}</strong></td>');
-      buf.writeln('          <td>${med.dosage}</td>');
-      buf.writeln('          <td><span class="badge">${med.form.name.toUpperCase()}</span></td>');
-      buf.writeln('          <td>${med.scheduleFrequency.name}</td>');
-      buf.writeln('          <td>${med.scheduledTimes.join(", ")}</td>');
-      buf.writeln('          <td><span class="badge badge-success">$onTimePct%</span></td>');
-      buf.writeln('        </tr>');
-    }
-    buf.writeln('      </tbody>');
-    buf.writeln('    </table>');
-    buf.writeln('  </div>');
+    // Discontinued High-Risk Medications Card
+    if (significantDiscontinued.isNotEmpty) {
+      buf.writeln('  <div class="warning-box">');
+      buf.writeln('    <h3 style="color: #b45309; margin: 0 0 6px 0; font-size: 14px;">⚠️ DISCONTINUED HIGH-RISK MEDICATIONS (CLINICALLY SIGNIFICANT)</h3>');
+      buf.writeln('    <p style="margin: 0 0 10px 0; color: #78350f; font-size: 11.5px;">The following medications were discontinued. Attending clinicians must check drug-drug washouts and clearance half-lives.</p>');
+      buf.writeln('    <table>');
+      buf.writeln('      <thead><tr><th>Medication</th><th>Dosage</th><th>Form</th><th>Tier</th><th>Discontinued On</th><th>Time Elapsed</th><th>Last Dose Taken</th><th>Warning / Reason</th></tr></thead>');
+      buf.writeln('      <tbody>');
+      for (final med in significantDiscontinued) {
+        final discDate = med.discontinuedDate != null ? dayFmt.format(med.discontinuedDate!) : 'Recorded';
+        String timeAgo = '';
+        if (med.discontinuedDate != null) {
+          final days = now.difference(med.discontinuedDate!).inDays;
+          timeAgo = days <= 0 ? 'Today' : (days == 1 ? '1 day ago' : '$days days ago');
+        }
+        final lastTaken = med.lastTakenDateTime != null ? dateFmt.format(med.lastTakenDateTime!) : 'No dose recorded';
+        final reason = med.skipConsequences ?? med.discontinuationReason ?? 'Discontinued by patient';
 
-    buf.writeln('  <div class="card">');
-    buf.writeln('    <h2>📋 Detailed Intake Log</h2>');
-    for (final med in medications) {
-      final stats = med.continuityStats;
-      buf.writeln('    <h3>${med.name} (${med.dosage})</h3>');
-      buf.writeln('    <p><strong>Stats:</strong> Taken on time: ${stats["taken"]} | Delayed: ${stats["delayed"]} | Missed: ${stats["missed"]} | Not needed: ${stats["notNeeded"]}</p>');
-      if (med.doseLog.isNotEmpty) {
-        buf.writeln('    <ul>');
-        for (final entry in med.doseLog.entries) {
-          buf.writeln('      <li><strong>${entry.key}:</strong> ${entry.value.join(", ")}</li>');
+        buf.writeln('        <tr>');
+        buf.writeln('          <td><strong>${med.name}</strong></td>');
+        buf.writeln('          <td>${med.dosage}</td>');
+        buf.writeln('          <td>${med.form.name.toUpperCase()}</td>');
+        buf.writeln('          <td><span class="badge badge-critical">${med.necessityLevel.badgeText}</span></td>');
+        buf.writeln('          <td>$discDate</td>');
+        buf.writeln('          <td><strong>$timeAgo</strong></td>');
+        buf.writeln('          <td>$lastTaken</td>');
+        buf.writeln('          <td style="color: #b45309;">$reason</td>');
+        buf.writeln('        </tr>');
+      }
+      buf.writeln('      </tbody>');
+      buf.writeln('    </table>');
+      buf.writeln('  </div>');
+    }
+
+    // Chronological Intake Log Card
+    final allMedsWithLogs = medications.where((m) => m.doseLog.isNotEmpty).toList();
+    if (allMedsWithLogs.isNotEmpty) {
+      buf.writeln('  <div class="card">');
+      buf.writeln('    <h2>📊 Chronological Intake History</h2>');
+      for (final med in allMedsWithLogs) {
+        buf.writeln('    <h4 style="margin: 10px 0 4px 0; color: #1e293b;">${med.name} (${med.dosage}) ${med.isDiscontinued ? '<span class="badge badge-muted">[DISCONTINUED]</span>' : ''}</h4>');
+        final sortedKeys = med.doseLog.keys.toList()..sort((a, b) => b.compareTo(a));
+        buf.writeln('    <ul style="margin: 0; padding-left: 20px; font-size: 11.5px; color: #334155;">');
+        for (final dateKey in sortedKeys.take(7)) {
+          final entries = med.doseLog[dateKey]!.map(formatDoseLogEntry).join(', ');
+          buf.writeln('      <li><strong>$dateKey:</strong> $entries</li>');
         }
         buf.writeln('    </ul>');
       }
+      buf.writeln('  </div>');
     }
+
+    // Physician Attestation Block
+    buf.writeln('  <div class="footer-sign">');
+    buf.writeln('    <div class="sign-line">Attending Physician Signature</div>');
+    buf.writeln('    <div class="sign-line">Date Verified (DD/MM/YYYY)</div>');
     buf.writeln('  </div>');
 
     buf.writeln('</body>');
     buf.writeln('</html>');
     return buf.toString();
-  }
-
-  /// Generates a structured XML document for healthcare interoperability and HL7/FHIR alignment.
-  String generateContinuityReportXml({
-    required List<Medication> medications,
-    required UserProfile profile,
-  }) {
-    final now = DateTime.now();
-    final dateFmt = DateFormat('yyyy-MM-ddTHH:mm:ss');
-    final dayFmt = DateFormat('yyyy-MM-dd');
-
-    final buf = StringBuffer();
-    buf.writeln('<?xml version="1.0" encoding="UTF-8"?>');
-    buf.writeln('<MediSyncContinuityRecord version="1.6.0" generatedAt="${dateFmt.format(now)}">');
-    buf.writeln('  <Patient>');
-    buf.writeln('    <Name><![CDATA[${profile.name}]]></Name>');
-    buf.writeln('    <StorageSecurity>OnDeviceEncrypted</StorageSecurity>');
-    buf.writeln('  </Patient>');
-
-    buf.writeln('  <Allergies count="${profile.allergies.length}">');
-    for (final a in profile.allergies) {
-      buf.writeln('    <AllergyTrigger><![CDATA[$a]]></AllergyTrigger>');
-    }
-    buf.writeln('  </Allergies>');
-
-    buf.writeln('  <Medications count="${medications.length}">');
-    for (final med in medications) {
-      final stats = med.continuityStats;
-      buf.writeln('    <Medication id="${med.id}">');
-      buf.writeln('      <Name><![CDATA[${med.name}]]></Name>');
-      buf.writeln('      <Dosage><![CDATA[${med.dosage}]]></Dosage>');
-      buf.writeln('      <Form>${med.form.name}</Form>');
-      buf.writeln('      <Frequency>${med.scheduleFrequency.name}</Frequency>');
-      buf.writeln('      <StartDate>${dayFmt.format(med.startDate)}</StartDate>');
-      buf.writeln('      <ScheduledTimes>');
-      for (final t in med.scheduledTimes) {
-        buf.writeln('        <Time>$t</Time>');
-      }
-      buf.writeln('      </ScheduledTimes>');
-      buf.writeln('      <Statistics>');
-      buf.writeln('        <TakenOnTime>${stats["taken"]}</TakenOnTime>');
-      buf.writeln('        <TakenDelayed>${stats["delayed"]}</TakenDelayed>');
-      buf.writeln('        <Missed>${stats["missed"]}</Missed>');
-      buf.writeln('        <NotNeeded>${stats["notNeeded"]}</NotNeeded>');
-      buf.writeln('      </Statistics>');
-      buf.writeln('      <DoseLog>');
-      for (final e in med.doseLog.entries) {
-        buf.writeln('        <LogEntry date="${e.key}"><![CDATA[${e.value.join(", ")}]]></LogEntry>');
-      }
-      buf.writeln('      </DoseLog>');
-      buf.writeln('    </Medication>');
-    }
-    buf.writeln('  </Medications>');
-    buf.writeln('</MediSyncContinuityRecord>');
-    return buf.toString();
-  }
-
-  /// Generates a Word-compatible (.doc) HTML/MIME file readable by Microsoft Word and Google Docs.
-  String generateContinuityReportDoc({
-    required List<Medication> medications,
-    required UserProfile profile,
-  }) {
-    return generateContinuityReportHtml(medications: medications, profile: profile, isPrintablePdf: true);
   }
 
   /// Formats raw dose log entries (e.g. "08:00:taken") into human-friendly clinical labels
@@ -1088,8 +1397,8 @@ class DeviceIntegrationService {
     return '$timeStr ($label)';
   }
 
-  /// Generates a complete, offline-only Clinical Medication Continuity & Intake Report.
-  /// Strictly requires user permission & call to action before generation.
+  /// Generates a complete, offline-only Plain Text Clinical Medication Continuity & Intake Report
+  /// formatted with clean ASCII boxes, structured demographics, and clear sections.
   String generateContinuityReport({
     required List<Medication> medications,
     required UserProfile profile,
@@ -1098,76 +1407,157 @@ class DeviceIntegrationService {
     final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
     final dayFmt = DateFormat('yyyy-MM-dd');
 
-    final buf = StringBuffer();
-    buf.writeln('================================================================');
-    buf.writeln('           MEDISYNC CLINICAL CONTINUITY & INTAKE RECORD         ');
-    buf.writeln('================================================================');
-    buf.writeln('Generated on: ${dateFmt.format(now)}');
-    buf.writeln('Patient Identifier: ${profile.name}');
-    buf.writeln('Storage Architecture: 100% On-Device Local Encrypted Storage');
-    buf.writeln('Privacy Consent: Authorized by patient on-device');
-    buf.writeln('----------------------------------------------------------------\n');
+    final activeMeds = medications.where((m) => !m.isDiscontinued).toList();
+    final discontinuedMeds = medications.where((m) => m.isDiscontinued).toList();
+    final significantDiscontinued = discontinuedMeds.where((m) => m.necessityLevel != NecessityLevel.low).toList();
 
-    buf.writeln('1. ALLERGIES & CLINICAL SAFETY TRIGGERS:');
+    final dobStr = profile.dateOfBirth != null
+        ? DateFormat('d MMMM yyyy').format(profile.dateOfBirth!)
+        : (profile.age != null ? 'Age ${profile.age}' : 'Not specified');
+    final ageStr = profile.age != null ? ' (${profile.age} yrs)' : '';
+    final bloodType = profile.bloodType ?? 'Unknown';
+    final healthId = profile.healthId ?? 'Not Registered';
+    final organDonorStr = profile.isOrganDonor ? 'YES (Registered Organ Donor)' : 'NO';
+
+    final buf = StringBuffer();
+    buf.writeln('+-------------------------------------------------------------------------+');
+    buf.writeln('|              MEDISYNC CLINICAL CONTINUITY & INTAKE RECORD               |');
+    buf.writeln('|                 100% On-Device Local Encrypted Storage                  |');
+    buf.writeln('+-------------------------------------------------------------------------+');
+    buf.writeln('Generated on:        ${dateFmt.format(now)}');
+    buf.writeln('Patient Name:        ${profile.name.toUpperCase()}');
+    buf.writeln('Date of Birth / Age: $dobStr$ageStr');
+    buf.writeln('Gender:              ${profile.gender ?? 'Not recorded'}');
+    buf.writeln('Blood Type:          $bloodType');
+    buf.writeln('Organ Donor Status:  $organDonorStr');
+    buf.writeln('Health ID:           $healthId');
+    buf.writeln('---------------------------------------------------------------------------\n');
+
+    buf.writeln('===========================================================================');
+    buf.writeln('1. ALLERGIES & CRITICAL SAFETY CONTRAINDICATIONS');
+    buf.writeln('===========================================================================');
     if (profile.allergies.isEmpty) {
-      buf.writeln('   - No known drug allergies (NKDA) reported.');
+      buf.writeln('   - No known drug allergies (NKDA) reported by patient.');
     } else {
       for (final a in profile.allergies) {
-        buf.writeln('   - [ALLERGY]: $a');
+        buf.writeln('   [!] CRITICAL ALLERGY TRIGGER: $a');
       }
     }
-    buf.writeln('\n----------------------------------------------------------------');
-    buf.writeln('2. ACTIVE MEDICATIONS & CONTINUITY SUMMARY:');
-    buf.writeln('----------------------------------------------------------------');
+    buf.writeln();
 
-    for (final med in medications) {
-      final stats = med.continuityStats;
-      final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
-      final onTimePct = totalDoses > 0
-          ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
-          : 'N/A';
-
-      final lastTaken = med.lastTakenDateTime != null
-          ? dateFmt.format(med.lastTakenDateTime!)
-          : 'No doses logged yet';
-
-      buf.writeln('\n• Medication: ${med.name} (${med.dosage})');
-      buf.writeln('  Form: ${med.form.name.toUpperCase()}');
-      buf.writeln('  Frequency: ${med.frequencyDisplay}');
-      buf.writeln('  Schedule Times: ${med.scheduledTimes.join(', ')}');
-      buf.writeln('  Date Started: ${dayFmt.format(med.startDate)}');
-      buf.writeln('  Last Dose Taken: $lastTaken');
-      buf.writeln('  Intake Stats:');
-      buf.writeln('    - Taken On Time: ${stats['taken']}');
-      buf.writeln('    - Taken Delayed: ${stats['delayed']}');
-      buf.writeln('    - Missed Window: ${stats['missed']}');
-      buf.writeln('    - Skipped / Not Needed: ${stats['notNeeded']}');
-      buf.writeln('    - Adherence Rate: $onTimePct%');
-      if (med.foodRestrictions.isNotEmpty) {
-        buf.writeln('  Dietary Advisories:');
-        for (final r in med.foodRestrictions) {
-          buf.writeln('    * $r');
+    buf.writeln('===========================================================================');
+    buf.writeln('2. PAST SURGERIES & MEDICAL HISTORY');
+    buf.writeln('===========================================================================');
+    if (profile.pastSurgeries.isEmpty && profile.medicalHistory.isEmpty && profile.chronicConditions.isEmpty) {
+      buf.writeln('   - No previous surgeries, chronic conditions, or diseases recorded.');
+    } else {
+      if (profile.pastSurgeries.isNotEmpty) {
+        buf.writeln('   Previous Surgeries & Procedures:');
+        for (final s in profile.pastSurgeries) {
+          buf.writeln('     * Surgery/Procedure: $s');
         }
       }
+      if (profile.medicalHistory.isNotEmpty) {
+        buf.writeln('   Past Medical History / Diseases:');
+        for (final h in profile.medicalHistory) {
+          buf.writeln('     * Past Condition: $h');
+        }
+      }
+      if (profile.chronicConditions.isNotEmpty) {
+        buf.writeln('   Active Chronic Conditions:');
+        for (final c in profile.chronicConditions) {
+          buf.writeln('     * Chronic Condition: $c');
+        }
+      }
+    }
+    buf.writeln();
 
-      // Chronological Log entries for this medication
-      if (med.doseLog.isNotEmpty) {
-        buf.writeln('  Chronological Intake Log:');
+    buf.writeln('===========================================================================');
+    buf.writeln('3. ACTIVE MEDICATIONS & CONTINUITY REGIMEN');
+    buf.writeln('===========================================================================');
+    if (activeMeds.isEmpty) {
+      buf.writeln('   - No active regularly scheduled medications recorded.');
+    } else {
+      for (final med in activeMeds) {
+        final stats = med.continuityStats;
+        final totalDoses = stats['taken']! + stats['delayed']! + stats['missed']! + stats['notNeeded']!;
+        final onTimePct = totalDoses > 0
+            ? ((stats['taken']! / (totalDoses - stats['notNeeded']! > 0 ? totalDoses - stats['notNeeded']! : 1)) * 100).toStringAsFixed(1)
+            : 'N/A';
+
+        final lastTaken = med.lastTakenDateTime != null
+            ? dateFmt.format(med.lastTakenDateTime!)
+            : 'No doses logged yet';
+
+        buf.writeln('• ${med.name} (${med.dosage}) [${med.necessityLevel.badgeText}]');
+        buf.writeln('  - Form:             ${med.form.name.toUpperCase()}');
+        buf.writeln('  - Frequency:        ${med.frequencyDisplay}');
+        buf.writeln('  - Schedule Times:   ${med.scheduledTimes.join(', ')}');
+        buf.writeln('  - Date Started:     ${dayFmt.format(med.startDate)}');
+        buf.writeln('  - Last Dose Taken:  $lastTaken');
+        buf.writeln('  - Intake Breakdown: Taken On Time: ${stats['taken']} | Delayed: ${stats['delayed']} | Missed: ${stats['missed']} | PRN Not Needed: ${stats['notNeeded']}');
+        buf.writeln('  - Adherence Rate:   $onTimePct%');
+        if (med.foodRestrictions.isNotEmpty) {
+          buf.writeln('  - Dietary Advisory: ${med.foodRestrictions.join('; ')}');
+        }
+        if (med.doctorNotes != null && med.doctorNotes!.isNotEmpty) {
+          buf.writeln('  - Doctor Notes:     ${med.doctorNotes}');
+        }
+        buf.writeln();
+      }
+    }
+
+    if (significantDiscontinued.isNotEmpty) {
+      buf.writeln('===========================================================================');
+      buf.writeln('4. DISCONTINUED MEDICATIONS (CLINICALLY SIGNIFICANT)');
+      buf.writeln('===========================================================================');
+      buf.writeln('ATTENTION: The following medications have been discontinued. Healthcare');
+      buf.writeln('providers must consider clearance half-lives and drug-drug interactions.\n');
+
+      for (final med in significantDiscontinued) {
+        final discDate = med.discontinuedDate != null ? dayFmt.format(med.discontinuedDate!) : 'Recorded';
+        String timeAgo = '';
+        if (med.discontinuedDate != null) {
+          final days = now.difference(med.discontinuedDate!).inDays;
+          timeAgo = days <= 0 ? 'Today' : (days == 1 ? '1 day ago' : '$days days ago');
+        }
+        final lastTaken = med.lastTakenDateTime != null
+            ? dateFmt.format(med.lastTakenDateTime!)
+            : 'No dose recorded';
+        final reason = med.skipConsequences ?? med.discontinuationReason ?? 'Discontinued by patient';
+
+        buf.writeln('• ${med.name} (${med.dosage}, ${med.form.name.toUpperCase()}) [${med.necessityLevel.badgeText}]');
+        buf.writeln('  - Discontinued On:  $discDate ($timeAgo)');
+        buf.writeln('  - Last Dose Taken:  $lastTaken');
+        buf.writeln('  - Clinical Warning: $reason');
+        buf.writeln();
+      }
+    }
+
+    buf.writeln('===========================================================================');
+    buf.writeln('5. CHRONOLOGICAL DOSE INTAKE LOG');
+    buf.writeln('===========================================================================');
+    final allMedsWithLogs = medications.where((m) => m.doseLog.isNotEmpty).toList();
+    if (allMedsWithLogs.isEmpty) {
+      buf.writeln('   - No dose timestamps recorded yet.');
+    } else {
+      for (final med in allMedsWithLogs) {
+        buf.writeln('• ${med.name} (${med.dosage}) ${med.isDiscontinued ? "[DISCONTINUED]" : ""}:');
         final sortedKeys = med.doseLog.keys.toList()..sort((a, b) => b.compareTo(a));
-        for (final dateKey in sortedKeys) {
+        for (final dateKey in sortedKeys.take(7)) {
           final entries = med.doseLog[dateKey]!.map(formatDoseLogEntry).join(', ');
           buf.writeln('    [$dateKey]: $entries');
         }
       }
     }
 
-    buf.writeln('\n================================================================');
-    buf.writeln('                    CONFIDENTIALITY NOTICE                      ');
-    buf.writeln('================================================================');
-    buf.writeln('This medical continuity record was produced strictly within the');
-    buf.writeln('isolated sandbox of MediSync on this device. No network requests,');
-    buf.writeln('cloud backups, or third-party tracking have been executed.');
-    buf.writeln('================================================================');
+    buf.writeln('\n===========================================================================');
+    buf.writeln('                       HEALTHCARE PROVIDER ATTESTATION                     ');
+    buf.writeln('===========================================================================');
+    buf.writeln('Attending Physician Signature: ____________________________________________');
+    buf.writeln('Date Verified:                 ____________________________________________');
+    buf.writeln('Confidential Medical Record - Generated 100% on-device by MediSync.');
+    buf.writeln('===========================================================================');
 
     return buf.toString();
   }

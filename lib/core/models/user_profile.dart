@@ -12,6 +12,9 @@ class UserProfile {
   final String lockscreenDefaultView; // 'card', 'medications', 'dual'
   final List<String> allergies;
   final List<String> chronicConditions;
+  final List<String> pastSurgeries;
+  final List<String> medicalHistory;
+  final bool isOrganDonor;
   final String wakeTime;      // "HH:mm" e.g. "07:00"
   final String sleepTime;     // "HH:mm" e.g. "23:00"
   final String breakfastTime; // "HH:mm" e.g. "08:30"
@@ -44,6 +47,9 @@ class UserProfile {
     this.lockscreenDefaultView = 'dual',
     this.allergies = const [],
     this.chronicConditions = const [],
+    this.pastSurgeries = const [],
+    this.medicalHistory = const [],
+    this.isOrganDonor = false,
     this.wakeTime = '07:00',
     this.sleepTime = '23:00',
     this.breakfastTime = '08:30',
@@ -99,6 +105,9 @@ class UserProfile {
     String? lockscreenDefaultView,
     List<String>? allergies,
     List<String>? chronicConditions,
+    List<String>? pastSurgeries,
+    List<String>? medicalHistory,
+    bool? isOrganDonor,
     String? wakeTime,
     String? sleepTime,
     String? breakfastTime,
@@ -120,6 +129,9 @@ class UserProfile {
       lockscreenDefaultView: lockscreenDefaultView ?? this.lockscreenDefaultView,
       allergies: allergies ?? this.allergies,
       chronicConditions: chronicConditions ?? this.chronicConditions,
+      pastSurgeries: pastSurgeries ?? this.pastSurgeries,
+      medicalHistory: medicalHistory ?? this.medicalHistory,
+      isOrganDonor: isOrganDonor ?? this.isOrganDonor,
       wakeTime: wakeTime ?? this.wakeTime,
       sleepTime: sleepTime ?? this.sleepTime,
       breakfastTime: breakfastTime ?? this.breakfastTime,
@@ -144,6 +156,9 @@ class UserProfile {
       'lockscreenDefaultView': lockscreenDefaultView,
       'allergies': allergies,
       'chronicConditions': chronicConditions,
+      'pastSurgeries': pastSurgeries,
+      'medicalHistory': medicalHistory,
+      'isOrganDonor': isOrganDonor,
       'wakeTime': wakeTime,
       'sleepTime': sleepTime,
       'breakfastTime': breakfastTime,
@@ -179,6 +194,15 @@ class UserProfile {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      pastSurgeries: (json['pastSurgeries'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      medicalHistory: (json['medicalHistory'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      isOrganDonor: json['isOrganDonor'] as bool? ?? false,
       wakeTime: json['wakeTime'] as String? ?? '07:00',
       sleepTime: json['sleepTime'] as String? ?? '23:00',
       breakfastTime: json['breakfastTime'] as String? ?? '08:30',

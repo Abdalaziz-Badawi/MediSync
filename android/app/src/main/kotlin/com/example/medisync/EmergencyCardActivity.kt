@@ -51,33 +51,95 @@ class EmergencyCardActivity : Activity() {
         val allergies = prefs.getString("allergies", "No known drug or environmental allergies recorded.") ?: "No known drug or environmental allergies recorded."
         val conditions = prefs.getString("conditions", "No chronic conditions or organ risks recorded.") ?: "No chronic conditions or organ risks recorded."
         val medications = prefs.getString("medications", "No active regular medications recorded.") ?: "No active regular medications recorded."
+        val organDonor = prefs.getString("organ_donor", "NO") ?: "NO"
+        val pastSurgeries = prefs.getString("past_surgeries", "") ?: ""
+        val medicalHistory = prefs.getString("medical_history", "") ?: ""
+        val discontinuedMeds = prefs.getString("discontinued_meds", "") ?: ""
 
         findViewById<TextView>(R.id.tv_patient_name)?.text = patientName.uppercase()
-        findViewById<TextView>(R.id.tv_blood_type)?.text = "BLOOD: $bloodType"
+        findViewById<TextView>(R.id.tv_blood_type)?.text = bloodType
         findViewById<TextView>(R.id.tv_demographics)?.text = demographics.uppercase()
-        findViewById<TextView>(R.id.tv_health_id)?.text = "ID: $healthId"
+        findViewById<TextView>(R.id.tv_health_id)?.text = healthId
 
-        // Allergies
+        // Organ Donor Hero Badge
+        val isDonor = organDonor.equals("YES", ignoreCase = true)
+        val tvOrganDonor = findViewById<TextView>(R.id.tv_organ_donor)
+        val tvDonorSubtitle = findViewById<TextView>(R.id.tv_donor_subtitle)
+        tvOrganDonor?.text = if (isDonor) "YES" else "NO"
+        tvOrganDonor?.setTextColor(if (isDonor) 0xFF059669.toInt() else 0xFF475569.toInt())
+        tvDonorSubtitle?.text = if (isDonor) "REGISTERED DONOR" else "NOT REGISTERED"
+        tvDonorSubtitle?.setTextColor(if (isDonor) 0xFF047857.toInt() else 0xFF94A3B8.toInt())
+
+        // Priority 1: Allergies & Contraindications (High-Alert Warning)
         val tvAllergies = findViewById<TextView>(R.id.tv_allergies)
-        tvAllergies?.text = if (allergies.isBlank() || allergies.contains("No known", ignoreCase = true)) {
-            "NO KNOWN DRUG ALLERGIES (NKDA)"
+        val tvAllergiesWarning = findViewById<TextView>(R.id.tv_allergies_warning)
+        val hasAllergies = !(allergies.isBlank() || allergies.contains("No known", ignoreCase = true))
+        if (hasAllergies) {
+            tvAllergies?.text = allergies
+            tvAllergiesWarning?.visibility = View.VISIBLE
         } else {
-            allergies
+            tvAllergies?.text = "NO KNOWN DRUG ALLERGIES (NKDA)"
+            tvAllergiesWarning?.visibility = View.GONE
         }
 
-        // Conditions
-        val tvConditions = findViewById<TextView>(R.id.tv_conditions)
+        // Priority 2: Clinical Conditions, Surgeries & History
+        val layoutClinical = findViewById<View>(R.id.layout_clinical_section)
         val layoutConditions = findViewById<View>(R.id.layout_conditions_section)
-        if (conditions.isBlank() || conditions.contains("No chronic", ignoreCase = true) || conditions.equals("None", ignoreCase = true)) {
-            layoutConditions?.visibility = View.GONE
+        val tvConditions = findViewById<TextView>(R.id.tv_conditions)
+        val layoutSurgeries = findViewById<View>(R.id.layout_surgeries_section)
+        val tvSurgeries = findViewById<TextView>(R.id.tv_surgeries)
+        val layoutHistory = findViewById<View>(R.id.layout_history_section)
+        val tvHistory = findViewById<TextView>(R.id.tv_history)
+
+        val hasConditions = !(conditions.isBlank() || conditions.contains("No chronic", ignoreCase = true) || conditions.equals("None", ignoreCase = true))
+        val hasSurgeries = !(pastSurgeries.isBlank() || pastSurgeries.contains("None recorded", ignoreCase = true))
+        val hasHistory = !(medicalHistory.isBlank() || medicalHistory.contains("None recorded", ignoreCase = true))
+
+        if (hasConditions || hasSurgeries || hasHistory) {
+            layoutClinical?.visibility = View.VISIBLE
+
+            if (hasConditions) {
+                layoutConditions?.visibility = View.VISIBLE
+                tvConditions?.text = conditions
+            } else {
+                layoutConditions?.visibility = View.GONE
+            }
+
+            if (hasSurgeries) {
+                layoutSurgeries?.visibility = View.VISIBLE
+                tvSurgeries?.text = pastSurgeries
+            } else {
+                layoutSurgeries?.visibility = View.GONE
+            }
+
+            if (hasHistory) {
+                layoutHistory?.visibility = View.VISIBLE
+                tvHistory?.text = medicalHistory
+            } else {
+                layoutHistory?.visibility = View.GONE
+            }
         } else {
+            // Keep container showing default if all empty
+            layoutClinical?.visibility = View.VISIBLE
             layoutConditions?.visibility = View.VISIBLE
-            tvConditions?.text = conditions
+            tvConditions?.text = "No chronic conditions or past surgical history recorded."
+            layoutSurgeries?.visibility = View.GONE
+            layoutHistory?.visibility = View.GONE
         }
 
-        // Medications
+        // Priority 3: Medications
         val tvMedications = findViewById<TextView>(R.id.tv_medications)
         tvMedications?.text = medications
+
+        // Priority 4: Discontinued High-Risk Medications
+        val tvDiscontinued = findViewById<TextView>(R.id.tv_discontinued)
+        val layoutDiscontinued = findViewById<View>(R.id.layout_discontinued_section)
+        if (discontinuedMeds.isBlank()) {
+            layoutDiscontinued?.visibility = View.GONE
+        } else {
+            layoutDiscontinued?.visibility = View.VISIBLE
+            tvDiscontinued?.text = discontinuedMeds
+        }
 
         // Emergency Call
         findViewById<Button>(R.id.btn_call_emergency)?.setOnClickListener {

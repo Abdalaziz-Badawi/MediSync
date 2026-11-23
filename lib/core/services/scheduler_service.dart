@@ -52,6 +52,27 @@ class SmartScheduleResult {
   });
 }
 
+/// Clinical conflict detected between medications scheduled at the same time or routine slot.
+class ClinicalSlotConflict {
+  final Medication medicationA;
+  final Medication medicationB;
+  final String title;
+  final String description;
+  final String recommendedAction;
+  final int requiredSpacingHours;
+  final bool isSevere; // true if absolute hard stop (e.g. bleeding risk), false if spacing needed
+
+  const ClinicalSlotConflict({
+    required this.medicationA,
+    required this.medicationB,
+    required this.title,
+    required this.description,
+    required this.recommendedAction,
+    this.requiredSpacingHours = 2,
+    this.isSevere = false,
+  });
+}
+
 class SchedulerService {
   /// Proposes optimal schedule times with studied clinical rationales
   /// and seamless companion meal reminders.
@@ -625,6 +646,11 @@ class SchedulerService {
     }
   }
 
+  static bool isNsaid(String name, MedicineTemplate? tmpl) => _isNsaid(name, tmpl);
+  static bool isAnticoagulant(String name, MedicineTemplate? tmpl) => _isAnticoagulant(name, tmpl);
+  static bool isChelatorAntibiotic(String name, MedicineTemplate? tmpl) => _isChelatorAntibiotic(name, tmpl);
+  static bool isMineralOrAntacid(String name, MedicineTemplate? tmpl) => _isMineralOrAntacid(name, tmpl);
+
   static bool _isNsaid(String name, MedicineTemplate? tmpl) {
     if (tmpl != null && tmpl.drugClass.toLowerCase().contains('nsaid')) return true;
     const nsaids = ['ibuprofen', 'advil', 'motrin', 'aspirin', 'naproxen', 'aleve', 'celebrex', 'celecoxib', 'diclofenac', 'voltaren', 'meloxicam'];
@@ -645,6 +671,155 @@ class SchedulerService {
   static bool _isMineralOrAntacid(String name, MedicineTemplate? tmpl) {
     const minerals = ['calcium', 'iron', 'ferrous', 'antacid', 'tums', 'maalox', 'multivitamin', 'zinc', 'magnesium'];
     return minerals.any((m) => name.contains(m));
+  }
+
+  /// Checks whether two specific medications have a clinical timing conflict or spacing requirement.
+  static ClinicalSlotConflict? checkPairConflict(Medication medA, Medication medB) {
+    if (medA.id == medB.id) return null;
+    final aName = medA.name.trim().toLowerCase();
+    final bName = medB.name.trim().toLowerCase();
+    final aTmpl = MedicinesDatabase.findByName(medA.name);
+    final bTmpl = MedicinesDatabase.findByName(medB.name);
+
+    // 1. NSAID + Anticoagulant/Antiplatelet (Severe bleeding risk)
+    final aNsaid = isNsaid(aName, aTmpl);
+    final bNsaid = isNsaid(bName, bTmpl);
+    final aAnticoag = isAnticoagulant(aName, aTmpl);
+    final bAnticoag = isAnticoagulant(bName, bTmpl);
+
+    if ((aNsaid && bAnticoag) || (aAnticoag && bNsaid)) {
+      return ClinicalSlotConflict(
+        medicationA: medA,
+        medicationB: medB,
+        title: 'Major Bleeding Risk',
+        description: 'Combining "${medA.name}" with "${medB.name}" heightens gastrointestinal ulceration and severe bleeding risk.',
+        recommendedAction: 'Do not take together. Consult physician or space as directed.',
+        requiredSpacingHours: 0,
+        isSevere: true,
+      );
+    }
+
+    // 2. Dual NSAID Therapy
+    if (aNsaid && bNsaid) {
+      return ClinicalSlotConflict(
+        medicationA: medA,
+        medicationB: medB,
+        title: 'Duplicate NSAID Therapy',
+        description: 'Taking "${medA.name}" alongside "${medB.name}" compounds gastric and renal toxicity without added analgesia.',
+        recommendedAction: 'Take one or space by at least 6 hours under medical advice.',
+        requiredSpacingHours: 6,
+        isSevere: false,
+      );
+    }
+
+    // 3. Chelation & Mineral Absorption (Tetracyclines/Fluoroquinolones vs Minerals/Antacids)
+    final aChelator = isChelatorAntibiotic(aName, aTmpl);
+    final bChelator = isChelatorAntibiotic(bName, bTmpl);
+    final aMineral = isMineralOrAntacid(aName, aTmpl);
+    final bMineral = isMineralOrAntacid(bName, bTmpl);
+
+    if ((aChelator && bMineral) || (aMineral && bChelator)) {
+      return ClinicalSlotConflict(
+        medicationA: medA,
+        medicationB: medB,
+        title: 'Absorption Conflict (Chelation)',
+        description: '"${medA.name}" binds with multivalent minerals in "${medB.name}", blocking antibiotic absorption.',
+        recommendedAction: 'Separate doses by at least 2 to 4 hours.',
+        requiredSpacingHours: 2,
+        isSevere: false,
+      );
+    }
+
+    // 4. Thyroid Hormone Spacing (Levothyroxine vs Minerals/PPIs)
+    final aThyroid = aName.contains('levothyroxine') || aName.contains('synthroid');
+    final bThyroid = bName.contains('levothyroxine') || bName.contains('synthroid');
+
+    if ((aThyroid && bMineral) || (aMineral && bThyroid)) {
+      return ClinicalSlotConflict(
+        medicationA: medA,
+        medicationB: medB,
+        title: 'Endocrine Spacing Conflict',
+        description: 'Taking "${medA.name}" with "${medB.name}" sharply lowers thyroid hormone bioavailability.',
+        recommendedAction: 'Separate doses by at least 4 hours.',
+        requiredSpacingHours: 4,
+        isSevere: false,
+      );
+    }
+
+    return null;
+  }
+
+  /// Scans a group of medications scheduled in the same routine slot or time for conflicts.
+  static List<ClinicalSlotConflict> checkSlotConflicts(List<Medication> slotMeds) {
+    final conflicts = <ClinicalSlotConflict>[];
+    final checkedPairs = <String>{};
+    final activeSlotMeds = slotMeds.where((m) => !m.isDiscontinued).toList();
+
+    for (int i = 0; i < activeSlotMeds.length; i++) {
+      for (int j = i + 1; j < activeSlotMeds.length; j++) {
+        final pairKey = activeSlotMeds[i].id.compareTo(activeSlotMeds[j].id) < 0
+            ? '${activeSlotMeds[i].id}_${activeSlotMeds[j].id}'
+            : '${activeSlotMeds[j].id}_${activeSlotMeds[i].id}';
+        if (checkedPairs.contains(pairKey)) continue;
+        checkedPairs.add(pairKey);
+
+        final conflict = checkPairConflict(activeSlotMeds[i], activeSlotMeds[j]);
+        if (conflict != null) {
+          conflicts.add(conflict);
+        }
+      }
+    }
+    return conflicts;
+  }
+
+  /// Checks if candidate time falls within the dangerous spacing window of other medications.
+  static List<ClinicalSlotConflict> checkTimingConflicts({
+    required String time,
+    required Medication candidateMed,
+    required List<Medication> otherMeds,
+  }) {
+    final conflicts = <ClinicalSlotConflict>[];
+    final candidateMins = _parseTimeMinutes(time);
+
+    for (final other in otherMeds) {
+      if (other.id == candidateMed.id || other.isDiscontinued) continue;
+      final pairConflict = checkPairConflict(candidateMed, other);
+      if (pairConflict == null) continue;
+
+      final spacingWindowMins = pairConflict.requiredSpacingHours * 60;
+      for (final otherTime in other.scheduledTimes) {
+        final otherMins = _parseTimeMinutes(otherTime);
+        final diff = (candidateMins - otherMins).abs();
+        final circularDiff = diff > 720 ? 1440 - diff : diff;
+
+        // If scheduled within the spacing window (or exact same time for severe conflict)
+        if (pairConflict.isSevere || circularDiff < spacingWindowMins) {
+          conflicts.add(pairConflict);
+          break;
+        }
+      }
+    }
+    return conflicts;
+  }
+
+  /// Helper to calculate an auto-spaced safe time (+spacingHours or -spacingHours)
+  static String autoSpaceTime(String originalTime, int spacingHours, {bool forward = true}) {
+    final mins = _parseTimeMinutes(originalTime);
+    final delta = spacingHours * 60 * (forward ? 1 : -1);
+    var updated = (mins + delta) % 1440;
+    if (updated < 0) updated += 1440;
+    final h = updated ~/ 60;
+    final m = updated % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  static int _parseTimeMinutes(String t) {
+    try {
+      final p = t.split(':');
+      return (int.tryParse(p[0]) ?? 0) * 60 + (int.tryParse(p[1]) ?? 0);
+    } catch (_) {
+      return 0;
+    }
   }
 
   /// Screens inactive pharmaceutical excipients against food, additive, and animal allergies.

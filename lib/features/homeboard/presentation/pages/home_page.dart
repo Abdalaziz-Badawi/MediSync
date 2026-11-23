@@ -32,6 +32,25 @@ class DoseItem {
   bool get isTaken => status == DoseStatus.taken || status == DoseStatus.delayed;
 }
 
+class RoutineSlotGroup {
+  final String key;
+  final String title;
+  final IconData icon;
+  final List<DoseItem> doses;
+  final List<ClinicalSlotConflict> conflicts;
+
+  const RoutineSlotGroup({
+    required this.key,
+    required this.title,
+    required this.icon,
+    required this.doses,
+    required this.conflicts,
+  });
+
+  int get pendingCount => doses.where((d) => d.status == DoseStatus.pending).length;
+  bool get allTaken => doses.isNotEmpty && doses.every((d) => d.status == DoseStatus.taken || d.status == DoseStatus.takenEarly);
+}
+
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
@@ -94,6 +113,78 @@ class _HomePageState extends ConsumerState<HomePage> {
     } catch (_) {}
   }
 
+  List<RoutineSlotGroup> _groupDosesBySlot(List<DoseItem> doses) {
+    final morning = <DoseItem>[];
+    final lunch = <DoseItem>[];
+    final evening = <DoseItem>[];
+    final bedtime = <DoseItem>[];
+
+    for (final dose in doses) {
+      final parts = dose.time.split(':');
+      final hr = int.tryParse(parts[0]) ?? 8;
+      final min = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      final totalMins = hr * 60 + min;
+
+      if (totalMins >= 300 && totalMins <= 690) {
+        morning.add(dose);
+      } else if (totalMins > 690 && totalMins <= 990) {
+        lunch.add(dose);
+      } else if (totalMins > 990 && totalMins <= 1260) {
+        evening.add(dose);
+      } else {
+        bedtime.add(dose);
+      }
+    }
+
+    final groups = <RoutineSlotGroup>[];
+
+    if (morning.isNotEmpty) {
+      final meds = morning.map((d) => d.medication).toSet().toList();
+      groups.add(RoutineSlotGroup(
+        key: 'morning',
+        title: 'Morning Routine (Wake & Breakfast)',
+        icon: Icons.wb_sunny_rounded,
+        doses: morning,
+        conflicts: SchedulerService.checkSlotConflicts(meds),
+      ));
+    }
+
+    if (lunch.isNotEmpty) {
+      final meds = lunch.map((d) => d.medication).toSet().toList();
+      groups.add(RoutineSlotGroup(
+        key: 'lunch',
+        title: 'Midday Routine (Lunch)',
+        icon: Icons.restaurant_rounded,
+        doses: lunch,
+        conflicts: SchedulerService.checkSlotConflicts(meds),
+      ));
+    }
+
+    if (evening.isNotEmpty) {
+      final meds = evening.map((d) => d.medication).toSet().toList();
+      groups.add(RoutineSlotGroup(
+        key: 'evening',
+        title: 'Evening Routine (Dinner)',
+        icon: Icons.dinner_dining_rounded,
+        doses: evening,
+        conflicts: SchedulerService.checkSlotConflicts(meds),
+      ));
+    }
+
+    if (bedtime.isNotEmpty) {
+      final meds = bedtime.map((d) => d.medication).toSet().toList();
+      groups.add(RoutineSlotGroup(
+        key: 'bedtime',
+        title: 'Night & Bedtime Routine',
+        icon: Icons.bedtime_rounded,
+        doses: bedtime,
+        conflicts: SchedulerService.checkSlotConflicts(meds),
+      ));
+    }
+
+    return groups;
+  }
+
   // Calculate week's dates (Monday to Sunday) factoring in _weekOffset (-1, 0, 1)
   List<DateTime> _getCurrentWeekDates() {
     final now = DateTime.now();
@@ -128,13 +219,26 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Collect all doses for the selected day of the week
     final selectedDayDoses = <DoseItem>[];
     for (final med in medications) {
-      if (med.isActiveOn(_selectedDate)) {
+      if (!med.isDiscontinued && med.isActiveOn(_selectedDate)) {
         for (final time in med.scheduledTimes) {
           selectedDayDoses.add(DoseItem(
             medication: med,
             time: time,
             status: med.getDoseStatus(_selectedDate, time),
           ));
+        }
+      } else if (med.isDiscontinued) {
+        // Discontinued medication: NEVER show pending or delayed doses on the schedule.
+        // Only show historical doses that were ACTUALLY taken before discontinuation.
+        for (final time in med.scheduledTimes) {
+          final status = med.getDoseStatus(_selectedDate, time);
+          if (status == DoseStatus.taken || status == DoseStatus.takenEarly) {
+            selectedDayDoses.add(DoseItem(
+              medication: med,
+              time: time,
+              status: status,
+            ));
+          }
         }
       }
     }
@@ -149,7 +253,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final notNeededCount = selectedDayDoses.where((d) => d.status == DoseStatus.notNeeded).length;
     final pendingCount = selectedDayDoses.where((d) => d.status == DoseStatus.pending).length;
     final progress = totalDoses == 0 ? 0.0 : ((takenCount + delayedCount + notNeededCount) / totalDoses).clamp(0.0, 1.0);
-    final nextPendingDose = selectedDayDoses.where((d) => d.status == DoseStatus.pending).firstOrNull;
+    final nextPendingDose = selectedDayDoses.where((d) => !d.medication.isDiscontinued && d.status == DoseStatus.pending).firstOrNull;
 
     // Check for critical safety flags
     final criticalFlags = <SafetyFlag>[];
@@ -445,22 +549,85 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
           ] else ...[
-            for (final dose in selectedDayDoses)
-              _DoseTimelineCard(
-                dose: dose,
-                date: _selectedDate,
-                isLocked: !isToday,
-                onUpdateStatus: (newStatus) {
-                  ref
-                      .read(medicationsNotifierProvider.notifier)
-                      .setDoseStatus(
-                        dose.medication.id,
-                        _selectedDate,
-                        dose.time,
-                        newStatus,
-                      );
-                },
-              ),
+            Builder(
+              builder: (ctx) {
+                final slotGroups = _groupDosesBySlot(selectedDayDoses);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final group in slotGroups) ...[
+                      _RoutineSlotHeader(
+                        group: group,
+                        isToday: isToday,
+                        onTakeAll: () {
+                          for (final dose in group.doses) {
+                            if (dose.status == DoseStatus.pending) {
+                              ref
+                                  .read(medicationsNotifierProvider.notifier)
+                                  .setDoseStatus(
+                                    dose.medication.id,
+                                    _selectedDate,
+                                    dose.time,
+                                    DoseStatus.taken,
+                                  );
+                            }
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✓ Marked all ${group.title} doses as Taken!'),
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        onAutoSpaceConflict: (conflict) {
+                          final medToShift = conflict.medicationB;
+                          final currentTimes = List<String>.from(medToShift.scheduledTimes);
+                          final conflictingDose = group.doses.firstWhere(
+                            (d) => d.medication.id == medToShift.id,
+                            orElse: () => group.doses.first,
+                          );
+                          final idx = currentTimes.indexOf(conflictingDose.time);
+                          if (idx != -1) {
+                            final newTime = SchedulerService.autoSpaceTime(
+                              conflictingDose.time,
+                              conflict.requiredSpacingHours,
+                            );
+                            currentTimes[idx] = newTime;
+                            final updatedMed = medToShift.copyWith(scheduledTimes: currentTimes);
+                            ref.read(medicationsNotifierProvider.notifier).addOrUpdate(updatedMed);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('⚡ Auto-spaced ${medToShift.name} to $newTime (+${conflict.requiredSpacingHours}h separation)'),
+                                backgroundColor: const Color(0xFFD97706),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      for (final dose in group.doses)
+                        _DoseTimelineCard(
+                          dose: dose,
+                          date: _selectedDate,
+                          isLocked: !isToday,
+                          onUpdateStatus: (newStatus) {
+                            ref
+                                .read(medicationsNotifierProvider.notifier)
+                                .setDoseStatus(
+                                  dose.medication.id,
+                                  _selectedDate,
+                                  dose.time,
+                                  newStatus,
+                                );
+                          },
+                        ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+              },
+            ),
           ],
           // Generous bottom buffer ensuring content is completely clear of elevated FAB and floating nav bar
           const SizedBox(height: 140),
@@ -1146,8 +1313,14 @@ class _HomePageState extends ConsumerState<HomePage> {
               final dayAbbr = DateFormat('E').format(date).substring(0, 3);
               final dayNum = date.day.toString();
 
-              // Check if any medication is active on this day
-              final hasMeds = medications.any((m) => m.isActiveOn(date));
+              // Check if any medication is active on this day (or has taken doses for discontinued)
+              final hasMeds = medications.any((m) =>
+                  (!m.isDiscontinued && m.isActiveOn(date)) ||
+                  (m.isDiscontinued &&
+                      m.scheduledTimes.any((t) {
+                        final s = m.getDoseStatus(date, t);
+                        return s == DoseStatus.taken || s == DoseStatus.takenEarly;
+                      })));
 
               return Expanded(
                 child: GestureDetector(
@@ -1685,6 +1858,186 @@ Widget _buildIntakeStatusOption({
   );
 }
 
+class _RoutineSlotHeader extends StatelessWidget {
+  final RoutineSlotGroup group;
+  final bool isToday;
+  final VoidCallback onTakeAll;
+  final ValueChanged<ClinicalSlotConflict> onAutoSpaceConflict;
+
+  const _RoutineSlotHeader({
+    required this.group,
+    required this.isToday,
+    required this.onTakeAll,
+    required this.onAutoSpaceConflict,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(group.icon, size: 16, color: primary),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        group.title,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary(context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceVariant(context),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${group.doses.length} ${group.doses.length == 1 ? "med" : "meds"}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isToday && group.pendingCount > 1) ...[
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: onTakeAll,
+                  icon: const Icon(Icons.done_all_rounded, size: 14),
+                  label: Text('Take All (${group.pendingCount})'),
+                ),
+              ] else if (group.allTaken) ...[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 14, color: AppTheme.successGreen),
+                    const SizedBox(width: 4),
+                    Text(
+                      'All Taken',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.successGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+
+          // Conflict Banner if any medications in this slot collide
+          if (group.conflicts.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final conflict in group.conflicts)
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: conflict.isSevere
+                      ? const Color(0xFFFEE2E2).withValues(alpha: isDark ? 0.20 : 0.85)
+                      : const Color(0xFFFEF3C7).withValues(alpha: isDark ? 0.20 : 0.85),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: conflict.isSevere
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFFF59E0B),
+                    width: 1.2,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          conflict.isSevere ? Icons.dangerous_rounded : Icons.warning_amber_rounded,
+                          size: 16,
+                          color: conflict.isSevere ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            conflict.title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: conflict.isSevere ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      conflict.description,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        height: 1.35,
+                      ),
+                    ),
+                    if (conflict.requiredSpacingHours > 0) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: const Color(0xFFD97706),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () => onAutoSpaceConflict(conflict),
+                          icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
+                          label: Text('Auto-Space (${conflict.medicationB.name} +${conflict.requiredSpacingHours}h)'),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _DoseTimelineCard extends ConsumerWidget {
   final DoseItem dose;
   final DateTime date;
@@ -2019,6 +2372,45 @@ class _DoseTimelineCard extends ConsumerWidget {
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: isDark ? AppTheme.dangerRedLight : AppTheme.dangerRed,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        // Clinical Necessity Level Badge
+                        if (med.necessityLevel == NecessityLevel.critical ||
+                            med.necessityLevel == NecessityLevel.vital) ...[
+                          Container(
+                            margin: const EdgeInsets.only(top: 4, bottom: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: med.necessityLevel.color.withValues(alpha: isDark ? 0.22 : 0.12),
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(
+                                color: med.necessityLevel.color.withValues(alpha: 0.55),
+                                width: 0.9,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  med.necessityLevel.icon,
+                                  size: 12,
+                                  color: med.necessityLevel.color,
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    med.necessityLevel.badgeText,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: med.necessityLevel.color,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

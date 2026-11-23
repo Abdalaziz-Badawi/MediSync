@@ -66,6 +66,7 @@
 
         <receiver
             android:name=".MediSyncWidgetProvider"
+            android:label="@string/widget_emergency_id_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -77,6 +78,7 @@
 
         <receiver
             android:name=".MediSyncEmergencyButtonWidgetProvider"
+            android:label="@string/widget_emergency_btn_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

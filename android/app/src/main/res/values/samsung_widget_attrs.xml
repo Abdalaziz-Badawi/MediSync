@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Samsung One UI 6.1 Lock Screen & AOD Widget Attributes -->
-    <attr name="targetHost">
-        <flag name="home" value="0x1" />
-        <flag name="lockAndAod" value="0x2" />
-    </attr>
-    <attr name="widgetStyle">
-        <flag name="colorful" value="0x1" />
-        <flag name="monotone" value="0x2" />
-    </attr>
-    <attr name="lockWidgetSize">
-        <flag name="tiny" value="0x1" />
-        <flag name="small" value="0x2" />
-    </attr>
-    <attr name="monotoneWidgetSize">
-        <flag name="tiny" value="0x1" />
-        <flag name="small" value="0x2" />
-    </attr>
+    <attr name="targetHost" format="string" />
+    <attr name="widgetStyle" format="string" />
+    <attr name="lockWidgetSize" format="string" />
+    <attr name="monotoneWidgetSize" format="string" />
 
     <attr name="initialLayoutTiny" format="reference" />
     <attr name="previewLayoutTiny" format="reference" />

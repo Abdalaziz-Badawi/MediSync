@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MediSync</string>
+    <string name="widget_emergency_btn_name">MediSync Emergency Button</string>
+    <string name="widget_emergency_btn_desc">1-Tap instant access to Emergency Medical ID over lock screen (Zero PIN)</string>
+    <string name="widget_emergency_id_name">MediSync Emergency ID Card</string>
+    <string name="widget_emergency_id_desc">Glanceable patient blood type and emergency ID for lock screen and home screen</string>
+</resources>

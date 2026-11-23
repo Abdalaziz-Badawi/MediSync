@@ -45,6 +45,9 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   List<CompanionMealReminder> _companionMealReminders = [];
   late TextEditingController _packageSizeController;
   late TextEditingController _pillsRemainingController;
+  late TextEditingController _skipConsequencesController;
+  NecessityLevel _selectedNecessityLevel = NecessityLevel.moderate;
+  bool _isDiligentReminder = false;
 
   // Weekly Schedule: 1 = Mon, 7 = Sun
   List<int> _daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
@@ -59,6 +62,32 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   List<MedicineTemplate> _filteredDatabaseResults = [];
   Timer? _nameDebounceTimer;
   final FocusNode _nameFocusNode = FocusNode();
+  final FocusNode _dosageFocusNode = FocusNode();
+
+  String? _validateName(String? val) {
+    if (val == null || val.trim().isEmpty) {
+      return 'Please enter medication name';
+    }
+    final trimmed = val.trim();
+    if (trimmed == '-' || trimmed == '--' || trimmed == '—' || trimmed == 'N/A' || trimmed == 'na') {
+      return 'Medication name cannot be a dash or symbol';
+    }
+    if (trimmed.length < 2) {
+      return 'Medication name must be at least 2 characters';
+    }
+    return null;
+  }
+
+  String? _validateDosage(String? val) {
+    if (val == null || val.trim().isEmpty) {
+      return 'Please enter dosage amount';
+    }
+    final trimmed = val.trim();
+    if (trimmed == '-' || trimmed == '--' || trimmed == '—' || trimmed == '0' || trimmed == 'N/A' || trimmed == 'na') {
+      return 'Dosage cannot be a dash or 0 (e.g. 500 mg, 1 tablet)';
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -75,6 +104,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
         TextEditingController(text: med?.packageSize?.toString() ?? '');
     _pillsRemainingController =
         TextEditingController(text: med?.pillsRemaining?.toString() ?? '');
+    _selectedNecessityLevel = med?.necessityLevel ?? NecessityLevel.moderate;
+    _isDiligentReminder = med?.isDiligentReminder ?? false;
+    _skipConsequencesController = TextEditingController(
+      text: med?.skipConsequences ??
+          (med != null ? MedicinesDatabase.defaultSkipConsequences(med.name, _selectedNecessityLevel) : ''),
+    );
 
     if (med != null) {
       _selectedForm = med.form;
@@ -107,6 +142,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   void dispose() {
     _nameDebounceTimer?.cancel();
     _nameFocusNode.dispose();
+    _dosageFocusNode.dispose();
     _nameController.dispose();
     _dosageController.dispose();
     _durationDaysController.dispose();
@@ -114,6 +150,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
     _notesController.dispose();
     _packageSizeController.dispose();
     _pillsRemainingController.dispose();
+    _skipConsequencesController.dispose();
     super.dispose();
   }
 
@@ -148,6 +185,20 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
 
       setState(() {
         _filteredDatabaseResults = MedicinesDatabase.search(currentQuery);
+        final inferred = MedicinesDatabase.inferNecessityLevel(currentQuery);
+        _selectedNecessityLevel = inferred;
+        if (_skipConsequencesController.text.isEmpty ||
+            _skipConsequencesController.text.startsWith('CRITICAL DANGER:') ||
+            _skipConsequencesController.text.startsWith('Essential daily medication:') ||
+            _skipConsequencesController.text.startsWith('Missing doses delays') ||
+            _skipConsequencesController.text.startsWith('Symptomatic medication;') ||
+            _skipConsequencesController.text.startsWith('DANGER:')) {
+          _skipConsequencesController.text =
+              MedicinesDatabase.defaultSkipConsequences(currentQuery, inferred);
+        }
+        if (inferred == NecessityLevel.critical || inferred == NecessityLevel.vital) {
+          _isDiligentReminder = true;
+        }
       });
       _checkSafetyAndRecompute();
     });
@@ -159,6 +210,12 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       _nameController.text = template.name;
       _filteredDatabaseResults = [];
       _selectedForm = template.defaultForm;
+      _selectedNecessityLevel = template.necessityLevel;
+      _skipConsequencesController.text = template.skipConsequences ??
+          MedicinesDatabase.defaultSkipConsequences(template.name, template.necessityLevel);
+      if (_selectedNecessityLevel == NecessityLevel.critical) {
+        _isDiligentReminder = true;
+      }
 
       if (template.commonDosages.isNotEmpty &&
           _dosageController.text.isEmpty) {
@@ -669,7 +726,74 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
   }
 
   void _saveMedication() {
-    if (!_formKey.currentState!.validate()) return;
+    // Safeguard 1: Form Validation Trigger
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Please fill in all required fields properly before saving.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final rawName = _nameController.text.trim();
+    final rawDosage = _dosageController.text.trim();
+
+    // Safeguard 1: Medication Name Guard (Cannot be empty, whitespace, or a dash)
+    if (rawName.isEmpty || rawName == '-' || rawName == '--' || rawName == '—' || rawName.length < 2) {
+      _nameFocusNode.requestFocus();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Safeguard 1: Medication name cannot be empty or a dash. Please enter a valid medicine name.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Safeguard 2: Dosage Amount Guard (Cannot be empty, whitespace, or a dash)
+    if (rawDosage.isEmpty || rawDosage == '-' || rawDosage == '--' || rawDosage == '—' || rawDosage == '0') {
+      _dosageFocusNode.requestFocus();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Safeguard 2: Dosage amount cannot be empty or a dash. Please specify the dose strength (e.g. 500 mg, 1 tablet).'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Safeguard 3: Schedule & Frequency Integrity Guard
+    if (_frequency != ScheduleFrequency.asNeeded && _scheduledTimes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Safeguard 3: Scheduled medications require at least one dose time. Or switch frequency to "As-Needed (PRN)".'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Safeguard 4: Duplicate & Regimen Conflict Guard
+    final existingMeds = ref.read(medicationsNotifierProvider);
+    final isDuplicate = existingMeds.any((m) =>
+        !m.isDiscontinued &&
+        m.id != widget.medicationToEdit?.id &&
+        m.name.trim().toLowerCase() == rawName.toLowerCase());
+    if (isDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ Safeguard 4 Notice: An active medication named "$rawName" is already in your regimen.'),
+          backgroundColor: const Color(0xFFEA580C),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
 
     final preList = _selectedPreConditions.map((type) {
       return MedicationCondition(
@@ -734,6 +858,13 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
       foodRestrictions: _matchedTemplate?.foodRestrictions ?? (widget.medicationToEdit?.foodRestrictions ?? const []),
       inactiveExcipients: _matchedTemplate?.inactiveExcipients ?? (widget.medicationToEdit?.inactiveExcipients ?? const []),
       mealCondition: isMealLinked ? 'after_meal' : null,
+      necessityLevel: _selectedNecessityLevel,
+      skipConsequences: _skipConsequencesController.text.trim().isEmpty
+          ? null
+          : _skipConsequencesController.text.trim(),
+      isDiligentReminder: _isDiligentReminder,
+      discontinuedDate: widget.medicationToEdit?.discontinuedDate,
+      discontinuationReason: widget.medicationToEdit?.discontinuationReason,
       doseLog: widget.medicationToEdit?.doseLog ?? {},
     );
 
@@ -853,9 +984,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                       )
                     : null,
               ),
-              validator: (val) => val == null || val.trim().isEmpty
-                  ? 'Please enter medicine name'
-                  : null,
+              validator: _validateName,
             ),
 
             // Live Database Search Results Overlay
@@ -1074,19 +1203,19 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     children: [
                       TextFormField(
                         controller: _dosageController,
+                        focusNode: _dosageFocusNode,
                         style: TextStyle(color: AppTheme.textPrimary(context)),
                         decoration: const InputDecoration(
                           labelText: 'Dosage *',
                           hintText: 'e.g. 500 mg, 1 tablet',
                           prefixIcon: Icon(Icons.fitness_center_rounded),
                         ),
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Enter dosage'
-                            : null,
+                        validator: _validateDosage,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<MedicationForm>(
                         initialValue: _selectedForm,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Form',
                           prefixIcon: Icon(Icons.category_rounded),
@@ -1113,21 +1242,21 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                     Expanded(
                       child: TextFormField(
                         controller: _dosageController,
+                        focusNode: _dosageFocusNode,
                         style: TextStyle(color: AppTheme.textPrimary(context)),
                         decoration: const InputDecoration(
                           labelText: 'Dosage *',
                           hintText: 'e.g. 500 mg, 1 tablet',
                           prefixIcon: Icon(Icons.fitness_center_rounded),
                         ),
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Enter dosage'
-                            : null,
+                        validator: _validateDosage,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<MedicationForm>(
                         initialValue: _selectedForm,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Form',
                           prefixIcon: Icon(Icons.category_rounded),
@@ -1154,6 +1283,7 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _category,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Clinical Category / Specialty',
                 prefixIcon: Icon(Icons.local_hospital_outlined),
@@ -1174,6 +1304,195 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
               onChanged: (val) {
                 if (val != null) setState(() => _category = val);
               },
+            ),
+            const SizedBox(height: 18),
+
+            // Clinical Necessity Level & Skip Safety Gating Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _selectedNecessityLevel.color.withValues(alpha: 0.45),
+                  width: 1.2,
+                ),
+                boxShadow: AppTheme.softShadow(context),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _selectedNecessityLevel.color.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _selectedNecessityLevel.icon,
+                          color: _selectedNecessityLevel.color,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Clinical Necessity & Urgency',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            Text(
+                              'Strictness of dosing adherence and consequence if missed',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textSecondary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 4 Tier Segmented Selectors
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: NecessityLevel.values.map((lvl) {
+                      final isSelected = _selectedNecessityLevel == lvl;
+                      return ChoiceChip(
+                        selected: isSelected,
+                        label: Text(
+                          lvl.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? Colors.white
+                                : AppTheme.textSecondary(context),
+                          ),
+                        ),
+                        avatar: Icon(
+                          lvl.icon,
+                          size: 14,
+                          color: isSelected ? Colors.white : lvl.color,
+                        ),
+                        selectedColor: lvl.color,
+                        backgroundColor: AppTheme.surfaceVariant(context),
+                        side: BorderSide(
+                          color: isSelected ? lvl.color : AppTheme.cardBorder(context),
+                        ),
+                        onSelected: (val) {
+                          if (val) {
+                            setState(() {
+                              _selectedNecessityLevel = lvl;
+                              if (_skipConsequencesController.text.isEmpty) {
+                                _skipConsequencesController.text =
+                                    MedicinesDatabase.defaultSkipConsequences(
+                                  _nameController.text.trim(),
+                                  lvl,
+                                );
+                              }
+                              if (lvl == NecessityLevel.critical) {
+                                _isDiligentReminder = true;
+                              }
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Consequence / Danger Explainer
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _selectedNecessityLevel.color.withValues(alpha: isDark ? 0.12 : 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedNecessityLevel.color.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(_selectedNecessityLevel.icon, size: 14, color: _selectedNecessityLevel.color),
+                            const SizedBox(width: 6),
+                            Text(
+                              _selectedNecessityLevel.badgeText,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: _selectedNecessityLevel.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _selectedNecessityLevel.description,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppTheme.textPrimary(context),
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Clinical Skip Consequences Text Field
+                  TextFormField(
+                    controller: _skipConsequencesController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Clinical Consequences If Skipped / Delayed',
+                      hintText: 'e.g. Skipping risks diabetic ketoacidosis, breakthrough seizures, rebound hypertension...',
+                      hintStyle: const TextStyle(fontSize: 11.5),
+                      prefixIcon: const Icon(Icons.warning_amber_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Diligent Reminders Toggle
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text(
+                      'Diligent Persistent Reminders',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      _selectedNecessityLevel == NecessityLevel.critical
+                          ? 'MANDATORY for Life-Critical: Repeating alarms sound until confirmed.'
+                          : 'Repeat audio/notification alerts every 10 mins until dose is logged.',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    value: _isDiligentReminder,
+                    activeThumbColor: _selectedNecessityLevel.color,
+                    onChanged: (val) {
+                      setState(() => _isDiligentReminder = val);
+                    },
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -1918,6 +2237,124 @@ class _AddEditMedicationPageState extends ConsumerState<AddEditMedicationPage> {
                           onPressed: () => _pickTimeForIndex(i),
                         );
                       }),
+                    ),
+
+                    // Inline Clinical Timing & Spacing Conflict Checker
+                    Builder(
+                      builder: (ctx) {
+                        final otherMeds = ref.watch(medicationsNotifierProvider)
+                            .where((m) => m.id != widget.medicationToEdit?.id && !m.isDiscontinued)
+                            .toList();
+                        final candidate = Medication(
+                          id: widget.medicationToEdit?.id ?? 'temp_id',
+                          name: _nameController.text.trim(),
+                          dosage: _dosageController.text.trim(),
+                          timesPerDay: _timesPerDay,
+                          scheduledTimes: _scheduledTimes,
+                          startDate: DateTime.now(),
+                        );
+
+                        final conflicts = <String, List<ClinicalSlotConflict>>{};
+                        for (final t in _scheduledTimes) {
+                          final cList = SchedulerService.checkTimingConflicts(
+                            time: t,
+                            candidateMed: candidate,
+                            otherMeds: otherMeds,
+                          );
+                          if (cList.isNotEmpty) {
+                            conflicts[t] = cList;
+                          }
+                        }
+
+                        if (conflicts.isEmpty) return const SizedBox.shrink();
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 12),
+                            for (final entry in conflicts.entries)
+                              for (final conflict in entry.value)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7).withValues(alpha: isDark ? 0.15 : 0.65),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFF59E0B),
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFD97706)),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'Timing Conflict at ${entry.key}: ${conflict.title}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFFD97706),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        conflict.description,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                      if (conflict.requiredSpacingHours > 0) ...[
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              visualDensity: VisualDensity.compact,
+                                              backgroundColor: const Color(0xFFD97706),
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            ),
+                                            onPressed: () {
+                                              final newTime = SchedulerService.autoSpaceTime(
+                                                entry.key,
+                                                conflict.requiredSpacingHours,
+                                              );
+                                              final idx = _scheduledTimes.indexOf(entry.key);
+                                              if (idx != -1) {
+                                                setState(() {
+                                                  _scheduledTimes[idx] = newTime;
+                                                });
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('⚡ Auto-spaced ${entry.key} ➔ $newTime (+${conflict.requiredSpacingHours}h separation)'),
+                                                    backgroundColor: const Color(0xFFD97706),
+                                                    duration: const Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
+                                            label: Text('Auto-Space (+${conflict.requiredSpacingHours} Hours)'),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),

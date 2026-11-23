@@ -28,6 +28,8 @@ class MedicineTemplate {
   final List<String> commonDosages;
   final MedicationForm defaultForm;
   final DangerLevel dangerLevel;
+  final NecessityLevel necessityLevel;
+  final String? skipConsequences;
   final PrescriptionRequirement prescriptionRequirement;
   final List<SideEffectType> knownSideEffects;
   final List<ConditionType> preConditions;
@@ -50,6 +52,8 @@ class MedicineTemplate {
     this.activeIngredients = const [],
     this.defaultForm = MedicationForm.pill,
     this.dangerLevel = DangerLevel.low,
+    this.necessityLevel = NecessityLevel.moderate,
+    this.skipConsequences,
     this.prescriptionRequirement = PrescriptionRequirement.prescription,
     this.knownSideEffects = const [],
     this.preConditions = const [],
@@ -958,6 +962,8 @@ class MedicinesDatabase {
       commonDosages: ['1 mg', '2 mg', '2.5 mg', '5 mg'],
       defaultForm: MedicationForm.pill,
       dangerLevel: DangerLevel.critical,
+      necessityLevel: NecessityLevel.critical,
+      skipConsequences: 'CRITICAL DANGER: Skipping Warfarin leads to acute subtherapeutic INR, drastically heightening the risk of fatal pulmonary embolism, deep vein thrombosis (DVT), or stroke.',
       prescriptionRequirement: PrescriptionRequirement.prescription,
       knownSideEffects: [],
       preConditions: [ConditionType.drinkWater],
@@ -1298,8 +1304,384 @@ class MedicinesDatabase {
       ],
       foodRestrictions: ['Can be taken with or without food. Take in the evening.'],
       standardInstructions: 'Take 1 tablet once daily in the evening with water.',
-    )
+    ),
+    MedicineTemplate(
+      name: 'Lantus',
+      genericName: 'Insulin Glargine',
+      drugClass: 'Long-Acting Basal Insulin',
+      activeIngredients: ['Insulin Glargine 100 units/mL'],
+      commonDosages: ['10 units', '15 units', '20 units', '30 units'],
+      defaultForm: MedicationForm.injection,
+      dangerLevel: DangerLevel.critical,
+      necessityLevel: NecessityLevel.critical,
+      skipConsequences: 'CRITICAL DANGER: Skipping basal insulin triggers acute Diabetic Ketoacidosis (DKA), severe hyperglycemia, and rapid metabolic destabilization.',
+      prescriptionRequirement: PrescriptionRequirement.prescription,
+      knownSideEffects: [SideEffectType.dizziness],
+      preConditions: [ConditionType.drinkWater],
+      allergenTriggers: ['insulin', 'insulin-glargine'],
+      inactiveExcipients: ['glycerol', 'm-cresol', 'zinc chloride', 'hydrochloric acid'],
+      administrationCautions: [
+        '❌ NEVER skip or double-up doses. Basal insulin maintains vital glucose regulation 24/7.',
+        '⚠️ Rotate injection sites (abdomen, thighs, upper arms) to prevent lipodystrophy.',
+        '❌ NEVER freeze or expose open pens/vials to direct sunlight or temperatures above 30°C.',
+      ],
+      emergencySigns: [
+        'Fruity breath odor, severe nausea, confusion, deep rapid breathing (Kussmaul breathing), blood glucose > 250 mg/dL.',
+      ],
+      afterEffectsAndRecovery: 'Smooth peakless baseline glucose reduction over 24 hours.',
+      storageInstructions: 'Unopened: refrigerate 2°C-8°C. In-use: store room temperature below 30°C for up to 28 days.',
+      foodRestrictions: ['Maintain consistent meal schedules. Always monitor blood glucose before injecting.'],
+      standardInstructions: 'Inject subcutaneously once daily at the exact same hour.',
+    ),
+    MedicineTemplate(
+      name: 'Keppra',
+      genericName: 'Levetiracetam',
+      drugClass: 'Anticonvulsant / Antiepileptic',
+      activeIngredients: ['Levetiracetam 250 mg / 500 mg / 750 mg / 1000 mg'],
+      commonDosages: ['250 mg', '500 mg', '750 mg', '1000 mg'],
+      defaultForm: MedicationForm.pill,
+      dangerLevel: DangerLevel.critical,
+      necessityLevel: NecessityLevel.critical,
+      skipConsequences: 'CRITICAL DANGER: Missing antiepileptic doses precipitates sudden breakthrough seizures, status epilepticus, and traumatic injury.',
+      prescriptionRequirement: PrescriptionRequirement.prescription,
+      knownSideEffects: [SideEffectType.drowsiness, SideEffectType.dizziness],
+      preConditions: [ConditionType.drinkWater],
+      allergenTriggers: ['levetiracetam', 'pyrrolidone'],
+      inactiveExcipients: ['corn starch', 'povidone', 'talc', 'magnesium stearate'],
+      administrationCautions: [
+        '❌ STRICT ADHERENCE: Doses must be taken exactly 12 hours apart (BID) to maintain anticonvulsant threshold.',
+        '❌ NEVER abruptly discontinue; sudden withdrawal can trigger refractory seizures.',
+      ],
+      emergencySigns: [
+        'Sudden seizure activity, severe behavioral agitation, extreme depression or suicidal thoughts.',
+      ],
+      afterEffectsAndRecovery: 'Rapidly absorbed, stabilizes neuronal excitability throughout 12-hour window.',
+      storageInstructions: 'Store at 15°C to 30°C.',
+      foodRestrictions: ['Can be taken with or without food. Avoid alcohol.'],
+      standardInstructions: 'Take every 12 hours with a full glass of water.',
+    ),
+    MedicineTemplate(
+      name: 'Prograf',
+      genericName: 'Tacrolimus',
+      drugClass: 'Calcineurin Inhibitor (Immunosuppressant)',
+      activeIngredients: ['Tacrolimus 0.5 mg / 1 mg / 5 mg'],
+      commonDosages: ['0.5 mg', '1 mg', '2 mg', '5 mg'],
+      defaultForm: MedicationForm.capsule,
+      dangerLevel: DangerLevel.critical,
+      necessityLevel: NecessityLevel.critical,
+      skipConsequences: 'CRITICAL DANGER: Missing immunosuppressant doses destroys graft tolerance and precipitates acute organ transplant rejection.',
+      prescriptionRequirement: PrescriptionRequirement.specialistControlled,
+      knownSideEffects: [SideEffectType.headache, SideEffectType.nausea],
+      preConditions: [ConditionType.emptyStomach],
+      allergenTriggers: ['tacrolimus', 'macrolide'],
+      inactiveExcipients: ['lactose monohydrate', 'hypromellose', 'croscarmellose sodium', 'magnesium stearate'],
+      administrationCautions: [
+        '❌ STRICT 12-HOUR SPACING: Take consistently on an empty stomach (1 hour before or 2 hours after meals).',
+        '❌ ABSOLUTELY AVOID GRAPEFRUIT and St. John\'s Wort; they unpredictably alter blood concentrations to toxic or subtherapeutic levels.',
+      ],
+      emergencySigns: [
+        'Decreased urination, fever, graft tenderness, sudden elevated blood pressure, severe tremor.',
+      ],
+      afterEffectsAndRecovery: 'Requires precise blood trough monitoring (5-15 ng/mL target).',
+      storageInstructions: 'Store at 20°C to 25°C protected from moisture.',
+      foodRestrictions: ['STRICT: No grapefruit or grapefruit juice. Take consistently either always with food or always empty stomach.'],
+      standardInstructions: 'Take exactly every 12 hours on an empty stomach.',
+    ),
   ];
+
+  /// Infers clinical necessity level from drug name, drug class, or matched database profile.
+  static NecessityLevel inferNecessityLevel(
+    String name, {
+    String? category,
+    DangerLevel? dangerLevel,
+  }) {
+    final clean = name.trim().toLowerCase();
+
+    // 1. Life-Critical triggers (Anticoagulants, Insulins, Anticonvulsants, Immunosuppressants, Cardiac Glycosides/Antiarrhythmics)
+    if (clean.contains('insulin') ||
+        clean.contains('lantus') ||
+        clean.contains('novolog') ||
+        clean.contains('humalog') ||
+        clean.contains('levemir') ||
+        clean.contains('tresiba') ||
+        clean.contains('toujeo') ||
+        clean.contains('basaglar') ||
+        clean.contains('apidra') ||
+        clean.contains('glargine') ||
+        clean.contains('lispro') ||
+        clean.contains('aspart') ||
+        clean.contains('warfarin') ||
+        clean.contains('coumadin') ||
+        clean.contains('eliquis') ||
+        clean.contains('apixaban') ||
+        clean.contains('xarelto') ||
+        clean.contains('rivaroxaban') ||
+        clean.contains('pradaxa') ||
+        clean.contains('dabigatran') ||
+        clean.contains('plavix') ||
+        clean.contains('clopidogrel') ||
+        clean.contains('brilinta') ||
+        clean.contains('ticagrelor') ||
+        clean.contains('heparin') ||
+        clean.contains('lovenox') ||
+        clean.contains('enoxaparin') ||
+        clean.contains('keppra') ||
+        clean.contains('levetiracetam') ||
+        clean.contains('carbamazepine') ||
+        clean.contains('tegretol') ||
+        clean.contains('phenytoin') ||
+        clean.contains('dilantin') ||
+        clean.contains('valproat') ||
+        clean.contains('depakote') ||
+        clean.contains('depakene') ||
+        clean.contains('lamotrigine') ||
+        clean.contains('lamictal') ||
+        clean.contains('oxcarbazepine') ||
+        clean.contains('trileptal') ||
+        clean.contains('lacosamide') ||
+        clean.contains('vimpat') ||
+        clean.contains('topiramate') ||
+        clean.contains('topamax') ||
+        clean.contains('prograf') ||
+        clean.contains('tacrolimus') ||
+        clean.contains('cyclosporine') ||
+        clean.contains('neoral') ||
+        clean.contains('sandimmune') ||
+        clean.contains('mycophenolate') ||
+        clean.contains('cellcept') ||
+        clean.contains('sirolimus') ||
+        clean.contains('rapamune') ||
+        clean.contains('digoxin') ||
+        clean.contains('lanoxin') ||
+        clean.contains('amiodarone') ||
+        clean.contains('cordarone') ||
+        clean.contains('flecainide') ||
+        clean.contains('sotalol')) {
+      return NecessityLevel.critical;
+    }
+
+    // 2. Vital triggers (Antihypertensives, Antibiotics, Thyroid, Diabetes Non-Insulin, Steroids, Respiratory, Psychiatric, Statins, Glaucoma)
+    if (clean.contains('metoprolol') ||
+        clean.contains('toprol') ||
+        clean.contains('atenolol') ||
+        clean.contains('carvedilol') ||
+        clean.contains('bisoprolol') ||
+        clean.contains('propranolol') ||
+        clean.contains('labetalol') ||
+        clean.contains('amlodipine') ||
+        clean.contains('norvasc') ||
+        clean.contains('nifedipine') ||
+        clean.contains('diltiazem') ||
+        clean.contains('cardizem') ||
+        clean.contains('verapamil') ||
+        clean.contains('lisinopril') ||
+        clean.contains('zestril') ||
+        clean.contains('prinivil') ||
+        clean.contains('enalapril') ||
+        clean.contains('ramipril') ||
+        clean.contains('losartan') ||
+        clean.contains('cozaar') ||
+        clean.contains('valsartan') ||
+        clean.contains('diovan') ||
+        clean.contains('candesartan') ||
+        clean.contains('olmesartan') ||
+        clean.contains('telmisartan') ||
+        clean.contains('hydrochlorothiazide') ||
+        clean.contains('hctz') ||
+        clean.contains('furosemide') ||
+        clean.contains('lasix') ||
+        clean.contains('spironolactone') ||
+        clean.contains('amoxicillin') ||
+        clean.contains('amoxil') ||
+        clean.contains('augmentin') ||
+        clean.contains('penicillin') ||
+        clean.contains('cephalexin') ||
+        clean.contains('keflex') ||
+        clean.contains('cefdinir') ||
+        clean.contains('cipro') ||
+        clean.contains('levofloxacin') ||
+        clean.contains('azithromycin') ||
+        clean.contains('zithromax') ||
+        clean.contains('doxycycline') ||
+        clean.contains('flagyl') ||
+        clean.contains('metronidazole') ||
+        clean.contains('bactrim') ||
+        clean.contains('clindamycin') ||
+        clean.contains('nitrofurantoin') ||
+        clean.contains('macrobid') ||
+        clean.contains('acyclovir') ||
+        clean.contains('valacyclovir') ||
+        clean.contains('synthroid') ||
+        clean.contains('levothyroxine') ||
+        clean.contains('liothyronine') ||
+        clean.contains('methimazole') ||
+        clean.contains('metformin') ||
+        clean.contains('glucophage') ||
+        clean.contains('glipizide') ||
+        clean.contains('glimepiride') ||
+        clean.contains('januvia') ||
+        clean.contains('sitagliptin') ||
+        clean.contains('jardiance') ||
+        clean.contains('farxiga') ||
+        clean.contains('ozempic') ||
+        clean.contains('semaglutide') ||
+        clean.contains('mounjaro') ||
+        clean.contains('tirzepatide') ||
+        clean.contains('trulicity') ||
+        clean.contains('prednisone') ||
+        clean.contains('prednisolone') ||
+        clean.contains('dexamethasone') ||
+        clean.contains('methylprednisolone') ||
+        clean.contains('medrol') ||
+        clean.contains('albuterol') ||
+        clean.contains('ventolin') ||
+        clean.contains('proair') ||
+        clean.contains('symbicort') ||
+        clean.contains('advair') ||
+        clean.contains('fluticasone') ||
+        clean.contains('spiriva') ||
+        clean.contains('tiotropium') ||
+        clean.contains('montelukast') ||
+        clean.contains('singulair') ||
+        clean.contains('sertraline') ||
+        clean.contains('zoloft') ||
+        clean.contains('escitalopram') ||
+        clean.contains('lexapro') ||
+        clean.contains('citalopram') ||
+        clean.contains('fluoxetine') ||
+        clean.contains('prozac') ||
+        clean.contains('paroxetine') ||
+        clean.contains('venlafaxine') ||
+        clean.contains('duloxetine') ||
+        clean.contains('cymbalta') ||
+        clean.contains('bupropion') ||
+        clean.contains('wellbutrin') ||
+        clean.contains('xanax') ||
+        clean.contains('alprazolam') ||
+        clean.contains('clonazepam') ||
+        clean.contains('klonopin') ||
+        clean.contains('lorazepam') ||
+        clean.contains('ativan') ||
+        clean.contains('diazepam') ||
+        clean.contains('valium') ||
+        clean.contains('quetiapine') ||
+        clean.contains('olanzapine') ||
+        clean.contains('risperidone') ||
+        clean.contains('aripiprazole') ||
+        clean.contains('lithium') ||
+        clean.contains('atorvastatin') ||
+        clean.contains('lipitor') ||
+        clean.contains('rosuvastatin') ||
+        clean.contains('crestor') ||
+        clean.contains('simvastatin') ||
+        clean.contains('latanoprost') ||
+        clean.contains('timolol')) {
+      return NecessityLevel.vital;
+    }
+
+    // 3. Low triggers (Vitamins, Supplements, Minerals, OTC Symptomatics)
+    if (clean.contains('vitamin') ||
+        clean.contains('multivitamin') ||
+        clean.contains('mineral') ||
+        clean.contains('calcium') ||
+        clean.contains('iron') ||
+        clean.contains('ferrous') ||
+        clean.contains('zinc') ||
+        clean.contains('magnesium') ||
+        clean.contains('b12') ||
+        clean.contains('folic') ||
+        clean.contains('fish oil') ||
+        clean.contains('omega') ||
+        clean.contains('melatonin') ||
+        clean.contains('biotin') ||
+        clean.contains('probiotic') ||
+        clean.contains('acetaminophen') ||
+        clean.contains('tylenol') ||
+        clean.contains('paracetamol')) {
+      return NecessityLevel.low;
+    }
+
+    if (dangerLevel == DangerLevel.critical) return NecessityLevel.critical;
+    if (dangerLevel == DangerLevel.high) return NecessityLevel.vital;
+    if (dangerLevel == DangerLevel.moderate) return NecessityLevel.moderate;
+    return NecessityLevel.moderate; // Standard default for prescription drugs
+  }
+
+  /// Plain-language clinical description of the danger and consequences of skipping a dose.
+  static String defaultSkipConsequences(String name, NecessityLevel level) {
+    final clean = name.trim().toLowerCase();
+
+    if (clean.contains('insulin') ||
+        clean.contains('lantus') ||
+        clean.contains('novolog') ||
+        clean.contains('humalog')) {
+      return 'DANGER: Skipping insulin can rapidly trigger life-threatening Diabetic Ketoacidosis (DKA), severe hyperglycemia, and metabolic emergency.';
+    }
+    if (clean.contains('warfarin') ||
+        clean.contains('coumadin') ||
+        clean.contains('eliquis') ||
+        clean.contains('xarelto')) {
+      return 'CRITICAL DANGER: Skipping anticoagulants causes rapid loss of clot prevention, dramatically elevating the risk of fatal stroke, pulmonary embolism, or deep vein thrombosis (DVT).';
+    }
+    if (clean.contains('keppra') ||
+        clean.contains('levetiracetam') ||
+        clean.contains('antiepileptic') ||
+        clean.contains('carbamazepine')) {
+      return 'CRITICAL DANGER: Abruptly skipping antiepileptic doses can precipitate sudden breakthrough seizures, status epilepticus, or head trauma.';
+    }
+    if (clean.contains('prograf') ||
+        clean.contains('tacrolimus') ||
+        clean.contains('cyclosporine')) {
+      return 'CRITICAL DANGER: Missing an immunosuppressant dose jeopardizes graft survival and can trigger acute organ transplant rejection.';
+    }
+    if (clean.contains('amoxil') ||
+        clean.contains('amoxicillin') ||
+        clean.contains('augmentin') ||
+        clean.contains('cipro') ||
+        clean.contains('flagyl') ||
+        clean.contains('zithromax')) {
+      return 'Skipping doses causes antibiotic blood levels to plunge below therapeutic strength, resulting in infection recurrence and dangerous bacterial drug resistance.';
+    }
+    if (clean.contains('metoprolol') ||
+        clean.contains('toprol') ||
+        clean.contains('atenolol') ||
+        clean.contains('norvasc') ||
+        clean.contains('amlodipine') ||
+        clean.contains('lisinopril') ||
+        clean.contains('zestril') ||
+        clean.contains('losartan') ||
+        clean.contains('cozaar')) {
+      return 'Missing doses can trigger dangerous blood pressure spikes, acute rebound tachycardia, and excessive cardiovascular strain.';
+    }
+    if (clean.contains('synthroid') || clean.contains('levothyroxine')) {
+      return 'Skipping disrupts endocrine hormone stability, causing persistent fatigue, brain fog, cold intolerance, and metabolic disturbance.';
+    }
+    if (clean.contains('glucophage') ||
+        clean.contains('metformin') ||
+        clean.contains('jardiance')) {
+      return 'Skipping causes blood glucose spikes, osmotic diuresis, and long-term glycemic instability.';
+    }
+    if (clean.contains('ventolin') || clean.contains('albuterol')) {
+      return 'Failure to take during bronchospasm leads to progressive hypoxemia, acute airway constriction, and severe respiratory distress.';
+    }
+    if (clean.contains('zoloft') ||
+        clean.contains('lexapro') ||
+        clean.contains('xanax') ||
+        clean.contains('sertraline')) {
+      return 'Skipping doses can precipitate acute withdrawal symptoms (dizziness, brain zaps, severe rebound panic, and restlessness).';
+    }
+
+    switch (level) {
+      case NecessityLevel.critical:
+        return 'CRITICAL DANGER: Missing or skipping this dose causes acute, life-threatening complications. Take immediately or consult urgent care.';
+      case NecessityLevel.vital:
+        return 'Essential daily medication: missing this dose compromises therapeutic control, raises disease recurrence risk, or causes rebound symptoms.';
+      case NecessityLevel.moderate:
+        return 'Missing doses delays optimal therapeutic maintenance; adhere to regular schedule.';
+      case NecessityLevel.low:
+        return 'Symptomatic medication; can be safely skipped if symptoms have resolved.';
+    }
+  }
 
   static List<MedicineTemplate> search(String query) {
     final clean = query.trim().toLowerCase();

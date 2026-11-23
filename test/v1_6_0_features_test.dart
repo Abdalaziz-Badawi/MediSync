@@ -154,35 +154,21 @@ void main() {
       expect(md.contains('# 📋 MediSync Clinical Continuity'), isTrue);
       expect(md.contains('| **Lisinopril** |'), isTrue);
 
-      final html = integration.generateContinuityReportFormatted(
+      final textReport = integration.generateContinuityReportFormatted(
         medications: [med],
         profile: testProfile,
-        format: ReportExportFormat.html,
+        format: ReportExportFormat.text,
       );
-      expect(html.contains('<!DOCTYPE html>'), isTrue);
-      expect(html.contains('Lisinopril'), isTrue);
-
-      final xml = integration.generateContinuityReportFormatted(
-        medications: [med],
-        profile: testProfile,
-        format: ReportExportFormat.xml,
-      );
-      expect(xml.contains('<?xml version="1.0"'), isTrue);
-      expect(xml.contains('<MediSyncContinuityRecord'), isTrue);
-
-      final doc = integration.generateContinuityReportFormatted(
-        medications: [med],
-        profile: testProfile,
-        format: ReportExportFormat.doc,
-      );
-      expect(doc.contains('<!DOCTYPE html>'), isTrue);
+      expect(textReport.contains('MEDISYNC CLINICAL CONTINUITY'), isTrue);
+      expect(textReport.contains('Lisinopril'), isTrue);
 
       final pdf = integration.generateContinuityReportFormatted(
         medications: [med],
         profile: testProfile,
         format: ReportExportFormat.pdf,
       );
-      expect(pdf.contains('@page { size: A4;'), isTrue);
+      expect(pdf.contains('MediSync Clinical Continuity'), isTrue);
+      expect(pdf.contains('| **Lisinopril** |'), isTrue);
     });
   });
 }

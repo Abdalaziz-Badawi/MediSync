@@ -59,14 +59,34 @@ class StorageService {
   // Medications
   List<Medication> getMedications() {
     final list = <Medication>[];
+    final corruptedKeys = <dynamic>[];
     for (final key in _medicationsBox.keys) {
       final raw = _medicationsBox.get(key);
       if (raw != null) {
         try {
           final map = jsonDecode(raw as String);
-          list.add(Medication.fromJson(map as Map<String, dynamic>));
+          final med = Medication.fromJson(map as Map<String, dynamic>);
+          final cleanName = med.name.trim();
+          final cleanDosage = med.dosage.trim();
+          // Safeguard: Filter out corrupted/empty medications with no name or blank dashes
+          if (cleanName.isNotEmpty &&
+              cleanName != '-' &&
+              cleanName != '--' &&
+              cleanName != '—' &&
+              cleanDosage.isNotEmpty &&
+              cleanDosage != '-' &&
+              cleanDosage != '--' &&
+              cleanDosage != '—') {
+            list.add(med);
+          } else {
+            corruptedKeys.add(key);
+          }
         } catch (_) {}
       }
+    }
+    // Proactively clean up any corrupted orphan keys
+    for (final key in corruptedKeys) {
+      _medicationsBox.delete(key);
     }
     return list;
   }
@@ -76,13 +96,29 @@ class StorageService {
     if (raw == null) return null;
     try {
       final map = jsonDecode(raw as String);
-      return Medication.fromJson(map as Map<String, dynamic>);
+      final med = Medication.fromJson(map as Map<String, dynamic>);
+      final cleanName = med.name.trim();
+      final cleanDosage = med.dosage.trim();
+      if (cleanName.isEmpty || cleanName == '-' || cleanName == '--' || cleanName == '—' ||
+          cleanDosage.isEmpty || cleanDosage == '-' || cleanDosage == '--' || cleanDosage == '—') {
+        _medicationsBox.delete(id);
+        return null;
+      }
+      return med;
     } catch (_) {
       return null;
     }
   }
 
   Future<void> saveMedication(Medication medication) async {
+    final cleanName = medication.name.trim();
+    final cleanDosage = medication.dosage.trim();
+    if (cleanName.isEmpty || cleanName == '-' || cleanName == '--' || cleanName == '—' || cleanName.length < 2) {
+      throw ArgumentError('Medication name cannot be empty, whitespace, or a dash.');
+    }
+    if (cleanDosage.isEmpty || cleanDosage == '-' || cleanDosage == '--' || cleanDosage == '—') {
+      throw ArgumentError('Dosage amount cannot be empty, whitespace, or a dash.');
+    }
     await _medicationsBox.put(medication.id, jsonEncode(medication.toJson()));
   }
 
@@ -178,6 +214,14 @@ class MedicationsNotifier extends StateNotifier<List<Medication>> {
       : super(_storage.getMedications());
 
   Future<void> addOrUpdate(Medication med) async {
+    final cleanName = med.name.trim();
+    final cleanDosage = med.dosage.trim();
+    if (cleanName.isEmpty || cleanName == '-' || cleanName == '--' || cleanName == '—' || cleanName.length < 2) {
+      throw ArgumentError('Medication name cannot be empty, whitespace, or a dash.');
+    }
+    if (cleanDosage.isEmpty || cleanDosage == '-' || cleanDosage == '--' || cleanDosage == '—') {
+      throw ArgumentError('Dosage amount cannot be empty, whitespace, or a dash.');
+    }
     await _storage.saveMedication(med);
     state = _storage.getMedications();
     final notifs = _notifications;

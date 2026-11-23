@@ -7,7 +7,6 @@ import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/adherence_streak_card.dart';
-import 'package:medisync/features/profile/presentation/widgets/emergency_health_card.dart';
 
 class RecordsPage extends ConsumerStatefulWidget {
   const RecordsPage({super.key});
@@ -18,6 +17,7 @@ class RecordsPage extends ConsumerStatefulWidget {
 
 class _RecordsPageState extends ConsumerState<RecordsPage> {
   String? _selectedMedId; // null = all medications
+  String _statusFilter = 'all'; // 'all', 'active', 'discontinued'
   late DateTime _selectedDate;
   late DateTime _focusedDate;
   bool _isMonthViewExpanded = false;
@@ -135,6 +135,68 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
             ],
           ),
           const SizedBox(height: 6),
+          // Status Filters: All | Active Only | Discontinued Only
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  avatar: Icon(Icons.list_alt_rounded, size: 15, color: _statusFilter == 'all' ? Colors.white : AppTheme.textSecondary(context)),
+                  label: Text('All (${medications.length})'),
+                  selected: _statusFilter == 'all',
+                  selectedColor: primary,
+                  backgroundColor: AppTheme.surfaceVariant(context),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: _statusFilter == 'all' ? FontWeight.bold : FontWeight.w500,
+                    color: _statusFilter == 'all' ? Colors.white : AppTheme.textPrimary(context),
+                  ),
+                  onSelected: (_) => setState(() {
+                    _statusFilter = 'all';
+                    _selectedMedId = null;
+                  }),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  avatar: Icon(Icons.check_circle_outline_rounded, size: 15, color: _statusFilter == 'active' ? Colors.white : const Color(0xFF0D9488)),
+                  label: Text('Active (${medications.where((m) => !m.isDiscontinued).length})'),
+                  selected: _statusFilter == 'active',
+                  selectedColor: const Color(0xFF0D9488),
+                  backgroundColor: AppTheme.surfaceVariant(context),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: _statusFilter == 'active' ? FontWeight.bold : FontWeight.w500,
+                    color: _statusFilter == 'active' ? Colors.white : AppTheme.textPrimary(context),
+                  ),
+                  onSelected: (_) => setState(() {
+                    _statusFilter = 'active';
+                    _selectedMedId = null;
+                  }),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  avatar: Icon(Icons.history_toggle_off_rounded, size: 15, color: _statusFilter == 'discontinued' ? Colors.white : const Color(0xFF64748B)),
+                  label: Text('Discontinued (${medications.where((m) => m.isDiscontinued).length})'),
+                  selected: _statusFilter == 'discontinued',
+                  selectedColor: const Color(0xFF475569),
+                  backgroundColor: AppTheme.surfaceVariant(context),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: _statusFilter == 'discontinued' ? FontWeight.bold : FontWeight.w500,
+                    color: _statusFilter == 'discontinued' ? Colors.white : AppTheme.textPrimary(context),
+                  ),
+                  onSelected: (_) => setState(() {
+                    _statusFilter = 'discontinued';
+                    _selectedMedId = null;
+                  }),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Per-Medicine Specific Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -143,7 +205,7 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: const Text('All Medications'),
+                    label: const Text('All In Filter'),
                     selected: _selectedMedId == null,
                     selectedColor: primary,
                     backgroundColor: AppTheme.surfaceVariant(context),
@@ -157,7 +219,11 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                     onSelected: (_) => setState(() => _selectedMedId = null),
                   ),
                 ),
-                ...medications.map((med) {
+                ...medications.where((m) {
+                  if (_statusFilter == 'active' && m.isDiscontinued) return false;
+                  if (_statusFilter == 'discontinued' && !m.isDiscontinued) return false;
+                  return true;
+                }).map((med) {
                   final isSel = _selectedMedId == med.id;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -183,9 +249,39 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
           const SizedBox(height: 12),
 
           // 5. Individual Medication Continuity Cards
-          ...medications
-              .where((m) => _selectedMedId == null || m.id == _selectedMedId)
-              .map((med) => _buildContinuityCard(med, isDark, primary)),
+          ...(() {
+            final filteredMeds = medications.where((m) {
+              if (_statusFilter == 'active' && m.isDiscontinued) return false;
+              if (_statusFilter == 'discontinued' && !m.isDiscontinued) return false;
+              if (_selectedMedId != null && m.id != _selectedMedId) return false;
+              return true;
+            }).toList();
+
+            if (filteredMeds.isEmpty) {
+              return [
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  alignment: Alignment.center,
+                  child: Column(
+                    children: [
+                      Icon(Icons.filter_alt_off_rounded, size: 40, color: AppTheme.textMuted(context)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No medications matching "$_statusFilter" filter.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ];
+            }
+
+            return filteredMeds.map((med) => _buildContinuityCard(med, isDark, primary));
+          })(),
 
           const SizedBox(height: 20),
 
@@ -678,10 +774,17 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor(context),
+        color: med.isDiscontinued
+            ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
+            : AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.cardBorder(context)),
-        boxShadow: AppTheme.softShadow(context),
+        border: Border.all(
+          color: med.isDiscontinued
+              ? (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))
+              : AppTheme.cardBorder(context),
+          width: 1.2,
+        ),
+        boxShadow: med.isDiscontinued ? [] : AppTheme.softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -690,8 +793,16 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: activeColor.withValues(alpha: isDark ? 0.25 : 0.15),
-                child: Icon(med.icon, size: 18, color: activeColor),
+                backgroundColor: med.isDiscontinued
+                    ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
+                    : activeColor.withValues(alpha: isDark ? 0.25 : 0.15),
+                child: Icon(
+                  med.isDiscontinued ? Icons.history_toggle_off_rounded : med.icon,
+                  size: 18,
+                  color: med.isDiscontinued
+                      ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
+                      : activeColor,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -703,35 +814,75 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary(context),
+                        color: med.isDiscontinued
+                            ? (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))
+                            : AppTheme.textPrimary(context),
                       ),
                     ),
                     Text(
-                      'Form: ${med.form.name.toUpperCase()} • ${med.scheduleFrequency.name}',
-                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                      med.isDiscontinued
+                          ? 'DISCONTINUED • Form: ${med.form.name.toUpperCase()}'
+                          : 'Form: ${med.form.name.toUpperCase()} • ${med.scheduleFrequency.name}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: med.isDiscontinued ? const Color(0xFF64748B) : AppTheme.textSecondary(context),
+                        fontWeight: med.isDiscontinued ? FontWeight.w600 : FontWeight.normal,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: rate >= 80
-                      ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5))
-                      : (isDark ? const Color(0xFF78350F) : const Color(0xFFFEF3C7)),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$rate% On-Time',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+              if (med.isDiscontinued)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.history_toggle_off_rounded,
+                        size: 12,
+                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Discontinued',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
                     color: rate >= 80
-                        ? (isDark ? AppTheme.successGreenLight : AppTheme.successGreen)
-                        : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
+                        ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5))
+                        : (isDark ? const Color(0xFF78350F) : const Color(0xFFFEF3C7)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$rate% On-Time',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: rate >= 80
+                          ? (isDark ? AppTheme.successGreenLight : AppTheme.successGreen)
+                          : (isDark ? AppTheme.warningAmberLight : AppTheme.warningAmber),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -964,6 +1115,7 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
     final isDark = AppTheme.isDark(context);
     final primary = Theme.of(context).colorScheme.primary;
     var currentFormat = ReportExportFormat.text;
+    var isMarkdownRenderedView = true;
 
     showModalBottomSheet(
       context: context,
@@ -1023,39 +1175,126 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Format Selector Chips (Text, Markdown, HTML, XML, Doc, PDF)
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: ReportExportFormat.values.map((fmt) {
-                            final isSelected = currentFormat == fmt;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ChoiceChip(
-                                label: Text(fmt.label),
-                                selected: isSelected,
-                                selectedColor: primary.withValues(alpha: isDark ? 0.35 : 0.20),
-                                side: BorderSide(
-                                  color: isSelected ? primary : AppTheme.cardBorder(ctx),
-                                ),
-                                labelStyle: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? primary : AppTheme.textSecondary(ctx),
-                                ),
-                                onSelected: (val) {
-                                  if (val) {
-                                    setModalState(() {
-                                      currentFormat = fmt;
-                                    });
-                                  }
-                                },
+                      // Format Selector Chips (Text, Markdown, PDF)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: ReportExportFormat.values.map((fmt) {
+                                  final isSelected = currentFormat == fmt;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      label: Text(fmt.label),
+                                      selected: isSelected,
+                                      selectedColor: primary.withValues(alpha: isDark ? 0.35 : 0.20),
+                                      side: BorderSide(
+                                        color: isSelected ? primary : AppTheme.cardBorder(ctx),
+                                      ),
+                                      labelStyle: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        color: isSelected ? primary : AppTheme.textSecondary(ctx),
+                                      ),
+                                      onSelected: (val) {
+                                        if (val) {
+                                          setModalState(() {
+                                            currentFormat = fmt;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  );
+                                }).toList(),
                               ),
-                            );
-                          }).toList(),
-                        ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
+
+                      // Optional Markdown View Mode Switcher (Rendered vs Raw Monospace)
+                      if (currentFormat == ReportExportFormat.markdown) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text(
+                              'Markdown Viewer:',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textSecondary(ctx),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => setModalState(() => isMarkdownRenderedView = true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isMarkdownRenderedView
+                                      ? primary.withValues(alpha: isDark ? 0.35 : 0.20)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isMarkdownRenderedView ? primary : AppTheme.cardBorder(ctx),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.visibility_rounded, size: 14, color: isMarkdownRenderedView ? primary : AppTheme.textSecondary(ctx)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Rendered Document',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: isMarkdownRenderedView ? FontWeight.bold : FontWeight.normal,
+                                        color: isMarkdownRenderedView ? primary : AppTheme.textSecondary(ctx),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => setModalState(() => isMarkdownRenderedView = false),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: !isMarkdownRenderedView
+                                      ? primary.withValues(alpha: isDark ? 0.35 : 0.20)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: !isMarkdownRenderedView ? primary : AppTheme.cardBorder(ctx),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.code_rounded, size: 14, color: !isMarkdownRenderedView ? primary : AppTheme.textSecondary(ctx)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Raw Monospace',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: !isMarkdownRenderedView ? FontWeight.bold : FontWeight.normal,
+                                        color: !isMarkdownRenderedView ? primary : AppTheme.textSecondary(ctx),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 10),
 
                       Expanded(
                         child: Container(
@@ -1067,15 +1306,17 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                           ),
                           child: SingleChildScrollView(
                             controller: scrollController,
-                            child: SelectableText(
-                              reportContent,
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                                color: AppTheme.textPrimary(ctx),
-                                height: 1.4,
-                              ),
-                            ),
+                            child: (currentFormat == ReportExportFormat.pdf || (currentFormat == ReportExportFormat.markdown && isMarkdownRenderedView))
+                                ? _buildMarkdownRenderedContent(reportContent, isDark, primary, ctx)
+                                : SelectableText(
+                                    reportContent,
+                                    style: TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 11,
+                                      color: AppTheme.textPrimary(ctx),
+                                      height: 1.4,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -1114,12 +1355,12 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               onPressed: () async {
-                                if (currentFormat == ReportExportFormat.jpg) {
-                                  Navigator.pop(ctx);
-                                  showEmergencyCardDialog(
-                                    context,
-                                    profile: profile,
-                                    medications: medications,
+                                if (currentFormat == ReportExportFormat.pdf) {
+                                  final title = 'MediSync_Continuity_Report_${profile.name}.pdf';
+                                  await integrationService.sharePdfReport(
+                                    title: title,
+                                    patientName: profile.name,
+                                    content: reportContent,
                                   );
                                   return;
                                 }
@@ -1145,5 +1386,271 @@ class _RecordsPageState extends ConsumerState<RecordsPage> {
         );
       },
     );
+  }
+
+  /// Visual Markdown Renderer: Converts GFM markdown text into rich Flutter UI widgets.
+  Widget _buildMarkdownRenderedContent(String markdown, bool isDark, Color primary, BuildContext ctx) {
+    final lines = markdown.split('\n');
+    final widgets = <Widget>[];
+
+    int i = 0;
+    while (i < lines.length) {
+      final line = lines[i].trimRight();
+
+      if (line.isEmpty) {
+        widgets.add(const SizedBox(height: 6));
+        i++;
+        continue;
+      }
+
+      // 1. Horizontal Rules
+      if (line.trim() == '---' || line.trim() == '***') {
+        widgets.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ));
+        i++;
+        continue;
+      }
+
+      // 2. Blockquotes / Callout Cards (starts with '>')
+      if (line.startsWith('>')) {
+        final bLines = <String>[];
+        bool isAlert = false;
+        while (i < lines.length && lines[i].trim().startsWith('>')) {
+          final clean = lines[i].replaceFirst(RegExp(r'^>\s?'), '').trim();
+          if (clean.contains('[!IMPORTANT]') || clean.contains('[!WARNING]')) {
+            isAlert = true;
+          } else if (clean.isNotEmpty) {
+            bLines.add(clean);
+          }
+          i++;
+        }
+        widgets.add(Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isAlert
+                ? (isDark ? const Color(0xFF451A03).withValues(alpha: 0.35) : const Color(0xFFFFFBEB))
+                : (isDark ? const Color(0xFF0F2926) : const Color(0xFFF0FDFA)),
+            borderRadius: BorderRadius.circular(10),
+            border: Border(
+              left: BorderSide(
+                color: isAlert ? const Color(0xFFF59E0B) : const Color(0xFF0D9488),
+                width: 4,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: bLines.map((l) => _buildFormattedText(l, isDark, primary, fontSize: 11.5)).toList(),
+          ),
+        ));
+        continue;
+      }
+
+      // 3. Markdown Tables (starts with '|')
+      if (line.startsWith('|') && line.endsWith('|')) {
+        final tableLines = <String>[];
+        while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+          tableLines.add(lines[i].trim());
+          i++;
+        }
+        if (tableLines.length >= 2) {
+          final headerCells = tableLines[0]
+              .split('|')
+              .where((c) => c.isNotEmpty)
+              .map((c) => c.trim())
+              .toList();
+          final dataRows = <List<String>>[];
+          for (int r = 1; r < tableLines.length; r++) {
+            if (tableLines[r].contains('---') || tableLines[r].contains(':---')) continue;
+            final cells = tableLines[r]
+                .split('|')
+                .where((c) => c.isNotEmpty)
+                .map((c) => c.trim())
+                .toList();
+            dataRows.add(cells);
+          }
+
+          widgets.add(Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  ),
+                  headingTextStyle: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  ),
+                  dataTextStyle: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  columns: headerCells.map((h) => DataColumn(label: Text(h))).toList(),
+                  rows: dataRows.map((row) {
+                    return DataRow(
+                      cells: List.generate(headerCells.length, (colIdx) {
+                        final val = colIdx < row.length ? row[colIdx] : '';
+                        return DataCell(_buildFormattedText(val, isDark, primary, fontSize: 11));
+                      }),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ));
+        }
+        continue;
+      }
+
+      // 4. Headers (#, ##, ###, ####)
+      if (line.startsWith('# ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Text(
+            line.substring(2).trim(),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: primary),
+          ),
+        ));
+      } else if (line.startsWith('## ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          child: Text(
+            line.substring(3).trim(),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+        ));
+      } else if (line.startsWith('### ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 2),
+          child: Text(
+            line.substring(4).trim(),
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.bold,
+              color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0369A1),
+            ),
+          ),
+        ));
+      } else if (line.startsWith('#### ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 2),
+          child: Text(
+            line.substring(5).trim(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+            ),
+          ),
+        ));
+      } else if (line.startsWith('* ') || line.startsWith('- ')) {
+        // 5. Bullet Lists
+        final itemText = line.substring(2).trim();
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(left: 6, bottom: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: primary)),
+              Expanded(child: _buildFormattedText(itemText, isDark, primary, fontSize: 11.5)),
+            ],
+          ),
+        ));
+      } else {
+        // 6. Regular Paragraphs
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: _buildFormattedText(line, isDark, primary, fontSize: 11.5),
+        ));
+      }
+
+      i++;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
+  /// Parses inline markdown formatting (bold `**`, code `` ` ``) into a RichText widget.
+  Widget _buildFormattedText(String text, bool isDark, Color primary, {double fontSize = 11.5}) {
+    final spans = <InlineSpan>[];
+    final regex = RegExp(r'(\*\*.*?\*\*|`.*?`)');
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: TextStyle(
+            fontSize: fontSize,
+            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+          ),
+        ));
+      }
+      final matched = match.group(0)!;
+      if (matched.startsWith('**') && matched.endsWith('**')) {
+        spans.add(TextSpan(
+          text: matched.substring(2, matched.length - 2),
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ));
+      } else if (matched.startsWith('`') && matched.endsWith('`')) {
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              matched.substring(1, matched.length - 1),
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: fontSize - 0.5,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+              ),
+            ),
+          ),
+        ));
+      }
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastMatchEnd),
+        style: TextStyle(
+          fontSize: fontSize,
+          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+        ),
+      ));
+    }
+
+    return RichText(text: TextSpan(children: spans));
   }
 }

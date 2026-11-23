@@ -73,6 +73,63 @@ void showMissedDoseGuidanceSheet(
               ),
               const SizedBox(height: 16),
 
+              // Life-Critical / High Necessity Danger Callout
+              if (medication.necessityLevel == NecessityLevel.critical ||
+                  medication.necessityLevel == NecessityLevel.vital) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: medication.necessityLevel.color.withValues(alpha: isDark ? 0.20 : 0.10),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: medication.necessityLevel.color.withValues(alpha: 0.6),
+                      width: 1.4,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            medication.necessityLevel.icon,
+                            size: 18,
+                            color: medication.necessityLevel.color,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              medication.necessityLevel == NecessityLevel.critical
+                                  ? '🚨 LIFE-CRITICAL MEDICATION — DO NOT SKIP'
+                                  : '⚠️ VITAL DAILY MEDICATION — ESSENTIAL DOSE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: medication.necessityLevel.color,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        medication.skipConsequences ??
+                            'Skipping or missing this dose can trigger severe complications or sudden medical emergencies.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Specific Clinical Advice Callout
               Container(
                 width: double.infinity,
@@ -178,7 +235,80 @@ void showMissedDoseGuidanceSheet(
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
+                        if (medication.necessityLevel == NecessityLevel.critical ||
+                            medication.necessityLevel == NecessityLevel.vital) {
+                          final confirmed = await showDialog<bool>(
+                            context: ctx,
+                            builder: (dCtx) => AlertDialog(
+                              title: Row(
+                                children: [
+                                  Icon(
+                                    medication.necessityLevel.icon,
+                                    color: medication.necessityLevel.color,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                      'Danger: Skip Dose?',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${medication.name} is designated as ${medication.necessityLevel.label}. Skipping can have serious consequences:',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: medication.necessityLevel.color.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      medication.skipConsequences ??
+                                          'Missing this medication can trigger acute medical complications.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: medication.necessityLevel.color,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Are you sure you want to proceed and mark this dose as skipped?',
+                                    style: TextStyle(fontSize: 12.5),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                OutlinedButton(
+                                  onPressed: () => Navigator.pop(dCtx, false),
+                                  child: const Text('Cancel (Keep Dose)'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.dangerRed,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () => Navigator.pop(dCtx, true),
+                                  child: const Text('Confirm Skip'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true) return;
+                        }
+
+                        if (!ctx.mounted) return;
                         Navigator.pop(ctx);
                         onSelectStatus(DoseStatus.missed);
                       },

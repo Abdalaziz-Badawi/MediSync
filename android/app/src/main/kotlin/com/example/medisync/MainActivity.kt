@@ -9,6 +9,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -22,6 +24,9 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
@@ -347,6 +352,58 @@ class MainActivity : FlutterActivity() {
                         result.error("SHARE_ERROR", e.message, null)
                     }
                 }
+                "sharePdfReport" -> {
+                    try {
+                        val title = call.argument<String>("title") ?: "MediSync Continuity Report"
+                        val filename = call.argument<String>("filename") ?: "MediSync_Continuity_Report_${System.currentTimeMillis()}.pdf"
+                        val patientName = call.argument<String>("patientName") ?: "Patient"
+                        val content = call.argument<String>("content") ?: ""
+
+                        val cacheDir = File(context.cacheDir, "reports")
+                        if (!cacheDir.exists()) cacheDir.mkdirs()
+                        val pdfFile = File(cacheDir, filename)
+
+                        generatePdfDocument(pdfFile, title, patientName, content)
+
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            pdfFile
+                        )
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/pdf"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            putExtra(Intent.EXTRA_SUBJECT, title)
+                            putExtra(Intent.EXTRA_TEXT, "$title\nVerified Patient Continuity Record for $patientName")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        val chooser = Intent.createChooser(shareIntent, "Share Continuity Report (PDF)")
+                        chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(chooser)
+                        result.success(pdfFile.absolutePath)
+                    } catch (e: Exception) {
+                        result.error("PDF_SHARE_FAILED", e.message, null)
+                    }
+                }
+                "savePdfReport" -> {
+                    try {
+                        val title = call.argument<String>("title") ?: "MediSync Continuity Report"
+                        val filename = call.argument<String>("filename") ?: "MediSync_Continuity_Report_${System.currentTimeMillis()}.pdf"
+                        val patientName = call.argument<String>("patientName") ?: "Patient"
+                        val content = call.argument<String>("content") ?: ""
+
+                        val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+                        val medisyncDir = File(docsDir, "MediSync")
+                        if (!medisyncDir.exists()) medisyncDir.mkdirs()
+                        val pdfFile = File(medisyncDir, filename)
+
+                        generatePdfDocument(pdfFile, title, patientName, content)
+                        MediaScannerConnection.scanFile(context, arrayOf(pdfFile.absolutePath), arrayOf("application/pdf"), null)
+                        result.success(pdfFile.absolutePath)
+                    } catch (e: Exception) {
+                        result.error("PDF_SAVE_FAILED", e.message, null)
+                    }
+                }
                 "shareEmergencyCardJpg" -> {
                     try {
                         val bytes = call.argument<ByteArray>("bytes")
@@ -506,6 +563,10 @@ class MainActivity : FlutterActivity() {
                         val allergies = call.argument<String>("allergies") ?: ""
                         val conditions = call.argument<String>("conditions") ?: ""
                         val medications = call.argument<String>("medications") ?: ""
+                        val organDonor = call.argument<String>("organDonor") ?: "NO"
+                        val pastSurgeries = call.argument<String>("pastSurgeries") ?: ""
+                        val medicalHistory = call.argument<String>("medicalHistory") ?: ""
+                        val discontinuedMeds = call.argument<String>("discontinuedMeds") ?: ""
 
                         val prefs = getSharedPreferences(MediSyncWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
                         prefs.edit()
@@ -518,6 +579,10 @@ class MainActivity : FlutterActivity() {
                             .putString("allergies", allergies)
                             .putString("conditions", conditions)
                             .putString("medications", medications)
+                            .putString("organ_donor", organDonor)
+                            .putString("past_surgeries", pastSurgeries)
+                            .putString("medical_history", medicalHistory)
+                            .putString("discontinued_meds", discontinuedMeds)
                             .apply()
 
                         MediSyncWidgetProvider.updateAllWidgets(this)
@@ -574,5 +639,181 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun generatePdfDocument(pdfFile: File, title: String, patientName: String, content: String) {
+        val pdfDocument = PdfDocument()
+        val pageWidth = 595
+        val pageHeight = 842
+        var pageNumber = 1
+
+        var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+        var page = pdfDocument.startPage(pageInfo)
+        var canvas = page.canvas
+
+        val textPaint = Paint().apply {
+            color = Color.parseColor("#0F172A")
+            textSize = 9.5f
+            isAntiAlias = true
+        }
+        val boldPaint = Paint().apply {
+            color = Color.parseColor("#0F172A")
+            textSize = 9.5f
+            isFakeBoldText = true
+            isAntiAlias = true
+        }
+        val headerTitlePaint = Paint().apply {
+            color = Color.WHITE
+            textSize = 13.5f
+            isFakeBoldText = true
+            isAntiAlias = true
+        }
+        val sectionPaint = Paint().apply {
+            color = Color.parseColor("#0D9488")
+            textSize = 11f
+            isFakeBoldText = true
+            isAntiAlias = true
+        }
+        val alertPaint = Paint().apply {
+            color = Color.parseColor("#BE123C")
+            textSize = 9.5f
+            isFakeBoldText = true
+            isAntiAlias = true
+        }
+        val mutedPaint = Paint().apply {
+            color = Color.parseColor("#64748B")
+            textSize = 8.5f
+            isAntiAlias = true
+        }
+        val bgHeaderPaint = Paint().apply {
+            color = Color.parseColor("#0D9488")
+        }
+        val dividerPaint = Paint().apply {
+            color = Color.parseColor("#CBD5E1")
+            strokeWidth = 1f
+        }
+
+        fun drawPageHeader(c: Canvas, pNum: Int) {
+            c.drawRect(36f, 32f, 559f, 74f, bgHeaderPaint)
+            c.drawText("MEDISYNC CLINICAL CONTINUITY RECORD", 48f, 52f, headerTitlePaint)
+            val subPaint = Paint().apply {
+                color = Color.parseColor("#CCFBF1")
+                textSize = 8.5f
+                isAntiAlias = true
+            }
+            val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
+            c.drawText("Patient: ${patientName.uppercase()}   •   Generated: $dateStr   •   100% Offline Verified", 48f, 66f, subPaint)
+
+            c.drawLine(36f, 802f, 559f, 802f, dividerPaint)
+            c.drawText("MediSync Offline Health Record   •   Confidential Medical File", 36f, 816f, mutedPaint)
+            c.drawText("Page $pNum", 520f, 816f, mutedPaint)
+        }
+
+        drawPageHeader(canvas, pageNumber)
+        var curY = 96f
+
+        val lines = content.split("\n")
+        for (line in lines) {
+            val trimmed = line.trim()
+
+            if (curY > 770f) {
+                pdfDocument.finishPage(page)
+                pageNumber++
+                pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader(canvas, pageNumber)
+                curY = 96f
+            }
+
+            if (trimmed.isEmpty()) {
+                curY += 7f
+                continue
+            }
+
+            // Section Dividers / Headers
+            if (trimmed.startsWith("# ") || trimmed.startsWith("===") || trimmed.startsWith("+---")) {
+                if (trimmed.startsWith("+---")) continue
+                val headerText = trimmed.replace(Regex("^[#=+\\s]+"), "").replace(Regex("[=+\\s]+$"), "").trim()
+                if (headerText.isNotEmpty()) {
+                    curY += 6f
+                    canvas.drawText(headerText, 36f, curY, sectionPaint)
+                    canvas.drawLine(36f, curY + 3f, 559f, curY + 3f, dividerPaint)
+                    curY += 15f
+                }
+                continue
+            }
+
+            if (trimmed.startsWith("## ") || trimmed.startsWith("### ")) {
+                val subText = trimmed.replace(Regex("^#+\\s*"), "").trim()
+                curY += 5f
+                canvas.drawText(subText, 36f, curY, boldPaint)
+                curY += 13f
+                continue
+            }
+
+            // Alert lines (Allergies, Warnings, Contraindications)
+            if (trimmed.contains("ALLERGY", ignoreCase = true) || trimmed.contains("CRITICAL", ignoreCase = true) || trimmed.contains("[!")) {
+                val alertClean = trimmed.replace(">", "").replace("[!IMPORTANT]", "").replace("[!WARNING]", "").trim()
+                canvas.drawText(alertClean, 40f, curY, alertPaint)
+                curY += 13f
+                continue
+            }
+
+            // Tables / Pipe rows
+            if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+                if (trimmed.contains("---")) continue
+                val cells = trimmed.split("|").filter { it.isNotBlank() }.map { it.trim().replace("**", "") }
+                val colWidth = (520f / cells.size.coerceAtLeast(1))
+                val isHeader = trimmed.contains("Medication") || trimmed.contains("Clinical Tier")
+                for (idx in cells.indices) {
+                    val cellX = 38f + idx * colWidth
+                    val cellText = if (cells[idx].length > 25) cells[idx].substring(0, 23) + ".." else cells[idx]
+                    canvas.drawText(cellText, cellX, curY, if (isHeader) boldPaint else textPaint)
+                }
+                canvas.drawLine(36f, curY + 3f, 559f, curY + 3f, dividerPaint)
+                curY += 14f
+                continue
+            }
+
+            // Bullet items
+            if (trimmed.startsWith("•") || trimmed.startsWith("*") || trimmed.startsWith("-")) {
+                val bulletText = trimmed.replace(Regex("^[•*\\-]\\s*"), "").replace("**", "")
+                canvas.drawText("•", 40f, curY, boldPaint)
+                canvas.drawText(bulletText, 50f, curY, textPaint)
+                curY += 13f
+                continue
+            }
+
+            // Standard body lines
+            val cleanLine = trimmed.replace(">", "").replace("**", "").replace("`", "")
+            canvas.drawText(cleanLine, 36f, curY, textPaint)
+            curY += 13f
+        }
+
+        // Clinician Attestation Sign-off
+        if (curY > 700f) {
+            pdfDocument.finishPage(page)
+            pageNumber++
+            pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader(canvas, pageNumber)
+            curY = 120f
+        }
+
+        curY += 24f
+        canvas.drawLine(36f, curY + 28f, 250f, curY + 28f, textPaint)
+        canvas.drawText("Attending Clinician Signature", 36f, curY + 40f, mutedPaint)
+        canvas.drawLine(340f, curY + 28f, 555f, curY + 28f, textPaint)
+        canvas.drawText("Verification Date (DD/MM/YYYY)", 340f, curY + 40f, mutedPaint)
+
+        pdfDocument.finishPage(page)
+
+        val fos = FileOutputStream(pdfFile)
+        pdfDocument.writeTo(fos)
+        fos.flush()
+        fos.close()
+        pdfDocument.close()
     }
 }

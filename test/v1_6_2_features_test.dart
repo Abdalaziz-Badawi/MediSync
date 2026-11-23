@@ -8,6 +8,7 @@ import 'package:medisync/core/services/device_integration_service.dart';
 import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/core/widgets/brand_shield_pill_logo.dart';
 import 'package:medisync/features/homeboard/presentation/pages/home_page.dart';
 import 'package:medisync/features/homeboard/presentation/widgets/next_dose_countdown_card.dart';
 import 'package:medisync/features/profile/presentation/pages/profile_page.dart';
@@ -404,10 +405,15 @@ void main() {
       expect(bytes[2], equals(0x4E)); // 'N'
       expect(bytes[3], equals(0x47)); // 'G'
 
-      // Check ReportExportFormat.jpg
-      expect(ReportExportFormat.jpg.mimeType, equals('image/jpeg'));
-      expect(ReportExportFormat.jpg.fileExtension, equals('.jpg'));
-      expect(ReportExportFormat.jpg.label, contains('Emergency ID Card'));
+      // Verify pruned export formats strictly limited to text, markdown, pdf
+      expect(ReportExportFormat.values, equals([
+        ReportExportFormat.text,
+        ReportExportFormat.markdown,
+        ReportExportFormat.pdf,
+      ]));
+      expect(ReportExportFormat.text.fileExtension, equals('.txt'));
+      expect(ReportExportFormat.markdown.fileExtension, equals('.md'));
+      expect(ReportExportFormat.pdf.fileExtension, equals('.pdf'));
     });
 
     testWidgets('EmergencyHealthCardWidget renders demographic badges, allergies alert and medications', (tester) async {
@@ -446,7 +452,7 @@ void main() {
 
       expect(find.text('BRUCE WAYNE'), findsOneWidget);
       expect(find.text('EMERGENCY MEDICAL ID'), findsOneWidget);
-      expect(find.text('ID: GOTHAM-001'), findsOneWidget);
+      expect(find.text('GOTHAM-001'), findsOneWidget);
       expect(find.text('BLOOD: O+'), findsOneWidget);
       expect(find.text('CRITICAL ALLERGIES & CONTRAINDICATIONS:'), findsOneWidget);
       expect(find.textContaining('Penicillin'), findsOneWidget);
@@ -720,19 +726,19 @@ void main() {
         ),
       );
 
-      // Verify that the healthcare logo icon is rendered
-      expect(find.byIcon(Icons.health_and_safety_rounded), findsOneWidget);
+      // Verify that the official Brand Shield & Pill logo is rendered
+      expect(find.byType(BrandShieldPillLogo), findsOneWidget);
 
       // Verify that NO text widgets ("MediSync" or subtitle) are rendered on the splash screen
       expect(find.text('MediSync'), findsNothing);
       expect(find.text('CLINICAL SAFETY & ROUTINE INTELLIGENCE'), findsNothing);
 
-      // Verify the logo icon is inside a circular Container with BoxShadow glow
-      final iconFinder = find.byIcon(Icons.health_and_safety_rounded);
-      expect(iconFinder, findsOneWidget);
+      // Verify the logo is inside a circular Container with BoxShadow glow
+      final logoFinder = find.byType(BrandShieldPillLogo);
+      expect(logoFinder, findsOneWidget);
 
       final containerFinder = find.ancestor(
-        of: iconFinder,
+        of: logoFinder,
         matching: find.byType(Container),
       );
       expect(containerFinder, findsWidgets);
@@ -820,6 +826,74 @@ void main() {
       expect(recordingNotifications.syncCalled, isTrue);
       expect(recordingNotifications.scheduledMedIds, contains('active_1'));
       expect(recordingNotifications.scheduledMedIds, isNot(contains('discontinued_2')));
+    });
+
+    test('4 Safeguards: Medication name and dosage cannot be empty, whitespace, or dashes', () async {
+      final fakeStorage = FakeStorageService();
+      final notifier = MedicationsNotifier(fakeStorage);
+
+      // Safeguard 1: Empty or whitespace name fails
+      expect(
+        () => notifier.addOrUpdate(Medication(
+          id: 'bad-1',
+          name: '   ',
+          dosage: '500 mg',
+          timesPerDay: 1,
+          scheduledTimes: const ['08:00'],
+          startDate: DateTime.now(),
+        )),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // Safeguard 1: Solitary dash name fails
+      expect(
+        () => notifier.addOrUpdate(Medication(
+          id: 'bad-2',
+          name: ' - ',
+          dosage: '500 mg',
+          timesPerDay: 1,
+          scheduledTimes: const ['08:00'],
+          startDate: DateTime.now(),
+        )),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // Safeguard 2: Empty or whitespace dosage fails
+      expect(
+        () => notifier.addOrUpdate(Medication(
+          id: 'bad-3',
+          name: 'Paracetamol',
+          dosage: '   ',
+          timesPerDay: 1,
+          scheduledTimes: const ['08:00'],
+          startDate: DateTime.now(),
+        )),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // Safeguard 2: Solitary dash dosage fails
+      expect(
+        () => notifier.addOrUpdate(Medication(
+          id: 'bad-4',
+          name: 'Paracetamol',
+          dosage: '—',
+          timesPerDay: 1,
+          scheduledTimes: const ['08:00'],
+          startDate: DateTime.now(),
+        )),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // Valid medication passes safeguards
+      await notifier.addOrUpdate(Medication(
+        id: 'good-1',
+        name: 'Panadol Extra',
+        dosage: '500 mg',
+        timesPerDay: 2,
+        scheduledTimes: const ['08:00', '20:00'],
+        startDate: DateTime.now(),
+      ));
+      expect(notifier.state.any((m) => m.name == 'Panadol Extra'), isTrue);
     });
   });
 }

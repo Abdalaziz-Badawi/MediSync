@@ -35,6 +35,83 @@ enum DoseStatus {
   takenEarly, // Taken early ahead of scheduled time slot
 }
 
+/// Clinical necessity level dictating adherence strictness and skip safety gating.
+enum NecessityLevel {
+  critical, // Life-critical (insulin, anticoagulants, antiarrhythmics, immunosuppressants, antiepileptics). Unsafe to skip.
+  vital,    // Vital / Essential (antihypertensives, antibiotics, psychiatric medications, hormones).
+  moderate, // Maintenance / Symptom control (statins, daily PPIs, maintenance allergy).
+  low,      // Symptomatic / PRN / OTC (analgesics, PRN antacids, vitamins).
+}
+
+extension NecessityLevelExtension on NecessityLevel {
+  String get label {
+    switch (this) {
+      case NecessityLevel.critical:
+        return 'Life-Critical';
+      case NecessityLevel.vital:
+        return 'Vital';
+      case NecessityLevel.moderate:
+        return 'Moderate';
+      case NecessityLevel.low:
+        return 'Symptomatic';
+    }
+  }
+
+  String get displayName => label;
+
+  String get badgeText {
+    switch (this) {
+      case NecessityLevel.critical:
+        return '🚨 Life-Critical • Unsafe to Skip';
+      case NecessityLevel.vital:
+        return '⚡ Vital Dose • Essential';
+      case NecessityLevel.moderate:
+        return '🛡️ Standard Maintenance';
+      case NecessityLevel.low:
+        return '🟢 Symptomatic / PRN';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case NecessityLevel.critical:
+        return const Color(0xFFDC2626); // Crimson Red
+      case NecessityLevel.vital:
+        return const Color(0xFFEA580C); // Vibrant Orange
+      case NecessityLevel.moderate:
+        return const Color(0xFF2563EB); // Royal Blue
+      case NecessityLevel.low:
+        return const Color(0xFF16A34A); // Emerald Green
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case NecessityLevel.critical:
+        return Icons.warning_amber_rounded;
+      case NecessityLevel.vital:
+        return Icons.priority_high_rounded;
+      case NecessityLevel.moderate:
+        return Icons.info_outline_rounded;
+      case NecessityLevel.low:
+        return Icons.check_circle_outline_rounded;
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case NecessityLevel.critical:
+        return 'Unsafe to skip. Missing or delaying this medication causes acute, dangerous clinical complications.';
+      case NecessityLevel.vital:
+        return 'Essential daily therapy. Missing impacts clinical control, disease progression, or triggers rebound.';
+      case NecessityLevel.moderate:
+        return 'Standard maintenance. Consistent adherence delivers optimal long-term therapeutic outcomes.';
+      case NecessityLevel.low:
+        return 'Symptomatic / as-needed medication. Can be skipped safely when symptoms are absent.';
+    }
+  }
+}
+
 class Medication {
   final String id;
   final String name;
@@ -71,6 +148,10 @@ class Medication {
   final List<String> inactiveExcipients;
   // Meal sync info (e.g., 'after_breakfast', 'after_lunch', 'after_dinner', 'with_meal')
   final String? mealCondition;
+  // Clinical necessity level & dangerous skip consequences
+  final NecessityLevel necessityLevel;
+  final String? skipConsequences;
+  final bool isDiligentReminder;
   // Discontinuation: if stopped from a certain date forward, past logs are preserved but future schedules are inactive
   final DateTime? discontinuedDate;
   final String? discontinuationReason;
@@ -106,6 +187,9 @@ class Medication {
     this.foodRestrictions = const [],
     this.inactiveExcipients = const [],
     this.mealCondition,
+    this.necessityLevel = NecessityLevel.moderate,
+    this.skipConsequences,
+    this.isDiligentReminder = false,
     this.discontinuedDate,
     this.discontinuationReason,
     this.doseLog = const {},
@@ -124,18 +208,20 @@ class Medication {
     final startOfCheck = DateTime(date.year, date.month, date.day);
 
     // 0. Discontinuation check: if discontinued, it is completely removed from all future dates
+    // and is no longer active on or after the day it was discontinued.
     if (isDiscontinued) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      if (startOfCheck.isAfter(today)) return false;
-
       if (discontinuedDate != null) {
         final endOfDiscontinueDay = DateTime(
           discontinuedDate!.year,
           discontinuedDate!.month,
           discontinuedDate!.day,
         );
-        if (startOfCheck.isAfter(endOfDiscontinueDay)) return false;
+        // Inactive on or after discontinuation day; active only for historical records prior to discontinuation
+        if (startOfCheck.isAfter(endOfDiscontinueDay) || startOfCheck.isAtSameMomentAs(endOfDiscontinueDay)) {
+          return false;
+        }
+      } else {
+        return false;
       }
     }
 
@@ -459,6 +545,9 @@ class Medication {
     List<String>? foodRestrictions,
     List<String>? inactiveExcipients,
     String? mealCondition,
+    NecessityLevel? necessityLevel,
+    String? skipConsequences,
+    bool? isDiligentReminder,
     DateTime? discontinuedDate,
     String? discontinuationReason,
     Map<String, List<String>>? doseLog,
@@ -492,6 +581,9 @@ class Medication {
       foodRestrictions: foodRestrictions ?? this.foodRestrictions,
       inactiveExcipients: inactiveExcipients ?? this.inactiveExcipients,
       mealCondition: mealCondition ?? this.mealCondition,
+      necessityLevel: necessityLevel ?? this.necessityLevel,
+      skipConsequences: skipConsequences ?? this.skipConsequences,
+      isDiligentReminder: isDiligentReminder ?? this.isDiligentReminder,
       discontinuedDate: discontinuedDate ?? this.discontinuedDate,
       discontinuationReason: discontinuationReason ?? this.discontinuationReason,
       doseLog: doseLog ?? this.doseLog,
@@ -528,6 +620,9 @@ class Medication {
       'foodRestrictions': foodRestrictions,
       'inactiveExcipients': inactiveExcipients,
       'mealCondition': mealCondition,
+      'necessityLevel': necessityLevel.name,
+      'skipConsequences': skipConsequences,
+      'isDiligentReminder': isDiligentReminder,
       'discontinuedDate': discontinuedDate?.toIso8601String(),
       'discontinuationReason': discontinuationReason,
       'doseLog': doseLog,
@@ -599,6 +694,14 @@ class Medication {
               .toList() ??
           const [],
       mealCondition: json['mealCondition'] as String?,
+      necessityLevel: json['necessityLevel'] != null
+          ? NecessityLevel.values.firstWhere(
+              (e) => e.name == json['necessityLevel'],
+              orElse: () => NecessityLevel.moderate,
+            )
+          : NecessityLevel.moderate,
+      skipConsequences: json['skipConsequences'] as String?,
+      isDiligentReminder: json['isDiligentReminder'] as bool? ?? false,
       discontinuedDate: json['discontinuedDate'] != null
           ? DateTime.parse(json['discontinuedDate'] as String)
           : null,

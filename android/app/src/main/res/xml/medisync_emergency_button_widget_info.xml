@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:minWidth="40dp"
-    android:minHeight="40dp"
+    android:minWidth="60dp"
+    android:minHeight="60dp"
     android:targetCellWidth="1"
     android:targetCellHeight="1"
     android:maxResizeWidth="80dp"
@@ -11,9 +11,12 @@
     android:updatePeriodMillis="0"
     android:previewImage="@drawable/ic_medical_emergency_logo"
     android:initialLayout="@layout/widget_emergency_button"
-    android:widgetCategory="keyguard|home_screen"
-    app:targetHost="home|lockAndAod"
+    android:initialKeyguardLayout="@layout/widget_emergency_button"
+    android:description="@string/widget_emergency_btn_desc"
+    android:widgetCategory="home_screen|keyguard"
+    app:targetHost="lockAndAod"
     app:widgetStyle="colorful|monotone"
     app:lockWidgetSize="tiny"
-    app:initialLayoutTiny="@layout/widget_emergency_button">
+    app:initialLayoutTiny="@layout/widget_emergency_button"
+    app:previewLayoutTiny="@layout/widget_emergency_button">
 </appwidget-provider>

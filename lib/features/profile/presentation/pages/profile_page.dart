@@ -40,6 +40,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _useHealthApp;
   late List<String> _allergies;
   late List<String> _chronicConditions;
+  late bool _isOrganDonor;
+  late List<String> _pastSurgeries;
+  late List<String> _medicalHistory;
 
   double? get _currentWeight => double.tryParse(_weightController.text.trim());
   double? get _currentHeight => double.tryParse(_heightController.text.trim());
@@ -82,9 +85,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late bool _isRoutineExpanded;
   bool _isAllergiesExpanded = false;
   bool _isConditionsExpanded = false;
+  bool _isSurgeriesExpanded = false;
+  bool _isMedicalHistoryExpanded = false;
   bool _isAboutCardExpanded = false;
 
   final TextEditingController _customConditionController = TextEditingController();
+  final TextEditingController _customSurgeryController = TextEditingController();
+  final TextEditingController _customHistoryController = TextEditingController();
 
   static const List<Map<String, dynamic>> _commonChronicConditions = [
     {'title': 'Asthma (Airway)', 'icon': Icons.air_rounded, 'tag': 'Asthma'},
@@ -135,6 +142,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _useHealthApp = profile.useHealthApp;
     _allergies = List.from(profile.allergies);
     _chronicConditions = List.from(profile.chronicConditions);
+    _isOrganDonor = profile.isOrganDonor;
+    _pastSurgeries = List.from(profile.pastSurgeries);
+    _medicalHistory = List.from(profile.medicalHistory);
   }
 
   @override
@@ -144,6 +154,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _weightController.dispose();
     _heightController.dispose();
     _customConditionController.dispose();
+    _customSurgeryController.dispose();
+    _customHistoryController.dispose();
     super.dispose();
   }
 
@@ -165,6 +177,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (_lunchTime != profile.lunchTime) return true;
     if (_dinnerTime != profile.dinnerTime) return true;
     if (_useHealthApp != profile.useHealthApp) return true;
+    if (_isOrganDonor != profile.isOrganDonor) return true;
     if (_allergies.length != profile.allergies.length) return true;
     for (final a in _allergies) {
       if (!profile.allergies.contains(a)) return true;
@@ -172,6 +185,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (_chronicConditions.length != profile.chronicConditions.length) return true;
     for (final c in _chronicConditions) {
       if (!profile.chronicConditions.contains(c)) return true;
+    }
+    if (_pastSurgeries.length != profile.pastSurgeries.length) return true;
+    for (final s in _pastSurgeries) {
+      if (!profile.pastSurgeries.contains(s)) return true;
+    }
+    if (_medicalHistory.length != profile.medicalHistory.length) return true;
+    for (final h in _medicalHistory) {
+      if (!profile.medicalHistory.contains(h)) return true;
     }
     return false;
   }
@@ -257,6 +278,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
+  void _addPastSurgery(String surgery) {
+    final trimmed = surgery.trim();
+    if (trimmed.isNotEmpty && !_pastSurgeries.contains(trimmed)) {
+      setState(() {
+        _pastSurgeries.add(trimmed);
+      });
+      _customSurgeryController.clear();
+    }
+  }
+
+  void _removePastSurgery(String surgery) {
+    setState(() {
+      _pastSurgeries.remove(surgery);
+    });
+  }
+
+  void _addMedicalHistory(String condition) {
+    final trimmed = condition.trim();
+    if (trimmed.isNotEmpty && !_medicalHistory.contains(trimmed)) {
+      setState(() {
+        _medicalHistory.add(trimmed);
+      });
+      _customHistoryController.clear();
+    }
+  }
+
+  void _removeMedicalHistory(String condition) {
+    setState(() {
+      _medicalHistory.remove(condition);
+    });
+  }
+
   void _saveProfile() async {
     final updated = UserProfile(
       name: _nameController.text.trim().isEmpty
@@ -273,6 +326,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           : null,
       allergies: _allergies,
       chronicConditions: _chronicConditions,
+      isOrganDonor: _isOrganDonor,
+      pastSurgeries: _pastSurgeries,
+      medicalHistory: _medicalHistory,
       wakeTime: _wakeTime,
       sleepTime: _sleepTime,
       breakfastTime: _breakfastTime,
@@ -286,10 +342,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     ref.read(profileNotifierProvider.notifier).updateProfile(updated);
 
     // Sync updated profile to Lockscreen Emergency Widget, native floating dialog & Persistent Notification
-    final activeMeds = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).toList();
+    final allMeds = ref.read(medicationsNotifierProvider);
+    final activeMeds = allMeds.where((m) => !m.isDiscontinued).toList();
     await ref.read(deviceIntegrationServiceProvider).syncEmergencyData(
       profile: updated,
-      medications: activeMeds,
+      medications: allMeds,
     );
 
     ref.read(notificationServiceProvider).showPersistentEmergencyNotification(
@@ -304,16 +361,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Profile, health biometrics & emergency data saved locally!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
-  }
-
-  void _saveSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('✓ User settings, theme & device sync saved!'),
+        content: const Text('✓ Changes saved successfully!'),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
@@ -1763,16 +1811,338 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                 ],
 
-                // Explicit Save Button at bottom of Profile & Routine Card
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _saveProfile,
-                      icon: const Icon(Icons.check_circle_rounded, size: 18),
-                      label: const Text('Save Profile & Routine'),
+                // --- PAST SURGERIES & PROCEDURES SECTION ---
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isSurgeriesExpanded = !_isSurgeriesExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.25 : 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.healing_rounded,
+                            size: 18,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Past Surgeries & Procedures',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary(context),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (_pastSurgeries.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${_pastSurgeries.length}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF6366F1),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _pastSurgeries.isEmpty
+                                    ? 'No surgical history recorded'
+                                    : '${_pastSurgeries.length} procedures logged',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textSecondary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _isSurgeriesExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: AppTheme.textSecondary(context),
+                        ),
+                      ],
                     ),
+                  ),
+                ),
+                if (_isSurgeriesExpanded) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_pastSurgeries.isNotEmpty) ...[
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _pastSurgeries.map((surgery) {
+                              return InputChip(
+                                avatar: const Icon(Icons.check_rounded, size: 14, color: Color(0xFF4338CA)),
+                                label: Text(surgery),
+                                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF4338CA)),
+                                backgroundColor: const Color(0xFFE0E7FF),
+                                deleteIconColor: const Color(0xFF4338CA),
+                                onDeleted: () => _removePastSurgery(surgery),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _customSurgeryController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Add procedure (e.g. Appendectomy, Knee ACL)',
+                                  prefixIcon: Icon(Icons.add_circle_outline_rounded, size: 18),
+                                  isDense: true,
+                                ),
+                                onSubmitted: _addPastSurgery,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.add_rounded),
+                              onPressed: () => _addPastSurgery(_customSurgeryController.text),
+                              tooltip: 'Add Surgery',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // --- PAST MEDICAL HISTORY / DISEASES SECTION ---
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isMedicalHistoryExpanded = !_isMedicalHistoryExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.25 : 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.history_edu_rounded,
+                            size: 18,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Past Medical History & Illnesses',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary(context),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (_medicalHistory.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${_medicalHistory.length}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0284C7),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _medicalHistory.isEmpty
+                                    ? 'No prior diseases recorded'
+                                    : '${_medicalHistory.length} conditions logged',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textSecondary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _isMedicalHistoryExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: AppTheme.textSecondary(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_isMedicalHistoryExpanded) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_medicalHistory.isNotEmpty) ...[
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _medicalHistory.map((history) {
+                              return InputChip(
+                                avatar: const Icon(Icons.check_rounded, size: 14, color: Color(0xFF0369A1)),
+                                label: Text(history),
+                                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                                backgroundColor: const Color(0xFFE0F2FE),
+                                deleteIconColor: const Color(0xFF0369A1),
+                                onDeleted: () => _removeMedicalHistory(history),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _customHistoryController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Add past illness (e.g. Pneumonia, DVT)',
+                                  prefixIcon: Icon(Icons.add_circle_outline_rounded, size: 18),
+                                  isDense: true,
+                                ),
+                                onSubmitted: _addMedicalHistory,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.add_rounded),
+                              onPressed: () => _addMedicalHistory(_customHistoryController.text),
+                              tooltip: 'Add Condition',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // --- ORGAN DONOR REGISTRATION ---
+                Divider(height: 1, color: AppTheme.cardBorder(context)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDB2777).withValues(alpha: isDark ? 0.25 : 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.volunteer_activism_rounded,
+                          size: 18,
+                          color: Color(0xFFDB2777),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Organ Donor Status',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary(context),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _isOrganDonor
+                                  ? 'Registered Donor (Prominent on Emergency ID)'
+                                  : 'Not registered as an organ donor',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _isOrganDonor
+                                    ? const Color(0xFFBE185D)
+                                    : AppTheme.textSecondary(context),
+                                fontWeight: _isOrganDonor ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _isOrganDonor,
+                        activeThumbColor: const Color(0xFFDB2777),
+                        activeTrackColor: const Color(0xFFFBCFE8),
+                        onChanged: (val) {
+                          setState(() {
+                            _isOrganDonor = val;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -2181,16 +2551,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Lockscreen Quick Access View',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimary(context),
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Lockscreen Quick Access',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary(context),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                                      ),
+                                      child: const Text(
+                                        'EXPERIMENTAL',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFD97706),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 Text(
-                                  'Controls what view opens from lockscreen widget or shortcut without unlocking device',
+                                  'Controls what view opens from lockscreen widget without unlocking device',
                                   style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
                                 ),
                               ],
@@ -2201,15 +2593,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         initialValue: _lockscreenDefaultView,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Default Lockscreen Action',
                           prefixIcon: Icon(Icons.touch_app_rounded),
                         ),
                         dropdownColor: AppTheme.cardColor(context),
                         items: const [
-                          DropdownMenuItem(value: 'card', child: Text('Emergency Medical ID Card (Recommended)')),
-                          DropdownMenuItem(value: 'medications', child: Text('Upcoming Dose Schedule')),
-                          DropdownMenuItem(value: 'dual', child: Text('Dual View (Card + Medications)')),
+                          DropdownMenuItem(
+                            value: 'card',
+                            child: Text(
+                              'Emergency Medical ID Card',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'medications',
+                            child: Text(
+                              'Upcoming Dose Schedule',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'dual',
+                            child: Text(
+                              'Dual View (Card + Medications)',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                         onChanged: (val) {
                           if (val != null) {
@@ -2218,16 +2629,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         },
                       ),
 
-                      // Explicit Save Settings Button at bottom of card
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _saveSettings,
-                          icon: const Icon(Icons.check_circle_rounded, size: 18),
-                          label: const Text('Save Settings & Preferences'),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -2249,11 +2650,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           _buildAboutDeveloperCard(context),
           const SizedBox(height: 20),
 
-          // Bottom Save Button (Only shown when changes are pending)
+          // Unified Bottom Save Button (Only shown when changes are pending)
           if (hasChanges) ...[
-            ElevatedButton(
-              onPressed: _saveProfile,
-              child: const Text('Save Profile & Routine'),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _saveProfile,
+                icon: const Icon(Icons.check_circle_rounded, size: 20),
+                label: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                  elevation: 4,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
           ],
@@ -2267,7 +2682,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget _buildEmergencyCardSection(BuildContext context) {
     final isDark = AppTheme.isDark(context);
     final medications = ref.watch(medicationsNotifierProvider);
-    final activeCount = medications.where((m) => !m.isDiscontinued).length;
 
     return Container(
       decoration: BoxDecoration(
@@ -2279,96 +2693,100 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
         boxShadow: AppTheme.softShadow(context),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
-            child: Row(
-              children: [
-                const Icon(Icons.emergency_rounded, color: Color(0xFFDC2626), size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Emergency Medical ID Card',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFDC2626),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20.5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.emergency_rounded, color: Color(0xFFDC2626), size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Emergency Medical ID Card',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFDC2626),
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Instant access for paramedics, emergency rooms & first responders',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                        Text(
+                          'Instant offline access for paramedics & first responders',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your vital safety information (Blood Type: $_bloodType, Health ID, ${_allergies.length} Critical Allergies, ${_chronicConditions.length} Chronic Conditions, $activeCount Active Medications) is prepared for immediate access.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppTheme.textSecondary(context),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ],
                     ),
-                    icon: const Icon(Icons.credit_card_rounded, size: 20),
-                    label: const Text(
-                      'View & Share Emergency Card (JPG)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () {
-                      final profile = ref.read(profileNotifierProvider);
-                      showEmergencyCardDialog(
-                        context,
-                        profile: profile.copyWith(
-                          name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : profile.name,
-                          dateOfBirth: _dateOfBirth,
-                          bloodType: _bloodType,
-                          healthId: _healthIdController.text.trim().isNotEmpty ? _healthIdController.text.trim() : null,
-                          gender: _gender,
-                          allergies: _allergies,
-                          chronicConditions: _chronicConditions,
-                          weightKg: _currentWeight,
-                          heightCm: _currentHeight,
-                          profileImagePath: _profileImagePath,
-                          lockscreenDefaultView: _lockscreenDefaultView,
-                        ),
-                        medications: medications,
-                      );
-                    },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Offline medical overview and vital safety summary.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppTheme.textSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.credit_card_rounded, size: 20),
+                      label: const Text(
+                        'View & Share Emergency Card (JPG)',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () {
+                        final profile = ref.read(profileNotifierProvider);
+                        showEmergencyCardDialog(
+                          context,
+                          profile: profile.copyWith(
+                            name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : profile.name,
+                            dateOfBirth: _dateOfBirth,
+                            bloodType: _bloodType,
+                            healthId: _healthIdController.text.trim().isNotEmpty ? _healthIdController.text.trim() : null,
+                            gender: _gender,
+                            allergies: _allergies,
+                            chronicConditions: _chronicConditions,
+                            weightKg: _currentWeight,
+                            heightCm: _currentHeight,
+                            profileImagePath: _profileImagePath,
+                            lockscreenDefaultView: _lockscreenDefaultView,
+                          ),
+                          medications: medications,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2388,62 +2806,65 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
         boxShadow: AppTheme.softShadow(context),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            color: isDark ? const Color(0xFF0F2338) : const Color(0xFFEFF6FF),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_month_rounded, color: Color(0xFF2563EB), size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Device Calendar Synchronization',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2563EB),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20.5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F2338) : const Color(0xFFEFF6FF),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_month_rounded, color: Color(0xFF2563EB), size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Device Calendar Synchronization',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2563EB),
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Export doses directly into your phone’s native calendar',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+                        Text(
+                          'Export doses directly into your phone’s calendar',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sync all active medication schedules (${activeMeds.length} active) to your device calendar (Google Calendar / Samsung Calendar) with recurring notifications.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppTheme.textSecondary(context),
-                    height: 1.4,
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sync all scheduled doses with Google or Samsung Calendar.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppTheme.textSecondary(context),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF2563EB),
-                      side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2563EB),
+                        side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
@@ -2477,6 +2898,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

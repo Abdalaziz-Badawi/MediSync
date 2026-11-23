@@ -162,7 +162,7 @@ class StreakService {
     int todayPending = 0;
 
     for (final med in medications) {
-      if (med.isActiveOn(todayMidnight)) {
+      if (!med.isDiscontinued && med.isActiveOn(todayMidnight)) {
         for (final time in med.scheduledTimes) {
           todayScheduled++;
           if (med.isDoseResolved(todayMidnight, time)) {

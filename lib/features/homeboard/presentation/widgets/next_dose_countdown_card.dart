@@ -63,6 +63,7 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
     final todayList = <UpcomingDose>[];
 
     for (final med in widget.medications) {
+      if (med.isDiscontinued) continue;
       if (med.isActiveOn(now)) {
         for (final t in med.scheduledTimes) {
           final isResolved = med.isDoseResolved(now, t);
@@ -102,6 +103,7 @@ class _NextDoseCountdownCardState extends ConsumerState<NextDoseCountdownCard> {
     final tomorrowList = <UpcomingDose>[];
 
     for (final med in widget.medications) {
+      if (med.isDiscontinued) continue;
       if (med.isActiveOn(tomorrow)) {
         for (final t in med.scheduledTimes) {
           final dt = _parseDateTimeFor(tomorrow, t);

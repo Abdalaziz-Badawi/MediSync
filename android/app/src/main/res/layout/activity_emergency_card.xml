@@ -5,9 +5,9 @@
     android:layout_height="match_parent"
     android:background="#D9000000"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="24dp">
+    android:paddingVertical="20dp">
 
-    <!-- Centered Emergency Medical ID Card -->
+    <!-- Centered Emergency Medical ID Card Container -->
     <LinearLayout
         android:id="@+id/emergency_card_container"
         android:layout_width="match_parent"
@@ -15,7 +15,7 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:background="@drawable/emergency_card_white_bg"
-        android:elevation="12dp">
+        android:elevation="14dp">
 
         <!-- 1. Red Header Banner with Medical Cross and Close Button -->
         <LinearLayout
@@ -91,7 +91,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp">
 
                 <!-- Patient Full Name -->
                 <TextView
@@ -100,7 +101,7 @@
                     android:layout_height="wrap_content"
                     android:text="PATIENT NAME"
                     android:textColor="#0F172A"
-                    android:textSize="21sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                 <!-- Demographics (DOB, Age, Gender) -->
@@ -108,65 +109,135 @@
                     android:id="@+id/tv_demographics"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
+                    android:layout_marginTop="2dp"
                     android:text="BORN: --   •   GENDER: --"
                     android:textColor="#475569"
-                    android:textSize="12sp"
+                    android:textSize="11.5sp"
                     android:textStyle="bold" />
 
-                <!-- Badges Row: Blood Type and Health ID -->
+                <!-- 1. Primary Vitals Row: Blood Group & Organ Donor (50/50 split) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="12dp">
+                    android:layout_marginTop="10dp"
+                    android:baselineAligned="false">
 
+                    <!-- Blood Type Hero Badge -->
                     <LinearLayout
+                        android:id="@+id/layout_blood_badge"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:orientation="horizontal"
+                        android:orientation="vertical"
                         android:background="@drawable/emergency_blood_badge_bg"
                         android:paddingHorizontal="10dp"
-                        android:paddingVertical="7dp"
-                        android:gravity="center_vertical">
+                        android:paddingVertical="10dp"
+                        android:gravity="center">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🩸 BLOOD TYPE"
+                            android:textColor="#B91C1C"
+                            android:textSize="10.5sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/tv_blood_type"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="BLOOD: Unknown"
+                            android:text="O+"
                             android:textColor="#DC2626"
-                            android:textSize="12.5sp"
-                            android:textStyle="bold" />
+                            android:textSize="28sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="2dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="TRANSFUSION VITAL"
+                            android:textColor="#991B1B"
+                            android:textSize="8.5sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="1dp" />
                     </LinearLayout>
 
+                    <!-- Organ Donor Hero Badge -->
                     <LinearLayout
-                        android:id="@+id/layout_health_id_badge"
+                        android:id="@+id/layout_donor_badge"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
-                        android:orientation="horizontal"
-                        android:background="@drawable/emergency_health_id_badge_bg"
+                        android:orientation="vertical"
+                        android:background="@drawable/emergency_donor_badge_bg"
                         android:paddingHorizontal="10dp"
-                        android:paddingVertical="7dp"
-                        android:gravity="center_vertical">
+                        android:paddingVertical="10dp"
+                        android:gravity="center">
 
                         <TextView
-                            android:id="@+id/tv_health_id"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="ID: None"
-                            android:textColor="#1E293B"
-                            android:textSize="12sp"
+                            android:text="🫀 ORGAN DONOR"
+                            android:textColor="#475569"
+                            android:textSize="10.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_organ_donor"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="YES"
+                            android:textColor="#059669"
+                            android:textSize="24sp"
                             android:textStyle="bold"
-                            android:ellipsize="end"
-                            android:maxLines="1" />
+                            android:layout_marginTop="2dp" />
+
+                        <TextView
+                            android:id="@+id/tv_donor_subtitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="REGISTERED DONOR"
+                            android:textColor="#047857"
+                            android:textSize="8.5sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="1dp" />
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Critical Drug Allergies & Contraindications -->
+                <!-- 2. Full-Width National Health / Medical ID Bar (100% width, ZERO truncation) -->
+                <LinearLayout
+                    android:id="@+id/layout_health_id_badge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal"
+                    android:background="@drawable/emergency_health_id_badge_bg"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="9dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🆔 NATIONAL HEALTH ID: "
+                        android:textColor="#475569"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_health_id"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Not Provided"
+                        android:textColor="#0F172A"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Priority 1: Critical Drug Allergies & Contraindications (High-Alert Red Box) -->
                 <LinearLayout
                     android:id="@+id/layout_allergies_section"
                     android:layout_width="match_parent"
@@ -179,60 +250,135 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="⚠️ CRITICAL DRUG ALLERGIES &amp; CONTRAINDICATIONS"
-                        android:textColor="#BE123C"
-                        android:textSize="11sp"
+                        android:text="⚠️ CRITICAL ALLERGIES &amp; CONTRAINDICATIONS"
+                        android:textColor="#991B1B"
+                        android:textSize="11.5sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_allergies"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
+                        android:layout_marginTop="4dp"
                         android:text="NO KNOWN DRUG ALLERGIES (NKDA)"
-                        android:textColor="#881337"
-                        android:textSize="13sp"
+                        android:textColor="#7F1D1D"
+                        android:textSize="14sp"
                         android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_allergies_warning"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="STOP • SEVERE ANAPHYLAXIS RISK • VERIFY BEFORE DRUG ADMINISTRATION"
+                        android:textColor="#B91C1C"
+                        android:textSize="8.5sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
                 </LinearLayout>
 
-                <!-- Chronic Conditions & Organ Risks -->
+                <!-- Priority 2: Clinical Conditions & Procedural History (Secondary Health Box) -->
                 <LinearLayout
-                    android:id="@+id/layout_conditions_section"
+                    android:id="@+id/layout_clinical_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:background="@drawable/emergency_conditions_box_bg"
-                    android:padding="12dp"
-                    android:layout_marginTop="10dp">
+                    android:background="@drawable/emergency_clinical_box_bg"
+                    android:padding="11dp"
+                    android:layout_marginTop="9dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <!-- Chronic Conditions & Organ Risks Sub-item -->
+                    <LinearLayout
+                        android:id="@+id/layout_conditions_section"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="🩺 CHRONIC CONDITIONS &amp; ORGAN RISKS"
-                        android:textColor="#0F766E"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/tv_conditions"
-                        android:layout_width="wrap_content"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🩺 CHRONIC CONDITIONS &amp; ORGAN RISKS:"
+                            android:textColor="#0F766E"
+                            android:textSize="10.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_conditions"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="None reported."
+                            android:textColor="#134E4A"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Past Surgeries & Procedures Sub-item -->
+                    <LinearLayout
+                        android:id="@+id/layout_surgeries_section"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:text="None reported."
-                        android:textColor="#134E4A"
-                        android:textSize="12.5sp"
-                        android:textStyle="bold" />
+                        android:orientation="vertical"
+                        android:layout_marginTop="7dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🏥 PAST SURGERIES &amp; PROCEDURES:"
+                            android:textColor="#4338CA"
+                            android:textSize="10.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_surgeries"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="None recorded."
+                            android:textColor="#1E1B4B"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Past Medical History / Diseases Sub-item -->
+                    <LinearLayout
+                        android:id="@+id/layout_history_section"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="7dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📑 PAST MEDICAL HISTORY / DISEASES:"
+                            android:textColor="#0369A1"
+                            android:textSize="10.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_history"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="None recorded."
+                            android:textColor="#0C4A6E"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
 
-                <!-- Current Active Medication Regimen -->
+                <!-- Priority 3: Current Active Medications Regimen -->
                 <LinearLayout
                     android:id="@+id/layout_medications_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/emergency_medications_box_bg"
-                    android:padding="12dp"
-                    android:layout_marginTop="10dp">
+                    android:padding="11dp"
+                    android:layout_marginTop="9dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -249,7 +395,37 @@
                         android:layout_marginTop="3dp"
                         android:text="No active regular medications recorded."
                         android:textColor="#334155"
-                        android:textSize="12.5sp" />
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Priority 4: Discontinued High-Risk Medications Section -->
+                <LinearLayout
+                    android:id="@+id/layout_discontinued_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/emergency_discontinued_box_bg"
+                    android:padding="11dp"
+                    android:layout_marginTop="9dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚠️ DISCONTINUED HIGH-RISK MEDICATIONS"
+                        android:textColor="#B45309"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_discontinued"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text=""
+                        android:textColor="#78350F"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <!-- Quick Call 112 Emergency Button -->
@@ -257,7 +433,7 @@
                     android:id="@+id/btn_call_emergency"
                     android:layout_width="match_parent"
                     android:layout_height="46dp"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/emergency_call_btn_bg"
                     android:text="📞  CALL 112 (EMERGENCY)"
                     android:textColor="#FFFFFF"

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/theme/app_theme.dart';
+import 'package:medisync/core/widgets/brand_shield_pill_logo.dart';
 import 'package:medisync/features/homeboard/presentation/pages/main_navigation_page.dart';
 import 'package:medisync/features/onboarding/presentation/pages/onboarding_page.dart';
 
@@ -87,7 +88,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final secondary = isDark ? palette.darkSecondary : palette.secondary;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F7F6),
+      backgroundColor: const Color(0xFF0F172A),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -108,7 +109,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: primary.withValues(alpha: 0.10 * fadeOut),
+                      color: primary.withValues(alpha: 0.12 * fadeOut),
                     ),
                   ),
                 ),
@@ -119,13 +120,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     height: 115,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: primary.withValues(alpha: 0.18 * fadeOut),
+                      color: primary.withValues(alpha: 0.20 * fadeOut),
                     ),
                   ),
                 ),
               ],
 
-              // Glowing Circle with Centered Logo Icon
+              // Glowing Circle with Centered Official Brand Shield & Pill Logo
               Center(
                 child: Transform.scale(
                   scale: pulse * expand,
@@ -142,13 +143,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       boxShadow: [
                         // Intense inner core glow
                         BoxShadow(
-                          color: primary.withValues(alpha: isDark ? 0.65 : 0.45),
+                          color: primary.withValues(alpha: 0.65),
                           blurRadius: 36,
                           spreadRadius: 4,
                         ),
                         // Outer soft ambient glow aura
                         BoxShadow(
-                          color: secondary.withValues(alpha: isDark ? 0.40 : 0.28),
+                          color: secondary.withValues(alpha: 0.40),
                           blurRadius: 64,
                           spreadRadius: 10,
                         ),
@@ -157,10 +158,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: Center(
                       child: Opacity(
                         opacity: isExpanding ? fadeOut : 1.0,
-                        child: const Icon(
-                          Icons.health_and_safety_rounded,
-                          color: Colors.white,
-                          size: 50,
+                        child: const BrandShieldPillLogo(
+                          size: 56,
+                          showShadow: false,
                         ),
                       ),
                     ),

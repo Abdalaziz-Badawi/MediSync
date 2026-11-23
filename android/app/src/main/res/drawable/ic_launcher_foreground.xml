@@ -4,8 +4,106 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- White Medical Cross in 72dp center safe zone -->
+
+    <!-- 1. Shield Drop Shadow for 3D Depth (Layered Offset) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,27 L64,27 C65.1,27 66,27.9 66,29 L66,44 L81,44 C82.1,44 83,44.9 83,46 L83,62 C83,63.1 82.1,64 81,64 L66,64 L66,79 C66,80.1 65.1,81 64,81 L44,81 C42.9,81 42,80.1 42,79 L42,64 L27,64 C25.9,64 25,63.1 25,62 L25,46 C25,44.9 25.9,44 27,44 L42,44 L42,29 C42,27.9 42.9,27 44,27 Z" />
+        android:fillColor="#000000"
+        android:fillAlpha="0.35"
+        android:pathData="M 54,28 C 45,28.7 36,31 31.5,33 C 30.2,33.7 29.5,35 29.5,36.5 L 29.5,54.5 C 29.5,68 40,78 52.2,83 C 53.4,83.5 54.6,83.5 55.8,83 C 68,78 78.5,68 78.5,54.5 L 78.5,36.5 C 78.5,35 77.8,33.7 76.5,33 C 72,31 63,28.7 54,28 Z" />
+
+    <!-- 2. Ambient Mint Surrounding Glow along Shield Perimeter -->
+    <path
+        android:strokeColor="#2DD4BF"
+        android:strokeWidth="5.0"
+        android:strokeAlpha="0.20"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 54,25.5 C 45,26.2 36,28.5 31.5,30.5 C 30.2,31.2 29.5,32.5 29.5,34 L 29.5,52 C 29.5,65.5 40,75.5 52.2,80.5 C 53.4,81 54.6,81 55.8,80.5 C 68,75.5 78.5,65.5 78.5,52 L 78.5,34 C 78.5,32.5 77.8,31.2 76.5,30.5 C 72,28.5 63,26.2 54,25.5 Z" />
+
+    <!-- 3. Protective Shield Background Tint (Translucent Emerald-Teal) -->
+    <path
+        android:fillColor="#0D9488"
+        android:fillAlpha="0.35"
+        android:pathData="M 54,25.5 C 45,26.2 36,28.5 31.5,30.5 C 30.2,31.2 29.5,32.5 29.5,34 L 29.5,52 C 29.5,65.5 40,75.5 52.2,80.5 C 53.4,81 54.6,81 55.8,80.5 C 68,75.5 78.5,65.5 78.5,52 L 78.5,34 C 78.5,32.5 77.8,31.2 76.5,30.5 C 72,28.5 63,26.2 54,25.5 Z" />
+
+    <!-- 4. Shield Inner Hairline Contour (Ocean Cyan Accent) -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="1.2"
+        android:strokeAlpha="0.65"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 54,28 C 46,28.6 38,30.7 33.8,32.5 C 32.7,33.1 32,34.2 32,35.5 L 32,51.5 C 32,63.5 41.5,72.5 52.4,77 C 53.5,77.4 54.5,77.4 55.6,77 C 66.5,72.5 76,63.5 76,51.5 L 76,35.5 C 76,34.2 75.3,33.1 74.2,32.5 C 70,30.7 62,28.6 54,28 Z" />
+
+    <!-- 5. Shield Outer Rim Highlight (Icons.shield_rounded Contour with Healthcare Mint Glow) -->
+    <path
+        android:strokeColor="#2DD4BF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 54,25.5 C 45,26.2 36,28.5 31.5,30.5 C 30.2,31.2 29.5,32.5 29.5,34 L 29.5,52 C 29.5,65.5 40,75.5 52.2,80.5 C 53.4,81 54.6,81 55.8,80.5 C 68,75.5 78.5,65.5 78.5,52 L 78.5,34 C 78.5,32.5 77.8,31.2 76.5,30.5 C 72,28.5 63,26.2 54,25.5 Z" />
+
+    <!-- 6. Top Crest Specular Glint -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeAlpha="0.85"
+        android:strokeLineCap="round"
+        android:pathData="M 35,31.5 C 43,29.2 49,27.8 54,27.5 C 59,27.8 65,29.2 73,31.5" />
+
+    <!-- 7. Harmonious Slender Capsule Pill (-35° rotation, centered at 54, 53) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="53"
+        android:rotation="-35">
+
+        <!-- Capsule Drop Shadow for 3D Elevation -->
+        <path
+            android:fillColor="#000000"
+            android:fillAlpha="0.30"
+            android:pathData="M 49.5,43 C 49.5,39 52,36 55.5,36 C 59,36 61.5,39 61.5,43 L 61.5,59 C 61.5,63 59,66 55.5,66 C 52,66 49.5,63 49.5,59 Z" />
+
+        <!-- Upper Half: Healthcare Emerald Teal -->
+        <path
+            android:fillColor="#0D9488"
+            android:pathData="M 48,42 C 48,38.5 50.7,35.5 54,35.5 C 57.3,35.5 60,38.5 60,42 L 60,53 L 48,53 Z" />
+
+        <!-- Medical Cross on Upper Half -->
+        <!-- Vertical Bar -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 53,39 L 55,39 L 55,45.5 L 53,45.5 Z" />
+        <!-- Horizontal Bar -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 50.5,41.2 L 57.5,41.2 L 57.5,43.3 L 50.5,43.3 Z" />
+
+        <!-- Center Cyan Divider Band -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M 47.7,52 L 60.3,52 L 60.3,53.8 L 47.7,53.8 Z" />
+
+        <!-- Lower Half: Pure Medical White -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 48,53.5 L 60,53.5 L 60,60 C 60,63.5 57.3,66.5 54,66.5 C 50.7,66.5 48,63.5 48,60 Z" />
+
+        <!-- Subtle Ambient Occlusion on Lower Half -->
+        <path
+            android:fillColor="#E2E8F0"
+            android:fillAlpha="0.60"
+            android:pathData="M 48,53.5 L 50,53.5 L 50,59.5 C 50,62.5 51.5,64.5 54,65.5 C 51,65.5 48,62.5 48,59 Z" />
+
+        <!-- Outer Capsule Protective Rim -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.2"
+            android:strokeAlpha="0.95"
+            android:pathData="M 48,42 C 48,38.5 50.7,35.5 54,35.5 C 57.3,35.5 60,38.5 60,42 L 60,60 C 60,63.5 57.3,66.5 54,66.5 C 50.7,66.5 48,63.5 48,60 Z" />
+    </group>
+
+    <!-- 8. Sparkling Sapphire Gem on Shield Crest (Top Right) -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M 72,31.5 m -1.8,0 a 1.8,1.8 0 1,0 3.6,0 a 1.8,1.8 0 1,0 -3.6,0" />
 </vector>
