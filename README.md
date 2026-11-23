@@ -1,11 +1,19 @@
 # MediSync
 
-[![Version](https://img.shields.io/badge/version-1.8.11--gold-teal.svg)](pubspec.yaml)
+[![Version](https://img.shields.io/badge/version-1.8.13--gold-teal.svg)](pubspec.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform: Android](https://img.shields.io/badge/platform-Android-green.svg)](android)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B.svg)](https://flutter.dev)
 [![Architecture: Clean%20Feature--First](https://img.shields.io/badge/architecture-Clean%20Feature--First-purple.svg)](ARCHITECTURE.md)
 [![Privacy: 100%20Offline](https://img.shields.io/badge/privacy-100%25%20Offline-success.svg)](INSTALLATION_GUIDE.md)
+
+### 📥 Direct APK Download
+Ready-to-install Android release package for immediate sideloading:
+👉 **[Download MediSync v1.8.13 Release APK (medisync-v1.8.13-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.13/medisync-v1.8.13-release.apk)**
+
+All historical and current releases are available on the [GitHub Releases Page](https://github.com/Abdalaziz-Badawi/MediSync/releases).
+
+---
 
 **MediSync** is an offline-first, clinical-grade medication management and emergency medical identity platform designed for patients, chronic care individuals, and first-responders. It combines intelligent routine-based scheduling, adverse drug-allergy conflict detection, multi-dose timing safeguards, and zero-PIN lock screen emergency access—with **100% on-device local storage and zero cloud telemetry**.
 
@@ -106,6 +114,15 @@ flutter test --no-pub
 # Build production release APK
 flutter build apk --release --no-pub
 ```
+
+---
+
+## 👨‍💻 Author & Contact
+
+**Abdalaziz Adil Badawi Mohamed**  
+- ✉️ Email: [abdalaziz.02@proton.me](mailto:abdalaziz.02@proton.me)  
+- 🐙 GitHub: [@Abdalaziz-Badawi](https://github.com/Abdalaziz-Badawi)  
+- 📦 Repository: [MediSync](https://github.com/Abdalaziz-Badawi/MediSync)  
 
 ---
 

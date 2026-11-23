@@ -5,12 +5,12 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Scaled Medical Emblem: 58% scale with generous background breathing margins mirroring WhatsApp, Bluesky, Google Messages -->
+    <!-- Scaled Medical Emblem: 75% scale (+30% increase for bold visibility) -->
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.58"
-        android:scaleY="0.58">
+        android:scaleX="0.75"
+        android:scaleY="0.75">
 
         <!-- 1. Shield Elevation Soft Drop Shadow -->
         <path

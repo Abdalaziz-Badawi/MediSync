@@ -3187,7 +3187,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'v1.8.12',
+                                'v1.8.13',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
                               ),
                             ),
@@ -3391,11 +3391,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         InkWell(
                           onTap: () {
                             ref.read(deviceIntegrationServiceProvider).openBrowserUrl(
-                              'mailto:abdalaziz.badawi02@gmail.com?subject=MediSync%20Inquiry',
+                              'mailto:abdalaziz.02@proton.me?subject=MediSync%20Inquiry',
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Text('Opening email app (abdalaziz.badawi02@gmail.com)...'),
+                                content: const Text('Opening email app (abdalaziz.02@proton.me)...'),
                                 backgroundColor: primary,
                               ),
                             );
@@ -3421,7 +3421,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                         style: TextStyle(fontSize: 10, color: AppTheme.textSecondary(context)),
                                       ),
                                       Text(
-                                        'abdalaziz.badawi02@gmail.com',
+                                        'abdalaziz.02@proton.me',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
@@ -3599,7 +3599,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MediSync Production Architecture (v1.8.12):',
+                'MediSync Production Architecture (v1.8.13):',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary(ctx)),
               ),
               const SizedBox(height: 10),
@@ -3667,7 +3667,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               showLicensePage(
                 context: context,
                 applicationName: 'MediSync',
-                applicationVersion: 'v1.8.12+31',
+                applicationVersion: 'v1.8.13+32',
                 applicationLegalese: 'Copyright © 2026 Abdalaziz Adil Badawi Mohamed.\nAll rights reserved.\nLicensed under MIT License.',
               );
             },
