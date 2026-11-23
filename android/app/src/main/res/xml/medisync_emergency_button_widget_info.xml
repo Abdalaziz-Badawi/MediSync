@@ -18,5 +18,7 @@
     app:widgetStyle="colorful|monotone"
     app:lockWidgetSize="tiny"
     app:initialLayoutTiny="@layout/widget_emergency_button"
-    app:previewLayoutTiny="@layout/widget_emergency_button">
+    app:previewLayoutTiny="@layout/widget_emergency_button"
+    app:monotoneInitialLayoutTiny="@layout/widget_emergency_button"
+    app:monotonePreviewLayoutTiny="@layout/widget_emergency_button">
 </appwidget-provider>

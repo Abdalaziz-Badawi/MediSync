@@ -2565,16 +2565,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                        color: const Color(0xFF2563EB).withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                                        border: Border.all(color: const Color(0xFF2563EB), width: 0.8),
                                       ),
                                       child: const Text(
-                                        'EXPERIMENTAL',
+                                        'ONE UI & AOD',
                                         style: TextStyle(
                                           fontSize: 9.5,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFFD97706),
+                                          color: Color(0xFF2563EB),
                                           letterSpacing: 0.5,
                                         ),
                                       ),
@@ -2627,6 +2627,74 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             setState(() => _lockscreenDefaultView = val);
                           }
                         },
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final profile = ref.read(profileNotifierProvider);
+                            final medications = ref.read(medicationsNotifierProvider);
+                            await ref.read(deviceIntegrationServiceProvider).syncEmergencyData(
+                              profile: profile.copyWith(lockscreenDefaultView: _lockscreenDefaultView),
+                              medications: medications,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('✓ Samsung Lock Screen Widget updated: ${_lockscreenDefaultView == "card" ? "Emergency Card" : (_lockscreenDefaultView == "medications" ? "Next Dose" : "Dual View")}'),
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.sync_lock_rounded, size: 18),
+                          label: const Text('Sync Lock Screen & AOD Widget'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Theme.of(context).colorScheme.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceVariant(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.tips_and_updates_outlined, size: 14, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Galaxy S25 FE Tip: Long-press lock screen → tap Widgets below clock → add MediSync.',
+                                style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary(context)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceVariant(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.touch_app_outlined, size: 14, color: Color(0xFF059669)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Quick Settings Tile: Swipe down notification shade → tap ✏️ (Edit) → drag "MediSync Emergency ID" into active tiles for instant 1-tap card access!',
+                                style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary(context)),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
 
                     ],

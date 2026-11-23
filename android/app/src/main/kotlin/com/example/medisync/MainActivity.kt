@@ -587,6 +587,7 @@ class MainActivity : FlutterActivity() {
 
                         MediSyncWidgetProvider.updateAllWidgets(this)
                         MediSyncEmergencyButtonWidgetProvider.updateAllWidgets(this)
+                        MediSyncTileService.requestTileUpdate(this)
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("WIDGET_UPDATE_FAILED", e.message, null)

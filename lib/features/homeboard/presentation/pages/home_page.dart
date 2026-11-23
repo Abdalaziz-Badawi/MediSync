@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:medisync/core/data/medicines_database.dart';
@@ -8,6 +10,7 @@ import 'package:medisync/core/models/medication.dart';
 import 'package:medisync/core/models/safety_flag.dart';
 import 'package:medisync/core/models/user_profile.dart';
 import 'package:medisync/core/services/device_integration_service.dart';
+import 'package:medisync/core/services/notification_service.dart';
 import 'package:medisync/core/services/scheduler_service.dart';
 import 'package:medisync/core/services/storage_service.dart';
 import 'package:medisync/core/services/streak_service.dart';
@@ -62,6 +65,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   late DateTime _selectedDate;
   int _weekOffset = 0; // -1 = Previous week, 0 = Current week, 1 = Next week
   Timer? _countdownTimer;
+  StreamSubscription<NotificationResponse>? _notifSubscription;
 
   @override
   void initState() {
@@ -69,7 +73,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _checkLockscreenLaunch();
+      _checkNotificationLaunch();
       _syncEmergencyCard();
     });
 
@@ -81,6 +87,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     };
 
+    // Listen to actionable direct notification button taps ([✓ Taken], [⏰ Snooze], [⚠️ Skip])
+    try {
+      _notifSubscription = ref.read(notificationServiceProvider).onNotificationResponse.listen((response) {
+        if (mounted) _handleNotificationResponse(response);
+      });
+    } catch (_) {}
+
     // Update countdown every 30 seconds
     _countdownTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
@@ -90,19 +103,191 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _notifSubscription?.cancel();
     super.dispose();
   }
 
-  Future<void> _checkLockscreenLaunch() async {
-    final action = await ref.read(deviceIntegrationServiceProvider).getInitialLockscreenAction();
-    if (action != null && mounted) {
+  Future<void> _checkNotificationLaunch() async {
+    if (!mounted) return;
+    try {
+      final notif = ref.read(notificationServiceProvider);
+      final launchDetails = await notif.getNotificationAppLaunchDetails();
+      if (!mounted) return;
+      if (launchDetails != null && launchDetails.didNotificationLaunchApp && launchDetails.notificationResponse != null) {
+        _handleNotificationResponse(launchDetails.notificationResponse!);
+      }
+    } catch (_) {}
+  }
+
+  void _handleNotificationResponse(NotificationResponse response) {
+    final payloadStr = response.payload;
+    if (payloadStr == null || payloadStr.isEmpty) return;
+
+    if (payloadStr == 'emergency_card') {
       final profile = ref.read(profileNotifierProvider);
       final meds = ref.read(medicationsNotifierProvider);
       showEmergencyCardDialog(context, profile: profile, medications: meds);
+      return;
+    }
+
+    try {
+      final data = jsonDecode(payloadStr) as Map<String, dynamic>;
+      final actionId = response.actionId;
+      final medId = data['medId'] as String?;
+      final time = data['time'] as String?;
+      final medName = (data['medName'] as String?) ?? 'Medication';
+      final dosage = (data['dosage'] as String?) ?? '';
+      final necessity = (data['necessity'] as String?) ?? 'medium';
+
+      if (medId == null || time == null) return;
+
+      if (actionId == 'action_taken' || actionId == 'action_take_early') {
+        final status = actionId == 'action_take_early' ? DoseStatus.takenEarly : DoseStatus.taken;
+        ref.read(medicationsNotifierProvider.notifier).setDoseStatus(medId, DateTime.now(), time, status);
+        _syncEmergencyCard();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Marked $medName ($dosage) as Taken!'),
+            backgroundColor: const Color(0xFF059669),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else if (actionId == 'action_snooze') {
+        ref.read(notificationServiceProvider).scheduleSnoozeNotification(
+          medId: medId,
+          medName: medName,
+          dosage: dosage,
+          time: time,
+          minutes: 15,
+          necessity: necessity,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⏰ Snoozed $medName reminder for 15 minutes.'),
+            backgroundColor: const Color(0xFFD97706),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else if (actionId == 'action_skip') {
+        if (necessity == 'critical' || necessity == 'vital') {
+          _showSkipWarningDialog(medName, dosage, medId, time);
+        } else {
+          ref.read(medicationsNotifierProvider.notifier).setDoseStatus(medId, DateTime.now(), time, DoseStatus.notNeeded);
+          _syncEmergencyCard();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ Skipped $medName ($dosage) dose.'),
+              backgroundColor: const Color(0xFF64748B),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling actionable notification response: $e');
     }
   }
 
+  Future<void> _showSkipWarningDialog(String medName, String dosage, String medId, String time) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Clinical Safety Warning',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                '⚠️ $medName ($dosage) is clinically classified as High Necessity / Vital. Skipping doses can cause serious therapeutic regression or adverse complications.',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFFDC2626)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Always consult your physician or pharmacist before intentionally omitting a dose.\n\nDo you still wish to record this dose as skipped?',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx, false);
+              ref.read(medicationsNotifierProvider.notifier).setDoseStatus(medId, DateTime.now(), time, DoseStatus.taken);
+              _syncEmergencyCard();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✓ Wise decision! Marked $medName as Taken.'),
+                  backgroundColor: const Color(0xFF059669),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            },
+            child: const Text('Take Dose Now', style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF64748B),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm Skip'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      ref.read(medicationsNotifierProvider.notifier).setDoseStatus(medId, DateTime.now(), time, DoseStatus.notNeeded);
+      _syncEmergencyCard();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ Skipped $medName ($dosage) dose.'),
+          backgroundColor: const Color(0xFF64748B),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _checkLockscreenLaunch() async {
+    if (!mounted) return;
+    try {
+      final action = await ref.read(deviceIntegrationServiceProvider).getInitialLockscreenAction();
+      if (!mounted) return;
+      if (action != null) {
+        final profile = ref.read(profileNotifierProvider);
+        final meds = ref.read(medicationsNotifierProvider);
+        showEmergencyCardDialog(context, profile: profile, medications: meds);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _syncEmergencyCard() async {
+    if (!mounted) return;
     try {
       final profile = ref.read(profileNotifierProvider);
       final meds = ref.read(medicationsNotifierProvider).where((m) => !m.isDiscontinued).toList();

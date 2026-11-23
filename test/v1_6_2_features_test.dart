@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medisync/core/models/medication.dart';
@@ -98,6 +99,12 @@ class FakePaletteNotifier extends StateNotifier<AppPalette>
 
 class FakeNotificationService implements NotificationService {
   @override
+  Stream<NotificationResponse> get onNotificationResponse => const Stream.empty();
+
+  @override
+  Future<NotificationAppLaunchDetails?> getNotificationAppLaunchDetails() async => null;
+
+  @override
   Future<void> init() async {}
 
   @override
@@ -110,6 +117,8 @@ class FakeNotificationService implements NotificationService {
     required String body,
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {}
 
   @override
@@ -135,6 +144,8 @@ class FakeNotificationService implements NotificationService {
     required int dayOfWeek,
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {}
 
   @override
@@ -154,6 +165,18 @@ class FakeNotificationService implements NotificationService {
     required int dayOfMonth,
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
+  }) async {}
+
+  @override
+  Future<void> scheduleSnoozeNotification({
+    required String medId,
+    required String medName,
+    required String dosage,
+    required String time,
+    int minutes = 15,
+    String necessity = 'medium',
   }) async {}
 
   @override

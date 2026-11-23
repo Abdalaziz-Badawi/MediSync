@@ -351,10 +351,57 @@ class DeviceIntegrationService {
         ? profile.medicalHistory.join(', ')
         : 'None recorded.';
 
-    // 1. Update native lockscreen widgets & SharedPreferences
+    // 1. Calculate real-time Next Pending Dose for Glanceable Lock Screen Widget
+    final now = DateTime.now();
+    String nextDoseFormatted = 'All doses taken today';
+    final todayPending = <Map<String, dynamic>>[];
+
+    for (final med in activeMeds) {
+      if (med.isActiveOn(now)) {
+        for (final timeStr in med.scheduledTimes) {
+          if (!med.isDoseResolved(now, timeStr)) {
+            final parts = timeStr.split(':');
+            final h = int.tryParse(parts[0]) ?? 0;
+            final m = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+            final doseDateTime = DateTime(now.year, now.month, now.day, h, m);
+            todayPending.add({
+              'med': med,
+              'timeStr': timeStr,
+              'dateTime': doseDateTime,
+            });
+          }
+        }
+      }
+    }
+
+    if (todayPending.isNotEmpty) {
+      todayPending.sort((a, b) =>
+          (a['dateTime'] as DateTime).compareTo(b['dateTime'] as DateTime));
+      final next = todayPending.first;
+      final med = next['med'] as Medication;
+      final timeStr = next['timeStr'] as String;
+      final dt = next['dateTime'] as DateTime;
+      final diff = dt.difference(now);
+
+      String relative = '';
+      if (diff.isNegative) {
+        final absMin = diff.abs().inMinutes;
+        relative = absMin < 60 ? '${absMin}m ago' : 'overdue';
+      } else {
+        final min = diff.inMinutes;
+        relative = min < 60 ? 'in ${min}m' : timeStr;
+      }
+      nextDoseFormatted = '${med.name} ${med.dosage} ($relative)';
+    } else if (activeMeds.isEmpty) {
+      nextDoseFormatted = 'No active meds';
+    }
+
+    // 2. Update native lockscreen widgets & SharedPreferences
     await updateLockscreenWidget(
       patientName: profile.name,
       bloodType: profile.bloodType ?? 'Unknown',
+      nextDose: nextDoseFormatted,
+      defaultView: profile.lockscreenDefaultView,
       allergiesCount: profile.allergies.length,
       activeMedsCount: activeMeds.length,
       healthId: profile.healthId ?? 'Not Provided',

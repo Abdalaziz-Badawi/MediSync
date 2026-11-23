@@ -88,6 +88,22 @@
                 android:resource="@xml/medisync_emergency_button_widget_info" />
         </receiver>
 
+        <!-- Samsung One UI & Android Quick Settings Shade Tile -->
+        <service
+            android:name=".MediSyncTileService"
+            android:label="@string/qs_tile_medisync_label"
+            android:description="@string/qs_tile_medisync_desc"
+            android:icon="@drawable/ic_qs_medisync"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

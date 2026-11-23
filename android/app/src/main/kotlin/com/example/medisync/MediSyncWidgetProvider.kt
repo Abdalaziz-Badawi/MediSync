@@ -27,12 +27,30 @@ class MediSyncWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val patientName = prefs.getString(KEY_PATIENT_NAME, "MediSync Patient") ?: "MediSync Patient"
             val bloodType = prefs.getString(KEY_BLOOD_TYPE, "Unknown") ?: "Unknown"
-            val nextDose = prefs.getString(KEY_NEXT_DOSE, "Tap to view medical ID") ?: "Tap to view medical ID"
+            val nextDose = prefs.getString(KEY_NEXT_DOSE, "None pending") ?: "None pending"
             val defaultView = prefs.getString(KEY_DEFAULT_VIEW, "dual") ?: "dual"
+            val isDonor = prefs.getString("organ_donor", "NO") == "YES"
 
             val views = RemoteViews(context.packageName, R.layout.widget_lockscreen_emergency)
-            views.setTextViewText(R.id.widget_patient_name, patientName)
-            views.setTextViewText(R.id.widget_blood_type, "BLOOD: $bloodType")
+
+            when (defaultView) {
+                "medications" -> {
+                    views.setTextViewText(R.id.widget_patient_name, "NEXT DOSE")
+                    views.setTextViewText(R.id.widget_blood_type, nextDose)
+                    views.setImageViewResource(R.id.widget_icon, R.drawable.ic_launcher_foreground)
+                }
+                "card" -> {
+                    views.setTextViewText(R.id.widget_patient_name, patientName.uppercase())
+                    val donorTag = if (isDonor) " • DONOR" else ""
+                    views.setTextViewText(R.id.widget_blood_type, "BLOOD: $bloodType$donorTag")
+                    views.setImageViewResource(R.id.widget_icon, R.drawable.ic_medical_emergency_logo)
+                }
+                else -> { // "dual"
+                    views.setTextViewText(R.id.widget_patient_name, "$patientName ($bloodType)")
+                    views.setTextViewText(R.id.widget_blood_type, "💊 $nextDose")
+                    views.setImageViewResource(R.id.widget_icon, R.drawable.ic_medical_emergency_logo)
+                }
+            }
 
             // Intent to launch EmergencyCardActivity on top of the lockscreen with ZERO PIN
             val intent = Intent(context, EmergencyCardActivity::class.java).apply {

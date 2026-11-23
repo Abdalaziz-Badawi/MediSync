@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -6,9 +8,20 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/medication.dart';
 
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  // Background notification tap receiver
+}
+
 class NotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  final _responseController = StreamController<NotificationResponse>.broadcast();
+  Stream<NotificationResponse> get onNotificationResponse => _responseController.stream;
+
+  Future<NotificationAppLaunchDetails?> getNotificationAppLaunchDetails() =>
+      _notificationsPlugin.getNotificationAppLaunchDetails();
 
   static const String channelId = 'medisync_reminders_channel_v3';
   static const String channelName = 'Medication Reminders';
@@ -43,7 +56,13 @@ class NotificationService {
       macOS: darwinSettings,
     );
 
-    await _notificationsPlugin.initialize(initSettings);
+    await _notificationsPlugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        _responseController.add(response);
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
 
     // Custom vibration rhythm: [pause, pulse, pause, pulse, pause, long pulse]
     final vibrationPattern = Int64List.fromList([0, 350, 150, 350, 150, 650]);
@@ -173,6 +192,26 @@ class NotificationService {
       vibrationPattern: vibrationPattern,
       category: AndroidNotificationCategory.alarm,
       styleInformation: const BigTextStyleInformation(''),
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'action_taken',
+          '✓ Taken',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'action_snooze',
+          '⏰ Snooze (+15m)',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'action_skip',
+          '⚠️ Skip',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -186,11 +225,21 @@ class NotificationService {
       iOS: darwinDetails,
     );
 
+    final payload = jsonEncode({
+      'actionType': 'test_dose',
+      'medId': 'test_med',
+      'medName': 'Metformin',
+      'dosage': '500mg',
+      'time': '12:00',
+      'necessity': 'medium',
+    });
+
     await _notificationsPlugin.show(
       999, // Test notification ID
       title,
       body,
       details,
+      payload: payload,
     );
   }
 
@@ -201,6 +250,8 @@ class NotificationService {
     required String body,
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {
     final vibrationPattern = Int64List.fromList([0, 350, 150, 350, 150, 650]);
 
@@ -216,6 +267,7 @@ class NotificationService {
       vibrationPattern: vibrationPattern,
       category: AndroidNotificationCategory.alarm,
       styleInformation: BigTextStyleInformation(body),
+      actions: actions,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -254,6 +306,7 @@ class NotificationService {
         body,
         scheduledDate,
         details,
+        payload: payload,
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -268,6 +321,7 @@ class NotificationService {
           body,
           scheduledDate,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -285,6 +339,8 @@ class NotificationService {
     required int dayOfWeek, // 1 = Monday, 7 = Sunday
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {
     final vibrationPattern = Int64List.fromList([0, 350, 150, 350, 150, 650]);
 
@@ -300,6 +356,7 @@ class NotificationService {
       vibrationPattern: vibrationPattern,
       category: AndroidNotificationCategory.alarm,
       styleInformation: BigTextStyleInformation(body),
+      actions: actions,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -338,6 +395,7 @@ class NotificationService {
         body,
         scheduledDate,
         details,
+        payload: payload,
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -352,6 +410,7 @@ class NotificationService {
           body,
           scheduledDate,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -369,6 +428,8 @@ class NotificationService {
     required int dayOfMonth, // 1 to 31
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {
     final vibrationPattern = Int64List.fromList([0, 350, 150, 350, 150, 650]);
 
@@ -384,6 +445,7 @@ class NotificationService {
       vibrationPattern: vibrationPattern,
       category: AndroidNotificationCategory.alarm,
       styleInformation: BigTextStyleInformation(body),
+      actions: actions,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -436,6 +498,7 @@ class NotificationService {
         body,
         scheduledDate,
         details,
+        payload: payload,
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -450,6 +513,7 @@ class NotificationService {
           body,
           scheduledDate,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -535,6 +599,69 @@ class NotificationService {
         postBuffer.write(' Monitor for: ${med.sideEffects.map((s) => s.description).take(2).join(", ")}.');
       }
 
+      // Actionable notification payloads and interactive quick action buttons
+      final prePayload = jsonEncode({
+        'actionType': 'pre_dose',
+        'medId': med.id,
+        'medName': med.name,
+        'dosage': med.dosage,
+        'time': time,
+        'necessity': med.necessityLevel.name,
+      });
+      const preActions = [
+        AndroidNotificationAction(
+          'action_take_early',
+          '✓ Take Early',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ];
+
+      final dosePayload = jsonEncode({
+        'actionType': 'dose',
+        'medId': med.id,
+        'medName': med.name,
+        'dosage': med.dosage,
+        'time': time,
+        'necessity': med.necessityLevel.name,
+      });
+      const doseActions = [
+        AndroidNotificationAction(
+          'action_taken',
+          '✓ Taken',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'action_snooze',
+          '⏰ Snooze (+15m)',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'action_skip',
+          '⚠️ Skip',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ];
+
+      final postPayload = jsonEncode({
+        'actionType': 'post_dose',
+        'medId': med.id,
+        'medName': med.name,
+        'dosage': med.dosage,
+        'time': time,
+      });
+      const postActions = [
+        AndroidNotificationAction(
+          'action_ack',
+          '✓ Understood',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ];
+
       if (med.scheduleFrequency == ScheduleFrequency.monthly ||
           med.scheduleFrequency == ScheduleFrequency.twiceMonthly) {
         final days = med.monthlyDays.isNotEmpty
@@ -550,6 +677,8 @@ class NotificationService {
             dayOfMonth: d,
             hour: preHour,
             minute: preMin,
+            payload: prePayload,
+            actions: preActions,
           );
           await scheduleMonthlyNotification(
             id: getNotificationIdWithDay(med.id, time, d + 100),
@@ -558,6 +687,8 @@ class NotificationService {
             dayOfMonth: d,
             hour: hour,
             minute: minute,
+            payload: dosePayload,
+            actions: doseActions,
           );
           await scheduleMonthlyNotification(
             id: getPostNotificationId(med.id, '$time-m$d'),
@@ -566,6 +697,8 @@ class NotificationService {
             dayOfMonth: d,
             hour: postHour,
             minute: postMin,
+            payload: postPayload,
+            actions: postActions,
           );
         }
       } else if (med.scheduleFrequency == ScheduleFrequency.daily && isAllDays) {
@@ -576,6 +709,8 @@ class NotificationService {
           body: preBuffer.toString(),
           hour: preHour,
           minute: preMin,
+          payload: prePayload,
+          actions: preActions,
         );
         // Phase 2
         await scheduleDailyNotification(
@@ -584,6 +719,8 @@ class NotificationService {
           body: atBuffer.toString(),
           hour: hour,
           minute: minute,
+          payload: dosePayload,
+          actions: doseActions,
         );
         // Phase 3
         await scheduleDailyNotification(
@@ -592,6 +729,8 @@ class NotificationService {
           body: postBuffer.toString(),
           hour: postHour,
           minute: postMin,
+          payload: postPayload,
+          actions: postActions,
         );
       } else {
         final targetDays = med.daysOfWeek.isNotEmpty ? med.daysOfWeek : [med.startDate.weekday];
@@ -604,6 +743,8 @@ class NotificationService {
               dayOfWeek: day,
               hour: preHour,
               minute: preMin,
+              payload: prePayload,
+              actions: preActions,
             );
             await scheduleWeeklyNotification(
               id: getNotificationIdWithDay(med.id, time, day),
@@ -612,6 +753,8 @@ class NotificationService {
               dayOfWeek: day,
               hour: hour,
               minute: minute,
+              payload: dosePayload,
+              actions: doseActions,
             );
             await scheduleWeeklyNotification(
               id: getPostNotificationId(med.id, '$time-$day'),
@@ -620,6 +763,8 @@ class NotificationService {
               dayOfWeek: day,
               hour: postHour,
               minute: postMin,
+              payload: postPayload,
+              actions: postActions,
             );
           }
         }
@@ -775,6 +920,108 @@ class NotificationService {
     }
   }
 
+  /// Schedules a 15-minute actionable snooze reminder with persistent alert and high priority
+  Future<void> scheduleSnoozeNotification({
+    required String medId,
+    required String medName,
+    required String dosage,
+    required String time,
+    int minutes = 15,
+    String necessity = 'medium',
+  }) async {
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = now.add(Duration(minutes: minutes));
+    final id = (medId.hashCode ^ time.hashCode ^ 0x99999999).abs() & 0x7FFFFFFF;
+
+    final vibrationPattern = Int64List.fromList([0, 350, 150, 350, 150, 650]);
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: vibrationPattern,
+      category: AndroidNotificationCategory.alarm,
+      styleInformation: BigTextStyleInformation('Snoozed dose: $dosage. Time to take it now.'),
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'action_taken',
+          '✓ Taken',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'action_snooze',
+          '⏰ Snooze (+15m)',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'action_skip',
+          '⚠️ Skip',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
+    );
+
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+    );
+
+    final payload = jsonEncode({
+      'actionType': 'dose',
+      'medId': medId,
+      'medName': medName,
+      'dosage': dosage,
+      'time': time,
+      'necessity': necessity,
+    });
+
+    final mode = _canScheduleExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
+    try {
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        '⏰ Snoozed: $medName ($dosage)',
+        'Snooze duration ended. Please administer your dose now.',
+        scheduledDate,
+        details,
+        payload: payload,
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (_) {
+      if (_canScheduleExact) {
+        _canScheduleExact = false;
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          '⏰ Snoozed: $medName ($dosage)',
+          'Snooze duration ended. Please administer your dose now.',
+          scheduledDate,
+          details,
+          payload: payload,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    }
+  }
+
   Future<void> cancelNotification(int id) async {
     await _notificationsPlugin.cancel(id);
   }
@@ -785,5 +1032,5 @@ class NotificationService {
 }
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
-  throw UnimplementedError('NotificationService must be initialized in main');
+  return NotificationService();
 });

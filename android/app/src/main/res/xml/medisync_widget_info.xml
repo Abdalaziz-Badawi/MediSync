@@ -18,5 +18,7 @@
     app:widgetStyle="colorful|monotone"
     app:lockWidgetSize="small"
     app:initialLayoutSmall="@layout/widget_lockscreen_emergency"
-    app:previewLayoutSmall="@layout/widget_lockscreen_emergency">
+    app:previewLayoutSmall="@layout/widget_lockscreen_emergency"
+    app:monotoneInitialLayoutSmall="@layout/widget_lockscreen_emergency"
+    app:monotonePreviewLayoutSmall="@layout/widget_lockscreen_emergency">
 </appwidget-provider>
