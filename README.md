@@ -103,6 +103,18 @@ See the complete [Installation Guide](INSTALLATION_GUIDE.md) for step-by-step in
 
 ---
 
+## 🗺️ Future Roadmap & Technical Backlog
+
+See the comprehensive **[Engineering Roadmap & Technical TODO Specification](TODO.md)** for detailed implementation breakdowns, difficulty scores, and time estimates for future milestones:
+- **TODO-01:** Factory Reset & "Burn / Wipe" Data Function (Total User Sovereignty)
+- **TODO-02:** Multi-Language Support (Arabic RTL, English, Spanish, French, Hindi)
+- **TODO-03:** Lock Screen Glance & Under-Clock Live Widgets
+- **TODO-04:** Edge Panel & Dynamic Quick Settings Tile Service
+- **TODO-05:** UI/UX Visual Polish & OLED True-Black Theme ("Improving Your Eye")
+- **TODO-06:** Exhaustive QA/QC Pipeline (Doze Mode, Timezone Shifts, Drug Fuzzing)
+
+---
+
 ## 🛠️ Verification & Test Suite
 
 ```powershell
