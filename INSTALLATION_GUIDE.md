@@ -1,9 +1,9 @@
-# MediSync v1.8.14 — Installation & Deployment Guide
+# MediSync v1.8.15 — Installation & Deployment Guide
 
-Welcome to the definitive deployment and installation guide for **MediSync** (Production Release `v1.8.14+33`).
+Welcome to the definitive deployment and installation guide for **MediSync** (Production Release `v1.8.15+34`).
 
 ### 📥 1-Click Direct Download
-👉 **[Download MediSync v1.8.14 Release APK (medisync-v1.8.14-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.14/medisync-v1.8.14-release.apk)**
+👉 **[Download MediSync v1.8.15 Release APK (medisync-v1.8.15-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.15/medisync-v1.8.15-release.apk)**
 
 ---
 
@@ -23,7 +23,7 @@ Welcome to the definitive deployment and installation guide for **MediSync** (Pr
 1. **Download the APK:**
    - Tap the download link above or download from the [GitHub Releases](https://github.com/Abdalaziz-Badawi/MediSync/releases).
    - Alternatively, locate the compiled APK in your workspace:
-     `build/app/outputs/flutter-apk/medisync-v1.8.14-release.apk` (or `app-release.apk`).
+     `build/app/outputs/flutter-apk/medisync-v1.8.15-release.apk` (or `app-release.apk`).
 2. **Install the APK:**
    - Open your browser's downloaded files or tap the APK in **My Files** / **Files**.
    - If prompted with *"Install unknown apps"*, toggle **Allow from this source**.

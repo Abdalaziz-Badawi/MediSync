@@ -1,6 +1,6 @@
 # MediSync
 
-[![Version](https://img.shields.io/badge/version-1.8.14--gold-teal.svg)](pubspec.yaml)
+[![Version](https://img.shields.io/badge/version-1.8.15--gold-teal.svg)](pubspec.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform: Android](https://img.shields.io/badge/platform-Android-green.svg)](android)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B.svg)](https://flutter.dev)
@@ -9,7 +9,7 @@
 
 ### 📥 Direct APK Download
 Ready-to-install Android release package for immediate sideloading:
-👉 **[Download MediSync v1.8.14 Release APK (medisync-v1.8.14-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.14/medisync-v1.8.14-release.apk)**
+👉 **[Download MediSync v1.8.15 Release APK (medisync-v1.8.15-release.apk)](https://github.com/Abdalaziz-Badawi/MediSync/releases/download/v1.8.15/medisync-v1.8.15-release.apk)**
 
 All historical and current releases are available on the [GitHub Releases Page](https://github.com/Abdalaziz-Badawi/MediSync/releases).
 

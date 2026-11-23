@@ -3187,7 +3187,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'v1.8.14',
+                                'v1.8.15',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primary),
                               ),
                             ),
@@ -3599,7 +3599,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MediSync Production Architecture (v1.8.14):',
+                'MediSync Production Architecture (v1.8.15):',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary(ctx)),
               ),
               const SizedBox(height: 10),
@@ -3668,7 +3668,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               showLicensePage(
                 context: context,
                 applicationName: 'MediSync',
-                applicationVersion: 'v1.8.14+33',
+                applicationVersion: 'v1.8.15+34',
                 applicationLegalese: 'Copyright © 2026 Abdalaziz Adil Badawi Mohamed.\nAll rights reserved.\nLicensed under MIT License.',
               );
             },

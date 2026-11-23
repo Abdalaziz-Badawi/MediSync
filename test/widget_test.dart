@@ -40,31 +40,33 @@ class FakeProfileNotifier extends StateNotifier<UserProfile>
 // Test mock notifier for medications
 class FakeMedicationsNotifier extends StateNotifier<List<Medication>>
     implements MedicationsNotifier {
-  FakeMedicationsNotifier()
-      : super([
-          Medication(
-            id: 'test-1',
-            name: 'Metformin',
-            dosage: '500 mg',
-            timesPerDay: 1,
-            scheduledTimes: ['23:59'],
-            startDate: DateTime.now(),
-            preConditions: const [
-              MedicationCondition(
-                type: ConditionType.meal,
-                timing: ConditionTiming.before,
-                description: 'Take with food to prevent upset stomach',
-              ),
-            ],
-            sideEffects: const [
-              SideEffect(
-                type: SideEffectType.stomachUpset,
-                description: 'Stomach irritation',
-                scheduleHint: ScheduleHint.scheduleAfterMeal,
-              ),
-            ],
-          ),
-        ]);
+  FakeMedicationsNotifier([List<Medication>? initialList])
+      : super(
+          initialList ?? [
+            Medication(
+              id: 'test-1',
+              name: 'Metformin',
+              dosage: '500 mg',
+              timesPerDay: 1,
+              scheduledTimes: ['23:59'],
+              startDate: DateTime.now(),
+              preConditions: const [
+                MedicationCondition(
+                  type: ConditionType.meal,
+                  timing: ConditionTiming.before,
+                  description: 'Take with food to prevent upset stomach',
+                ),
+              ],
+              sideEffects: const [
+                SideEffect(
+                  type: SideEffectType.stomachUpset,
+                  description: 'Stomach irritation',
+                  scheduleHint: ScheduleHint.scheduleAfterMeal,
+                ),
+              ],
+            ),
+          ],
+        );
 
   @override
   Future<void> addOrUpdate(Medication med) async {
@@ -477,5 +479,52 @@ void main() {
         expect(find.textContaining('locked and cannot be logged ahead of time.'), findsOneWidget);
       }
     }
+  });
+
+  testWidgets('HomePage renders flawlessly when only as-needed (PRN) medications exist with 0 scheduled doses',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final prnMed = Medication(
+      id: 'prn-naproxen-1',
+      name: 'Naproxen',
+      dosage: '500 mg',
+      timesPerDay: 2,
+      scheduledTimes: const [],
+      startDate: DateTime.now(),
+      scheduleFrequency: ScheduleFrequency.asNeeded,
+      form: MedicationForm.pill,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          profileNotifierProvider.overrideWith((ref) => FakeProfileNotifier()),
+          medicationsNotifierProvider.overrideWith(
+            (ref) => FakeMedicationsNotifier([prnMed]),
+          ),
+        ],
+        child: const MaterialApp(
+          home: HomePage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify HomePage renders without any unhandled exceptions
+    expect(find.byType(HomePage), findsOneWidget);
+
+    // Verify the hero card displays the PRN status
+    expect(find.text('As-needed (PRN) medication available to take below.'), findsOneWidget);
+
+    // Drag up to reveal the rest of the list
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    // Verify PRN section and medication are rendered
+    expect(find.text('As-Needed (PRN) Medications'), findsOneWidget);
+    expect(find.text('Naproxen'), findsWidgets);
   });
 }

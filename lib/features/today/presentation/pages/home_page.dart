@@ -2336,6 +2336,24 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     // Default status summary when no next pending dose or not today
+    final String summaryText;
+    final IconData summaryIcon;
+
+    if (totalDoses == 0) {
+      summaryIcon = Icons.bedtime_rounded;
+      summaryText = 'No medications scheduled for this day.';
+    } else if (nextPendingDose != null) {
+      summaryIcon = Icons.alarm_rounded;
+      summaryText =
+          'Next Due: ${nextPendingDose.medication.name} (${nextPendingDose.medication.dosage}) at ${nextPendingDose.time}';
+    } else if (pendingCount == 0) {
+      summaryIcon = Icons.stars_rounded;
+      summaryText = 'Outstanding! All scheduled doses completed for today.';
+    } else {
+      summaryIcon = Icons.healing_rounded;
+      summaryText = 'As-needed (PRN) medication available to take below.';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -2345,22 +2363,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       child: Row(
         children: [
           Icon(
-            totalDoses == 0
-                ? Icons.bedtime_rounded
-                : (pendingCount == 0
-                    ? Icons.stars_rounded
-                    : Icons.alarm_rounded),
+            summaryIcon,
             color: Colors.white.withValues(alpha: 0.95),
             size: 18,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              totalDoses == 0
-                  ? 'No medications scheduled for this day.'
-                  : (pendingCount == 0
-                      ? 'Outstanding! All scheduled doses completed for today.'
-                      : 'Next Due: ${nextPendingDose!.medication.name} (${nextPendingDose.medication.dosage}) at ${nextPendingDose.time}'),
+              summaryText,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.95),
                 fontSize: 12.5,
